@@ -1,0 +1,419 @@
+@import url('https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=Tajawal:wght@400;500;700;800;900&display=swap');
+
+:root {
+  --font-sans: 'Tajawal', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-calligraphy: 'Amiri', serif, 'Tajawal';
+  
+  /* الهوية اللونية الأساسية: الأزرق الملكي الراقي */
+  --royal-blue-950: #0f172a;
+  --royal-blue-900: #1e3a8a;
+  --royal-blue-800: #1e40af;
+  --royal-blue-700: #1d4ed8;
+  --royal-blue-600: #2563eb;
+  --royal-blue-100: #dbeafe;
+  --royal-blue-50: #eff6ff;
+
+  /* الهوية اللونية الثانوية: التدرج الذهبي المتناغم */
+  --gold-primary: #c4973b;
+  --gold-dark: #92691f;
+  --gold-deep: #785317;
+  --gold-light: #dfb965;
+  --gold-soft: #fcf8ee;
+  --gold-border: rgba(196, 151, 59, 0.35);
+
+  /* الألوان الهيكلية والخلفيات */
+  --color-primary: var(--royal-blue-900);
+  --color-primary-dark: var(--royal-blue-950);
+  --color-primary-light: var(--royal-blue-50);
+  
+  --color-accent: var(--gold-primary);
+  --color-accent-gold: var(--gold-dark);
+  --color-accent-light: var(--gold-soft);
+  
+  --color-surface: #ffffff;
+  --color-surface-subtle: #faf8f5;
+  --color-bg: #f9f8f5;
+  --color-border: #e8e3d9;
+  --color-text-main: #0f172a;
+  --color-text-muted: #64748b;
+
+  /* أنصاف أقطار وظلال */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-2xl: 24px;
+
+  --shadow-card: 0 1px 3px rgba(15, 23, 42, 0.05), 0 1px 2px rgba(15, 23, 42, 0.03);
+  --shadow-card-hover: 0 10px 25px -5px rgba(30, 58, 138, 0.08), 0 8px 10px -6px rgba(30, 58, 138, 0.04);
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-sans);
+  direction: rtl;
+  text-align: right;
+  background-color: var(--color-bg);
+  color: var(--color-text-main);
+  margin: 0;
+  padding: 0;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* خلفية شاشة تسجيل الدخول: انسيابية مع نمط هندسي إسلامي دقيق وهالة زرقاء ملكية وذهبية */
+.islamic-bg-soft {
+  background-color: #f8fafc;
+  background-image: 
+    radial-gradient(circle at 50% 10%, rgba(30, 58, 138, 0.06) 0%, transparent 60%),
+    radial-gradient(circle at 90% 90%, rgba(196, 151, 59, 0.05) 0%, transparent 50%),
+    radial-gradient(circle at 10% 90%, rgba(30, 58, 138, 0.035) 0%, transparent 50%),
+    url("data:image/svg+xml,%3Csvg width='48' height='48' viewBox='0 0 48 48' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M24 0L48 24L24 48L0 24z' fill='none' stroke='%231e3a8a' stroke-width='0.8' stroke-opacity='0.035'/%3E%3Ccircle cx='24' cy='24' r='7' fill='none' stroke='%23c4973b' stroke-width='0.7' stroke-opacity='0.035'/%3E%3C/svg%3E");
+  background-attachment: fixed;
+}
+
+@keyframes cardShake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-6px); }
+  40%, 80% { transform: translateX(6px); }
+}
+
+.shake-card {
+  animation: cardShake 0.45s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+@keyframes cardFadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in-card {
+  animation: cardFadeInUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* خلفية التطبيق العامة المتناغمة */
+.site-pattern-bg {
+  background-color: var(--color-bg);
+  background-image: 
+    radial-gradient(circle at 50% 0%, rgba(30, 58, 138, 0.03) 0%, transparent 60%),
+    radial-gradient(circle at 100% 50%, rgba(196, 151, 59, 0.025) 0%, transparent 55%),
+    radial-gradient(circle at 0% 100%, rgba(30, 58, 138, 0.02) 0%, transparent 50%);
+  background-attachment: fixed;
+}
+
+/* بنية البطاقات وتأثيراتها */
+.card {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-card);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), 
+              border-color 0.2s ease, 
+              box-shadow 0.2s ease;
+}
+
+.card:hover {
+  box-shadow: var(--shadow-card-hover);
+}
+
+/* أرقام واضحة ومقروءة */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+/* الهيدر العلوي */
+header.sticky {
+  border-bottom: 1px solid rgba(232, 227, 217, 0.9);
+  background-color: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(8px);
+}
+
+/* الإشعارات العلوية (Toasts) */
+#toast-container {
+  position: fixed;
+  top: 1.25rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  pointer-events: none;
+  width: 90%;
+  max-width: 400px;
+}
+
+.toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.875rem 1.125rem;
+  border-radius: var(--radius-md);
+  font-size: 0.85rem;
+  font-weight: 600;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.12);
+  animation: toast-in 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.toast-content {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+.toast-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  flex-shrink: 0;
+}
+
+.toast-close {
+  background: transparent;
+  border: none;
+  font-size: 1.25rem;
+  line-height: 1;
+  color: inherit;
+  opacity: 0.6;
+  cursor: pointer;
+  padding: 0 0.25rem;
+  margin-right: 0.5rem;
+  transition: opacity 0.15s ease;
+}
+
+.toast-close:hover {
+  opacity: 1;
+}
+
+.toast-success {
+  background-color: #f0fdf4;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+}
+
+.toast-error {
+  background-color: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+.toast-info {
+  background-color: var(--royal-blue-50);
+  color: var(--royal-blue-900);
+  border: 1px solid var(--royal-blue-100);
+}
+
+.toast-fade-out {
+  opacity: 0;
+  transform: translateY(-8px);
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* النوافذ المنبثقة (Modals) */
+.hidden,
+[hidden],
+.modal-overlay.hidden,
+.modal-overlay[hidden] {
+  display: none !important;
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background-color: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(5px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+}
+
+.modal-overlay.active {
+  display: flex !important;
+}
+
+.modal-dialog {
+  background: var(--color-surface);
+  border-radius: var(--radius-2xl);
+  border: 1px solid var(--gold-border);
+  max-width: 620px;
+  width: 100%;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 25px 40px -10px rgba(15, 23, 42, 0.2), 0 0 0 1px rgba(196, 151, 59, 0.15);
+  animation: modal-pop 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes modal-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* تحسين مساحات النقر للهواتف والملمس */
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* تحسين خانات الاختيار */
+.subtask-checkbox:focus-visible {
+  outline: 2px solid var(--royal-blue-900);
+  outline-offset: 2px;
+}
+
+/* التقويم الزمني لجلسات التحضير */
+.cal-day-btn {
+  user-select: none;
+  touch-action: manipulation;
+}
+.cal-day-btn:active {
+  transform: scale(0.96);
+}
+
+/* أزرار التحضير الهادئة */
+.att-action-btn {
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.att-action-btn:hover {
+  transform: translateY(-1px);
+}
+.att-action-btn:active {
+  transform: translateY(0) scale(0.97);
+}
+
+/* شرائط التمرير الناعمة */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.25);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(30, 58, 138, 0.4);
+}
+
+/* حقول تسجيل الدخول وحلقة التركيز المخصصة */
+input, button, select, textarea {
+  font-family: inherit;
+}
+
+.login-input {
+  border: 1.5px solid #cbd5e1 !important;
+  font-family: inherit !important;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.login-input::placeholder,
+input::placeholder {
+  direction: rtl !important;
+  text-align: right !important;
+  font-family: inherit !important;
+  color: #94a3b8 !important;
+  opacity: 1;
+}
+
+.login-input:focus,
+.login-input:focus-visible {
+  border-color: #1e3a8a !important;
+  box-shadow: 0 0 0 4px rgba(30, 58, 138, 0.12) !important;
+  outline: none !important;
+}
+
+/* Print optimization for official Leaderboard PDF */
+@media print {
+  body > *:not(#leaderboard-pdf-modal),
+  header,
+  nav,
+  #app-root,
+  .modal-overlay:not(#leaderboard-pdf-modal) {
+    display: none !important;
+  }
+
+  #leaderboard-pdf-modal {
+    position: static !important;
+    display: block !important;
+    background: #ffffff !important;
+    width: 100% !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    box-shadow: none !important;
+    inset: auto !important;
+  }
+
+  #leaderboard-pdf-modal .modal-dialog {
+    max-width: 100% !important;
+    max-height: none !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    border: none !important;
+    overflow: visible !important;
+  }
+
+  #leaderboard-pdf-modal .modal-dialog > div:first-child {
+    display: none !important;
+  }
+
+  #leaderboard-pdf-modal .modal-dialog > div:nth-child(2) {
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: visible !important;
+  }
+
+  #leaderboard-pdf-paper {
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  @page {
+    size: A4 portrait;
+    margin: 12mm 10mm 12mm 10mm;
+  }
+}
+
