@@ -1,22 +1,22 @@
 #!/usr/bin/env python3
-"""يولّد كل أيقونات الموقع من الشعار الرسمي branding/taaheel-logo.svg
+"""يولّد كل أيقونات الموقع من الشعار الرسمي branding/taaheel-logo.png
 الاستخدام: python3 tools/generate-icons.py
-يحتاج: rsvg-convert (apt install librsvg2-bin) و Pillow و numpy
+يحتاج: Pillow و numpy فقط (لا حاجة لـ rsvg-convert بعد الآن، الشعار الرسمي صورة PNG شفافة)
+
+بعد توليد الأيقونات، إن تغيّر الشعار الرسمي، يجب أيضاً تحديث الثابت
+OFFICIAL_TAHEEL_LOGO_DATA_URL في js/logo.js يدوياً (base64 لنسخة مصغّرة من نفس
+الملف) حتى يظهر الشعار الجديد داخل الواجهة وتقارير PDF، وليس فقط كأيقونة.
 """
-import subprocess
 from pathlib import Path
 import numpy as np
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parent.parent
-SVG = ROOT / "branding" / "taaheel-logo.svg"
+MASTER = ROOT / "branding" / "taaheel-logo.png"
 ICONS = ROOT / "public" / "icons"
 ICONS.mkdir(parents=True, exist_ok=True)
 
-RENDER = ROOT / ".icon-render.png"
-# نرسم السفج بدقة عالية مرة واحدة (مع شفافية) ثم نولّد الأحجام كلها منها
-subprocess.run(["rsvg-convert", "-w", "1024", "-h", "1024", str(SVG), "-o", str(RENDER)], check=True)
-logo = Image.open(RENDER).convert("RGBA")
+logo = Image.open(MASTER).convert("RGBA")
 
 alpha = np.array(logo)[..., 3]
 ys, xs = np.where(alpha > 10)
@@ -34,6 +34,9 @@ def compose(size, fill_ratio=None, radius_ratio=None):
     else:
         scale = (size * fill_ratio) / logo.height
     w, h = max(1, round(logo.width * scale)), max(1, round(logo.height * scale))
+    if w > size * 0.98 and radius_ratio is None:
+        w = int(size * 0.98)
+        h = max(1, round(logo.height * w / logo.width))
     img = logo.resize((w, h), Image.LANCZOS)
     canvas = Image.new("RGBA", (size, size), (255, 255, 255, 255))
     canvas.alpha_composite(img, ((size - w) // 2, (size - h) // 2))
@@ -43,13 +46,14 @@ def save(name, img):
     img.save(ICONS / name, optimize=True)
     print("✔", name, img.size)
 
-save("icon-512.png", compose(512, fill_ratio=0.94))
-save("icon-192.png", compose(192, fill_ratio=0.94))
-save("icon-maskable-512.png", compose(512, radius_ratio=0.36))
-save("icon-maskable-192.png", compose(192, radius_ratio=0.36))
+save("icon-512.png", compose(512, fill_ratio=0.92))
+save("icon-192.png", compose(192, fill_ratio=0.92))
+save("icon-maskable-512.png", compose(512, radius_ratio=0.40))
+save("icon-maskable-192.png", compose(192, radius_ratio=0.40))
 save("apple-touch-icon.png", compose(180, fill_ratio=0.90))
+# أيقونات التبويب الصغيرة: الشعار كاملاً مصغّراً (وضوح النص غير مضمون تحت 32px،
+# لكن الشارة الدائرية بألوانها تبقى مميزة حتى بحجم 16px)
 fav = {s: compose(s, fill_ratio=0.98) for s in (16, 32, 48)}
 save("favicon-16.png", fav[16]); save("favicon-32.png", fav[32]); save("favicon-48.png", fav[48])
 fav[48].save(ROOT / "public" / "favicon.ico", sizes=[(16, 16), (32, 32), (48, 48)])
 print("✔ favicon.ico")
-RENDER.unlink(missing_ok=True)

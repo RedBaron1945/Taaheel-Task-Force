@@ -13,7 +13,7 @@
 │   ├── icons/                  # أيقونات التبويب والتثبيت على الهاتف (مولّدة من الشعار)
 │   ├── manifest.webmanifest    # إعدادات تطبيق الويب التقدمي (PWA)
 │   └── robots.txt              # يمنع فهرسة محركات البحث (المنصة تحوي بيانات طلاب)
-├── branding/taaheel-logo.svg   # الشعار الرسمي (المصدر الوحيد لكل الأيقونات)
+├── branding/taaheel-logo.png   # الشعار الرسمي (المصدر الوحيد لكل الأيقونات)
 ├── tools/generate-icons.py     # يعيد توليد الأيقونات من الشعار الرسمي
 ├── .github/workflows/deploy.yml# نشر تلقائي على GitHub Pages
 ├── firestore.rules             # قواعد الأمان لقاعدة البيانات
@@ -26,13 +26,16 @@
 
 ## 🖼️ الشعار والأيقونات
 
-الشعار الرسمي هو الشارة المعرّفة داخل `js/logo.js` (OFFICIAL_TAHEEL_LOGO_SVG)، وهو نفسه المحفوظ كملف مستقل في `branding/taaheel-logo.svg` ومنه تُولَّد كل الأيقونات (تبويب المتصفح، أيقونة آيفون، أيقونات التثبيت على أندرويد بنوعيها العادي والقابل للقص). عند تغيير الشعار حدّث `js/logo.js` ثم انسخ محتوى SVG إلى `branding/taaheel-logo.svg` وشغّل:
+الشعار الرسمي هو الملف `branding/taaheel-logo.png` (صورة PNG شفافة الخلفية)، ومنه تُولَّد كل الأيقونات (تبويب المتصفح، أيقونة آيفون، أيقونات التثبيت على أندرويد بنوعيها العادي والقابل للقص/maskable). نسخة مصغّرة منه مُضمَّنة أيضاً داخل `js/logo.js` كـ base64 (الثابت `OFFICIAL_TAHEEL_LOGO_DATA_URL`) لتظهر داخل واجهة التطبيق وتقارير PDF دون طلب شبكة إضافي.
 
-```bash
-sudo apt install librsvg2-bin   # مرة واحدة فقط
-pip install pillow numpy
-python3 tools/generate-icons.py
-```
+عند تغيير الشعار:
+1. استبدل `branding/taaheel-logo.png` بالملف الجديد (PNG بخلفية شفافة، يُفضَّل أبعاد مربّعة تقريباً).
+2. أعد توليد الأيقونات:
+   ```bash
+   pip install pillow numpy
+   python3 tools/generate-icons.py
+   ```
+3. حدّث يدوياً الثابت `OFFICIAL_TAHEEL_LOGO_DATA_URL` في `js/logo.js` بنسخة base64 لنسخة مصغّرة (~500px) من نفس الشعار الجديد.
 
 ---
 
