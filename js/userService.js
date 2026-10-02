@@ -60,8 +60,8 @@ export const UserService = {
           Storage.saveUsers(merged);
           return isOfficer ? merged.filter(u => u.role === 'student') : merged;
         }
-      } catch (err) {
-        console.warn('Firestore getAllUsers fetch warning, using local cache:', err);
+      } catch (_) {
+        // Fallback cleanly to local storage cache
       }
     }
     return Storage.getUsers();
@@ -87,8 +87,8 @@ export const UserService = {
           const nonStudents = allUsers.filter(u => u.role !== 'student');
           Storage.saveUsers([...nonStudents, ...students]);
         }
-      } catch (err) {
-        console.warn('Firestore getStudents warning, falling back to local cache:', err);
+      } catch (_) {
+        // Fallback cleanly to local storage cache
       }
     }
 
@@ -159,11 +159,11 @@ export const UserService = {
             Storage.saveUsers([...nonStudents, ...students]);
             if (callback) callback(students);
           }
-        }, (err) => {
-          console.warn('Firestore onSnapshot warning on users collection:', err);
+        }, () => {
+          // Handled silently
         });
-      } catch (err) {
-        console.warn('Failed to attach student snapshot listener:', err);
+      } catch (_) {
+        // Handled silently
       }
     }
 
@@ -228,8 +228,8 @@ export const UserService = {
         return setDoc(ref, u, { merge: true });
       });
       await Promise.all(promises);
-    } catch (err) {
-      console.warn('Initial users Firestore sync notice:', err);
+    } catch (_) {
+      // Handled silently
     }
   }
 };

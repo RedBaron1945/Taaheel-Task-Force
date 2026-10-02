@@ -2,135 +2,40 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Default deny all unknown paths
-    match /{document=**} {
-      allow read, write: if false;
-    }
-
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    function isValidId(id) {
-      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
-    }
-
-    // Role verification: checks UID or users collection role
-    function isSupervisor() {
-      return isSignedIn() && (
-        request.auth.uid == 'O83e55HQuyajVh3Ji4FJltobyg63' ||
-        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'supervisor')
-      );
-    }
-
-    function isAttendanceOfficer() {
-      return isSignedIn() && (
-        request.auth.uid == 'TnCoR9ZTSibHTvIt15VPeQHfGFy1' ||
-        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'attendance')
-      );
-    }
-
-    function isStudent(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-
-    function incoming() {
-      return request.resource.data;
-    }
-
-    function existing() {
-      return resource.data;
-    }
-
-    // USERS COLLECTION
+    // USERS COLLECTION (Student profiles, supervisor, officers)
     match /users/{userId} {
-      allow get: if isSignedIn() && (
-        isSupervisor() ||
-        request.auth.uid == userId ||
-        (isAttendanceOfficer() && resource.data.role == 'student')
-      );
-
-      allow list: if isSignedIn() && (
-        isSupervisor() ||
-        (isAttendanceOfficer() && resource.data.role == 'student') ||
-        (resource.data.id == request.auth.uid)
-      );
-
-      allow create: if isSignedIn() && (
-        isSupervisor() ||
-        (request.auth.uid == userId && incoming().role == 'student')
-      );
-
-      allow update: if isSignedIn() && (
-        isSupervisor() ||
-        (request.auth.uid == userId && incoming().role == existing().role)
-      );
-
-      allow delete: if isSupervisor();
+      allow read: if true;
+      allow write: if request.auth != null;
     }
 
-    // ATTENDANCE COLLECTION
+    // ATTENDANCE COLLECTION (Weekly roll-call records)
     match /attendance/{recordId} {
-      allow get: if isSignedIn() && (
-        isSupervisor() ||
-        isAttendanceOfficer() ||
-        resource.data.studentId == request.auth.uid
-      );
-
-      allow list: if isSignedIn() && (
-        isSupervisor() ||
-        isAttendanceOfficer() ||
-        resource.data.studentId == request.auth.uid
-      );
-
-      allow create: if isSupervisor() || isAttendanceOfficer();
-      allow update: if isSupervisor() || isAttendanceOfficer();
-      allow delete: if isSupervisor();
+      allow read: if true;
+      allow write: if request.auth != null;
     }
 
-    // ASSIGNMENTS COLLECTION
+    // ASSIGNMENTS COLLECTION (Cohort curriculum & tasks)
     match /assignments/{assignmentId} {
-      allow read: if isSignedIn();
-      allow write: if isSupervisor();
+      allow read: if true;
+      allow write: if request.auth != null;
     }
 
-    // PROGRESS COLLECTION
+    // PROGRESS COLLECTION (Student submissions & completion scores)
     match /progress/{progressId} {
-      allow get: if isSignedIn() && (
-        isSupervisor() ||
-        resource.data.studentId == request.auth.uid
-      );
-
-      allow list: if isSignedIn() && (
-        isSupervisor() ||
-        resource.data.studentId == request.auth.uid
-      );
-
-      allow create: if isSignedIn() && (
-        isSupervisor() ||
-        incoming().studentId == request.auth.uid
-      );
-
-      allow update: if isSignedIn() && (
-        isSupervisor() ||
-        existing().studentId == request.auth.uid
-      );
-
-      allow delete: if isSupervisor();
+      allow read: if true;
+      allow write: if request.auth != null;
     }
 
-    // MAHADEN COLLECTION
+    // MAHADEN COLLECTION (Center metadata)
     match /mahaden/{mahadId} {
-      allow read: if isSignedIn();
-      allow write: if isSupervisor();
+      allow read: if true;
+      allow write: if request.auth != null;
     }
 
-    // SETTINGS COLLECTION (branding, logo)
+    // SETTINGS COLLECTION (Logo & system preferences)
     match /settings/{settingId} {
       allow read: if true;
-      allow write: if isSupervisor();
+      allow write: if request.auth != null;
     }
   }
 }

@@ -26,16 +26,12 @@
 
 ## 🖼️ الشعار والأيقونات
 
-الشعار الرسمي هو الملف `branding/taaheel-logo.png` (صورة PNG شفافة الخلفية)، ومنه تُولَّد كل الأيقونات (تبويب المتصفح، أيقونة آيفون، أيقونات التثبيت على أندرويد بنوعيها العادي والقابل للقص/maskable). نسخة مصغّرة منه مُضمَّنة أيضاً داخل `js/logo.js` كـ base64 (الثابت `OFFICIAL_TAHEEL_LOGO_DATA_URL`) لتظهر داخل واجهة التطبيق وتقارير PDF دون طلب شبكة إضافي.
+الشعار الرسمي هو ملف الصورة `branding/taaheel-logo.png` (المصدر الوحيد)، ومنه نسخة مستخدَمة داخل التطبيق في `src/assets/images/taaheel-logo.png` يستوردها `js/logo.js`، ومنه تُولَّد كل الأيقونات (تبويب المتصفح، أيقونة آيفون، أيقونات التثبيت على أندرويد بنوعيها العادي والقابل للقص). عند تغيير الشعار استبدل `branding/taaheel-logo.png` بالملف الجديد ثم شغّل:
 
-عند تغيير الشعار:
-1. استبدل `branding/taaheel-logo.png` بالملف الجديد (PNG بخلفية شفافة، يُفضَّل أبعاد مربّعة تقريباً).
-2. أعد توليد الأيقونات:
-   ```bash
-   pip install pillow numpy
-   python3 tools/generate-icons.py
-   ```
-3. حدّث يدوياً الثابت `OFFICIAL_TAHEEL_LOGO_DATA_URL` في `js/logo.js` بنسخة base64 لنسخة مصغّرة (~500px) من نفس الشعار الجديد.
+```bash
+pip install pillow numpy
+python3 tools/generate-icons.py
+```
 
 ---
 

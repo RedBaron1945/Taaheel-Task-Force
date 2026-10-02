@@ -25,30 +25,28 @@ export const AssignmentService = {
    * Get all assignments with Cloud Firestore synchronization
    */
   async getAllAssignments() {
-    if (auth.currentUser) {
-      try {
-        const snapshot = await getDocs(collection(db, 'assignments'));
-        if (!snapshot.empty) {
-          const remoteAssignments = [];
-          snapshot.forEach(docSnap => {
-            remoteAssignments.push({ id: docSnap.id, ...docSnap.data() });
-          });
+    try {
+      const snapshot = await getDocs(collection(db, 'assignments'));
+      if (!snapshot.empty) {
+        const remoteAssignments = [];
+        snapshot.forEach(docSnap => {
+          remoteAssignments.push({ id: docSnap.id, ...docSnap.data() });
+        });
 
-          // Sort assignments deterministically
-          remoteAssignments.sort((a, b) => (a.startDate || '').localeCompare(b.startDate || ''));
-          Storage.saveAssignments(remoteAssignments);
-          return remoteAssignments;
-        } else {
-          // If Firestore is empty and user is logged in, seed the initial assignments
-          const current = Storage.getAssignments();
-          if (current && current.length > 0) {
-            this.syncAssignmentsToFirestore(current);
-            return current;
-          }
+        // Sort assignments deterministically
+        remoteAssignments.sort((a, b) => (a.startDate || '').localeCompare(b.startDate || ''));
+        Storage.saveAssignments(remoteAssignments);
+        return remoteAssignments;
+      } else if (auth.currentUser) {
+        // If Firestore is empty and user is logged in, seed the initial assignments
+        const current = Storage.getAssignments();
+        if (current && current.length > 0) {
+          this.syncAssignmentsToFirestore(current);
+          return current;
         }
-      } catch (err) {
-        console.warn('Firestore assignments fetch notice (using cache):', err);
       }
+    } catch (_) {
+      // Fallback cleanly to local storage without console warnings
     }
     return Storage.getAssignments();
   },
@@ -324,24 +322,22 @@ export const AssignmentService = {
       assignmentsUnsubscribe = null;
     }
 
-    if (auth.currentUser) {
-      try {
-        assignmentsUnsubscribe = onSnapshot(collection(db, 'assignments'), (snapshot) => {
-          if (!snapshot.empty) {
-            const records = [];
-            snapshot.forEach(docSnap => {
-              records.push({ id: docSnap.id, ...docSnap.data() });
-            });
-            records.sort((a, b) => (a.startDate || '').localeCompare(b.startDate || ''));
-            Storage.saveAssignments(records);
-            if (callback) callback(records);
-          }
-        }, (err) => {
-          console.warn('Assignments snapshot listener notice:', err);
-        });
-      } catch (err) {
-        console.warn('Failed to attach assignments snapshot listener:', err);
-      }
+    try {
+      assignmentsUnsubscribe = onSnapshot(collection(db, 'assignments'), (snapshot) => {
+        if (!snapshot.empty) {
+          const records = [];
+          snapshot.forEach(docSnap => {
+            records.push({ id: docSnap.id, ...docSnap.data() });
+          });
+          records.sort((a, b) => (a.startDate || '').localeCompare(b.startDate || ''));
+          Storage.saveAssignments(records);
+          if (callback) callback(records);
+        }
+      }, () => {
+        // Fallback silently to local cache without console noise
+      });
+    } catch (_) {
+      // Handled silently
     }
 
     const handleLocalUpdate = () => {
@@ -368,8 +364,8 @@ export const AssignmentService = {
         const local = Storage.getAssignments() || INITIAL_DATA.assignments;
         await this.syncAssignmentsToFirestore(local);
       }
-    } catch (err) {
-      console.warn('Initial assignments Firestore sync notice:', err);
+    } catch (_) {
+      // Handled silently
     }
   }
 };

@@ -2,11 +2,12 @@
  * Attendance Officer View Controller for Platform «مرحلة التأهيل»
  * Attendance takes place exclusively on Sundays and Tuesdays.
  * Refined UX:
- * - Grouped by Mahad as clean section headers (eliminates badge repetition)
- * - Compact segmented icon buttons (matching image.png)
+ * - Instant 0ms optimistic UI updates for status toggles (present/excused/absent)
+ * - Grouped by Mahad as clean section headers
+ * - Compact segmented icon buttons
  * - Sticky search and multi-select toolbar
- * - Prominent "Remaining to attend" primary KPI with compact outcome distribution
- * - Auto-targets nearest valid attendance day without exaggerated warnings
+ * - Prominent "المتبقي" primary KPI
+ * - Lightweight, non-intrusive floating bottom bulk action bar with soft background
  */
 
 import { UserService } from './userService.js';
@@ -16,10 +17,12 @@ import { Utils } from './utils.js';
 export const AttendanceView = {
   selectedDate: null,
   selectedMahad: 'all',
+  statusFilter: 'all', // 'all' | 'unrecorded'
   searchQuery: '',
   selectedStudentIds: new Set(),
   currentCalendarYear: null,
   currentCalendarMonth: null, // 0-indexed (0 = Jan, 11 = Dec)
+  currentRecordsCache: new Map(), // studentId -> status
 
   /**
    * Auto-resolve the most logical attendance date:
@@ -81,7 +84,7 @@ export const AttendanceView = {
           <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             <div>
               <h2 class="text-xl sm:text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-                <span>نظام التحضير والتقويم الأسبوعي</span>
+                <span>رصد الحضور والتقويم الأسبوعي</span>
               </h2>
               <p class="text-xs text-blue-200/90 mt-1">
                 رصد حضور الجلسات المقررة يومي الأحد والثلاثاء لمرحلة التأهيل.
@@ -129,20 +132,21 @@ export const AttendanceView = {
           </div>
         </section>
 
-        <!-- Attendance Metrics Dashboard (Prioritizes "Remaining" as the primary action KPI) -->
+        <!-- Attendance Metrics Dashboard (Dedicated focus on Remaining) -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-3.5" id="att-counts-bar">
-          <!-- Primary Highlighted Card: المتبقي للتحضير -->
-          <div class="card p-4 rounded-2xl border-2 border-amber-300/80 bg-gradient-to-br from-white via-amber-50/30 to-amber-50/50 shadow-xs md:col-span-1 flex flex-col justify-between" id="att-card-remaining">
+          <!-- Primary Highlighted Card: المتبقي (Clickable Toggle) -->
+          <div class="card p-4 rounded-2xl border-2 border-amber-300/80 bg-gradient-to-br from-white via-amber-50/30 to-amber-50/50 shadow-xs md:col-span-1 flex flex-col justify-between cursor-pointer hover:border-amber-400 hover:shadow-md transition-all group select-none" id="att-card-remaining" title="انقر لعرض الطلاب المتبقين فقط أو عرض الكل">
             <div class="flex items-center justify-between">
               <span class="text-xs font-bold text-amber-950 flex items-center gap-1.5">
                 <span class="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse"></span>
-                <span>المتبقي للتحضير</span>
+                <span>المتبقي</span>
+                <span class="text-[10px] text-amber-800/80 font-normal group-hover:underline" id="att-filter-toggle-hint">(انقر للتصفية 🔍)</span>
               </span>
               <span class="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-white border border-amber-200 text-amber-900" id="att-progress-badge">—%</span>
             </div>
 
             <div class="my-2 flex items-baseline gap-2">
-              <span class="text-3xl font-black font-mono tabular-nums text-slate-900" id="att-count-remaining">—</span>
+              <span class="text-3xl font-black tabular-nums text-slate-900" id="att-count-remaining">—</span>
               <span class="text-xs text-stone-500 font-medium" id="att-count-total-label">طالب متبقي</span>
             </div>
 
@@ -151,53 +155,53 @@ export const AttendanceView = {
               <div class="w-full bg-stone-200 rounded-full h-2 overflow-hidden">
                 <div id="att-completion-progress-bar" class="h-full bg-gradient-to-l from-emerald-500 to-blue-700 transition-all duration-300 rounded-full" style="width: 0%"></div>
               </div>
-              <div class="flex items-center justify-between text-[10px] text-stone-500 font-mono">
-                <span id="att-recorded-label">0 مسجل</span>
+              <div class="flex items-center justify-between text-[10px] text-stone-500">
+                <span id="att-recorded-label">0 مكتمل</span>
                 <span id="att-total-label">54 إجمالي</span>
               </div>
             </div>
           </div>
 
-          <!-- Secondary Compact Summary Bar: الحاضرون / المعتذرون / الغائبون -->
+          <!-- Secondary Summary Display: الحالات المرصودة (Information only) -->
           <div class="card p-4 rounded-2xl border border-stone-200 bg-white shadow-xs md:col-span-2 flex flex-col justify-between space-y-3">
             <div class="flex items-center justify-between border-b border-stone-100 pb-2">
               <span class="text-xs font-bold text-slate-800">حالات الطلاب المرصودة اليوم</span>
-              <span class="text-[11px] text-stone-400 font-mono">تتحدث النتائج مباشرة</span>
+              <span class="text-[11px] text-stone-400">إحصائية فورية</span>
             </div>
 
             <div class="grid grid-cols-3 gap-2.5 text-center">
               <!-- Present -->
-              <div class="p-2.5 rounded-xl bg-emerald-50/80 border border-emerald-200/80 transition-all">
+              <div class="p-2.5 rounded-xl bg-emerald-50/80 border border-emerald-200/80">
                 <div class="flex items-center justify-center gap-1 text-[11px] text-emerald-800 font-bold mb-1">
                   <span class="w-2 h-2 rounded-full bg-emerald-600"></span>
                   <span>حاضر</span>
                 </div>
-                <div class="text-2xl font-black text-emerald-700 font-mono tabular-nums" id="att-count-present">0</div>
+                <div class="text-2xl font-black text-emerald-700 tabular-nums" id="att-count-present">0</div>
               </div>
 
               <!-- Excused -->
-              <div class="p-2.5 rounded-xl bg-amber-50/80 border border-amber-200/80 transition-all">
+              <div class="p-2.5 rounded-xl bg-amber-50/80 border border-amber-200/80">
                 <div class="flex items-center justify-center gap-1 text-[11px] text-amber-800 font-bold mb-1">
                   <span class="w-2 h-2 rounded-full bg-amber-500"></span>
                   <span>معتذر</span>
                 </div>
-                <div class="text-2xl font-black text-amber-700 font-mono tabular-nums" id="att-count-excused">0</div>
+                <div class="text-2xl font-black text-amber-700 tabular-nums" id="att-count-excused">0</div>
               </div>
 
               <!-- Absent -->
-              <div class="p-2.5 rounded-xl bg-rose-50/80 border border-rose-200/80 transition-all">
+              <div class="p-2.5 rounded-xl bg-rose-50/80 border border-rose-200/80">
                 <div class="flex items-center justify-center gap-1 text-[11px] text-rose-800 font-bold mb-1">
                   <span class="w-2 h-2 rounded-full bg-rose-600"></span>
                   <span>غائب</span>
                 </div>
-                <div class="text-2xl font-black text-rose-700 font-mono tabular-nums" id="att-count-absent">0</div>
+                <div class="text-2xl font-black text-rose-700 tabular-nums" id="att-count-absent">0</div>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- Search & Multi-Select Controls Toolbar (Normal flow) -->
-        <div class="card p-3.5 sm:p-4 rounded-2xl border border-stone-200 bg-white shadow-2xs space-y-2.5" id="att-controls-header">
+        <!-- Search & Multi-Select Controls Toolbar -->
+        <div class="card p-3.5 sm:p-4 rounded-2xl border border-stone-200 bg-white shadow-2xs space-y-3" id="att-controls-header">
           <!-- Live Search Bar -->
           <div class="relative w-full">
             <div class="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-stone-400">
@@ -215,8 +219,8 @@ export const AttendanceView = {
             ` : ''}
           </div>
 
-          <!-- Multi-Select & Batch Toolbar (Visually Distinct with Clear Separation) -->
-          <div class="flex items-center justify-between gap-2 flex-wrap pt-1">
+          <!-- Multi-Select & Batch Toolbar -->
+          <div class="flex items-center justify-between gap-2 flex-wrap pt-1 border-t border-stone-100">
             <div class="flex items-center gap-2">
               <button id="att-select-all-btn" type="button" class="px-3 py-1.5 rounded-xl border border-stone-200 bg-white hover:bg-stone-100 text-xs font-semibold text-slate-700 transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs">
                 <input type="checkbox" id="att-master-checkbox" class="rounded text-blue-900 focus:ring-blue-900/20 cursor-pointer pointer-events-none" />
@@ -227,91 +231,69 @@ export const AttendanceView = {
                 إلغاء التحديد (<span id="att-selected-count-badge">${this.selectedStudentIds.size}</span>)
               </button>
             </div>
-
-            <!-- Legend for Segmented Buttons -->
-            <div class="flex items-center gap-3 text-[11px] text-stone-500 font-medium">
-              <span class="flex items-center gap-1">
-                <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-                <span>حاضر (✓)</span>
-              </span>
-              <span class="flex items-center gap-1">
-                <span class="w-2 h-2 rounded-full bg-amber-500"></span>
-                <span>معتذر (⏱)</span>
-              </span>
-              <span class="flex items-center gap-1">
-                <span class="w-2 h-2 rounded-full bg-rose-500"></span>
-                <span>غائب (✕)</span>
-              </span>
-            </div>
           </div>
 
-          <!-- Bulk Actions Drawer (When Students Are Checked) -->
-          <div id="att-bulk-actions-bar" class="${this.selectedStudentIds.size > 0 ? 'flex' : 'hidden'} items-center justify-between gap-3 p-3 rounded-xl bg-slate-900 text-white border border-slate-700 shadow-md animate-in fade-in duration-150 flex-wrap">
-            <div class="flex items-center gap-2">
-              <div class="w-6 h-6 rounded-lg bg-blue-500/20 border border-blue-400/40 flex items-center justify-center text-blue-300 font-bold font-mono text-xs">
-                <span id="att-bulk-count">${this.selectedStudentIds.size}</span>
-              </div>
-              <span class="text-xs font-bold text-white">تطبيق حالة جماعية على المحددين:</span>
+          <!-- Floating Bottom Bulk Actions Bar (Elevated above mobile nav bar with z-50) -->
+          <div id="att-bulk-actions-bar" class="${this.selectedStudentIds.size > 0 ? 'flex' : 'hidden'} fixed bottom-16 sm:bottom-6 left-1/2 -translate-x-1/2 z-50 max-w-sm w-[calc(100%-1.5rem)] items-center justify-between gap-2 px-3.5 py-2.5 rounded-2xl bg-white/95 backdrop-blur-md border border-stone-300 shadow-xl shadow-slate-900/20 transition-all animate-in fade-in slide-in-from-bottom-2 duration-150">
+            <div class="flex items-center gap-1.5 shrink-0">
+              <span class="w-5 h-5 rounded-md bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-900 font-bold text-[11px] tabular-nums" id="att-bulk-count">${this.selectedStudentIds.size}</span>
+              <span class="text-[11px] font-bold text-slate-700">تطبيق:</span>
             </div>
 
-            <div class="flex items-center gap-2 flex-wrap">
-              <button id="bulk-btn-present" type="button" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 transition-all flex items-center gap-1 cursor-pointer active:scale-95 shadow-2xs">
-                <span>✓ تحضير (حاضر)</span>
+            <div class="flex items-center gap-1.5">
+              <button id="bulk-btn-present" type="button" class="px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-50 hover:bg-emerald-600 text-emerald-800 hover:text-white border border-emerald-200 transition-all flex items-center gap-1 cursor-pointer active:scale-95">
+                <span>✓ حاضر</span>
               </button>
-              <button id="bulk-btn-excused" type="button" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-400 hover:bg-amber-300 text-slate-950 transition-all flex items-center gap-1 cursor-pointer active:scale-95 shadow-2xs">
-                <span>⏱ تسجيل (معتذر)</span>
+              <button id="bulk-btn-excused" type="button" class="px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-50 hover:bg-amber-500 text-amber-800 hover:text-white border border-amber-200 transition-all flex items-center gap-1 cursor-pointer active:scale-95">
+                <span>⏱ معتذر</span>
               </button>
-              <button id="bulk-btn-absent" type="button" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-rose-500 hover:bg-rose-400 text-white transition-all flex items-center gap-1 cursor-pointer active:scale-95 shadow-2xs">
-                <span>✕ تسجيل (غائب)</span>
+              <button id="bulk-btn-absent" type="button" class="px-2.5 py-1 rounded-lg text-xs font-bold bg-rose-50 hover:bg-rose-600 text-rose-800 hover:text-white border border-rose-200 transition-all flex items-center gap-1 cursor-pointer active:scale-95">
+                <span>✕ غائب</span>
               </button>
             </div>
           </div>
         </div>
 
-        <!-- Main Roll Call Content (Grouped by Mahad) -->
-        <div id="att-rollcall-container" class="space-y-6">
-          <!-- Populated by renderQueue -->
+        <!-- Student Attendance List Container -->
+        <div id="att-rollcall-container" class="space-y-4 pb-28">
+          <div class="p-8 text-center text-stone-400">جاري تحميل كشف الطلاب...</div>
         </div>
       </div>
 
-      <!-- Comprehensive Calendar Picker Modal -->
-      <div id="attendance-calendar-modal" class="modal-overlay hidden" style="display: none;">
-        <div class="modal-dialog max-w-lg w-full bg-white rounded-2xl border border-amber-400/40 shadow-2xl overflow-hidden p-0 animate-in fade-in zoom-in-95 duration-150">
-          <div class="bg-gradient-to-l from-slate-950 via-blue-950 to-blue-900 text-white p-4 flex items-center justify-between border-b border-amber-500/30">
-            <div class="flex items-center gap-2.5">
-              <div class="w-8 h-8 rounded-lg bg-amber-500/20 border border-amber-400/40 flex items-center justify-center text-amber-300">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-              </div>
-              <div>
-                <h3 class="font-bold text-sm sm:text-base text-white">تقويم جلسات التحضير</h3>
-                <p class="text-[11px] text-blue-200">اختر أي يوم أحد أو ثلاثاء خلال مرحلة التأهيل</p>
-              </div>
+      <!-- Interactive Calendar Modal (Month Grid Picker for Sundays and Tuesdays) -->
+      <div id="attendance-calendar-modal" class="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs hidden items-center justify-center p-4">
+        <div class="w-full max-w-md bg-white rounded-3xl border border-stone-200 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+          <div class="p-4 bg-gradient-to-r from-blue-950 via-slate-900 to-blue-950 text-white flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+              <h3 class="font-bold text-sm sm:text-base text-white">تقويم الجلسات</h3>
             </div>
-            
-            <button id="cal-close-btn" type="button" class="text-white/70 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors">
+            <button id="cal-close-btn" type="button" class="text-white/70 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors cursor-pointer">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
           </div>
 
-          <div class="p-4 bg-stone-50 border-b border-stone-200 flex items-center justify-between">
-            <button id="cal-prev-month-btn" class="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white border border-stone-200 hover:bg-stone-100 text-xs font-bold text-slate-800 transition-colors cursor-pointer">
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-              <span>الشهر السابق</span>
-            </button>
+          <div class="p-4 sm:p-5 space-y-4">
+            <!-- Month & Year Navigation Header -->
+            <div class="flex items-center justify-between">
+              <button id="cal-prev-month-btn" type="button" class="p-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-slate-800 transition-colors cursor-pointer" title="الشهر السابق">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+              </button>
 
-            <div class="flex items-center gap-1.5 font-bold text-sm text-slate-900">
-              <span id="cal-month-label" class="text-blue-900">—</span>
-              <span id="cal-year-label" class="font-mono text-amber-800">—</span>
+              <div class="flex items-center gap-1.5 font-bold text-sm text-slate-900">
+                <span id="cal-month-label" class="text-blue-900">—</span>
+                <span id="cal-year-label" class="tabular-nums font-bold text-amber-800">—</span>
+              </div>
+
+              <button id="cal-next-month-btn" type="button" class="p-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-slate-800 transition-colors cursor-pointer" title="الشهر التالي">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+              </button>
             </div>
 
-            <button id="cal-next-month-btn" class="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white border border-stone-200 hover:bg-stone-100 text-xs font-bold text-slate-800 transition-colors cursor-pointer">
-              <span>الشهر التالي</span>
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
-            </button>
-          </div>
-
-          <div class="p-4" id="cal-grid-wrapper">
-            <!-- Populated by renderCalendarGrid -->
+            <!-- Calendar Days Grid Container -->
+            <div id="cal-grid-wrapper" class="min-h-[220px]">
+              <!-- Injected by renderCalendarGrid -->
+            </div>
           </div>
 
           <div class="p-3 bg-stone-50 border-t border-stone-200 flex items-center justify-between text-[11px] text-stone-600">
@@ -332,6 +314,15 @@ export const AttendanceView = {
         </div>
       </div>
     `;
+
+    // Hook KPI card click: Toggle 'المتبقي'
+    const cardRemaining = container.querySelector('#att-card-remaining');
+    if (cardRemaining) {
+      cardRemaining.addEventListener('click', () => {
+        this.statusFilter = this.statusFilter === 'unrecorded' ? 'all' : 'unrecorded';
+        this.renderQueue();
+      });
+    }
 
     // Hook calendar modal buttons
     this.hookCalendarControls(container);
@@ -391,22 +382,30 @@ export const AttendanceView = {
       });
     }
 
-    // Hook bulk attendance buttons
+    // Hook bulk attendance buttons with instant optimistic application
     const bindBulkBtn = (btnId, status, label) => {
       const btn = container.querySelector(btnId);
       if (btn) {
         btn.addEventListener('click', async () => {
           if (this.selectedStudentIds.size === 0) return;
           const ids = Array.from(this.selectedStudentIds);
+          
+          // 1. Instant 0ms Optimistic UI updates across all selected rows
+          ids.forEach(sid => {
+            this.applyOptimisticStudentStatus(sid, status);
+          });
+          Utils.showToast(`تم رصد ${ids.length} طالب بحالة: ${label}`, 'success', 1500);
+          this.selectedStudentIds.clear();
+          this.updateSelectionUI();
+
+          // 2. Persist in background
           try {
             for (const sid of ids) {
               await AttendanceService.recordAttendance(sid, this.selectedDate, status);
             }
-            Utils.showToast(`تم تحضير ${ids.length} طالب بحالة: ${label}`, 'success', 2000);
-            this.selectedStudentIds.clear();
-            await this.renderQueue();
           } catch (err) {
             Utils.showToast(err.message, 'error');
+            await this.renderQueue();
           }
         });
       }
@@ -420,7 +419,7 @@ export const AttendanceView = {
   },
 
   /**
-   * Update visual states of selection checkboxes and bulk actions bar
+   * Update visual states of selection checkboxes and floating bulk actions bar
    */
   updateSelectionUI() {
     const bulkBar = document.getElementById('att-bulk-actions-bar');
@@ -438,7 +437,7 @@ export const AttendanceView = {
       if (isSelected) checkedCount++;
 
       // Highlight card background if selected
-      const card = cb.closest('.rollcall-card') || cb.closest('.recorded-card');
+      const card = cb.closest('.rollcall-card');
       if (card) {
         if (isSelected) {
           card.classList.add('ring-2', 'ring-blue-600/40', 'bg-blue-50/50');
@@ -606,63 +605,57 @@ export const AttendanceView = {
     const allAttendance = await AttendanceService.getAllAttendance();
     const recordedDatesSet = new Set(allAttendance.map(a => a.date));
 
-    const firstDayIndex = new Date(year, month, 1).getDay();
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const weekDays = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+    // Calendar Calculations
+    const firstDayIndex = new Date(year, month, 1).getDay(); // 0 = Sun
+    const totalDays = new Date(year, month + 1, 0).getDate();
 
     let html = `
-      <div class="grid grid-cols-7 gap-1 text-center mb-2">
-        ${weekDays.map(name => {
-          const isAttDay = name === 'الأحد' || name === 'الثلاثاء';
-          return `
-            <div class="py-1 text-xs font-bold ${isAttDay ? 'text-blue-900 bg-blue-50/70 rounded-md border border-blue-200/50' : 'text-stone-400'}">
-              ${name}
-            </div>
-          `;
-        }).join('')}
+      <div class="grid grid-cols-7 gap-1.5 text-center text-xs font-bold text-stone-600 mb-2">
+        <span class="text-blue-900 bg-blue-50/70 py-1 rounded">أحد</span>
+        <span class="py-1">إثنين</span>
+        <span class="text-blue-900 bg-blue-50/70 py-1 rounded">ثلاثاء</span>
+        <span class="py-1">أربعاء</span>
+        <span class="py-1">خميس</span>
+        <span class="py-1 text-stone-400">جمعة</span>
+        <span class="py-1 text-stone-400">سبت</span>
       </div>
-
-      <div class="grid grid-cols-7 gap-1 text-center">
+      <div class="grid grid-cols-7 gap-1.5">
     `;
 
+    // Blank cells before month start
     for (let i = 0; i < firstDayIndex; i++) {
-      html += `<div class="p-2 opacity-15 text-stone-300 text-xs"></div>`;
+      html += `<div class="p-2 min-h-[46px] rounded-xl bg-stone-50/50 opacity-40"></div>`;
     }
 
-    const todayIso = new Date().toISOString().split('T')[0];
+    // Days in current month
+    const today = new Date();
+    const todayY = today.getFullYear();
+    const todayM = today.getMonth();
+    const todayD = today.getDate();
 
-    for (let dayNum = 1; dayNum <= daysInMonth; dayNum++) {
-      const dayDate = new Date(year, month, dayNum);
-      const dayOfWeek = dayDate.getDay();
-      const isSundayOrTuesday = dayOfWeek === 0 || dayOfWeek === 2;
+    for (let dayNum = 1; dayNum <= totalDays; dayNum++) {
+      const dateIso = `${year}-${String(month + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
+      const dayOfWeek = new Date(year, month, dayNum).getDay();
+      const isOfficialSession = (dayOfWeek === 0 || dayOfWeek === 2);
+      const isSelected = this.selectedDate === dateIso;
+      const isToday = (year === todayY && month === todayM && dayNum === todayD);
+      const hasRecords = recordedDatesSet.has(dateIso);
 
-      const mStr = String(month + 1).padStart(2, '0');
-      const dStr = String(dayNum).padStart(2, '0');
-      const iso = `${year}-${mStr}-${dStr}`;
-
-      const isSelected = this.selectedDate === iso;
-      const isToday = todayIso === iso;
-      const hasRecords = recordedDatesSet.has(iso);
-
-      if (isSundayOrTuesday) {
-        let bgClasses = 'bg-emerald-50 hover:bg-emerald-100 text-emerald-950 border border-emerald-300/70';
-        if (isSelected) {
-          bgClasses = 'bg-blue-900 text-white font-bold ring-2 ring-amber-400 border-blue-900 shadow-sm';
-        }
-
+      if (isOfficialSession) {
         html += `
           <button type="button" 
-                  class="cal-day-btn relative p-2 min-h-[46px] rounded-xl transition-all flex flex-col items-center justify-between cursor-pointer ${bgClasses}" 
-                  data-date="${iso}">
+                  data-date="${dateIso}"
+                  class="cal-day-btn p-1.5 sm:p-2 min-h-[48px] rounded-xl flex flex-col items-center justify-between transition-all cursor-pointer border ${isSelected ? 'bg-blue-900 text-white font-bold ring-2 ring-amber-400 border-transparent shadow-md' : 'bg-white hover:bg-amber-50 text-slate-900 border-amber-200/80 shadow-2xs'}" 
+                  title="${isOfficialSession ? 'جلسة معتمدة' : ''}">
             <div class="flex items-center justify-between w-full">
-              <span class="text-xs font-bold font-mono ${isSelected ? 'text-amber-300' : 'text-blue-950'}">${dayNum}</span>
+              <span class="text-xs font-bold ${isSelected ? 'text-amber-300' : 'text-blue-950'}">${dayNum}</span>
               ${isToday ? `<span class="w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-amber-300' : 'bg-red-500'}" title="اليوم"></span>` : '<span></span>'}
             </div>
 
             <div class="flex items-center gap-1 w-full justify-center">
               ${hasRecords ? `
                 <span class="text-[9px] font-bold px-1.5 rounded ${isSelected ? 'bg-white/20 text-white' : 'bg-emerald-200/90 text-emerald-900'}">
-                  مُسجّل ✓
+                  مكتمل ✓
                 </span>
               ` : `
                 <span class="text-[9px] font-semibold px-1 rounded ${isSelected ? 'text-blue-200' : 'text-stone-500'}">
@@ -675,7 +668,7 @@ export const AttendanceView = {
       } else {
         html += `
           <div class="p-2 min-h-[46px] rounded-xl bg-stone-50/50 text-stone-400 flex flex-col items-center justify-center opacity-40 select-none">
-            <span class="text-xs font-mono">${dayNum}</span>
+            <span class="text-xs">${dayNum}</span>
           </div>
         `;
       }
@@ -716,7 +709,6 @@ export const AttendanceView = {
       if (mahadMap.has(mId)) {
         mahadMap.get(mId).students.push(item);
       } else {
-        // Fallback for custom or unknown mahad
         if (!mahadMap.has('other')) {
           mahadMap.set('other', {
             mahad: { id: 'other', name: st.mahadName || 'المحضن', neighborhood: '' },
@@ -727,54 +719,90 @@ export const AttendanceView = {
       }
     });
 
-    // Return only groups that have students
     return Array.from(mahadMap.values()).filter(g => g.students.length > 0);
   },
 
   /**
-   * Render student queues grouped cleanly by Mahad
+   * Fast 0ms Optimistic status applicator for instantaneous icon color change
    */
-  async renderQueue() {
-    const container = document.getElementById('att-rollcall-container');
-    if (!container) return;
-
-    const mahaden = await UserService.getMahaden();
-    let students = await UserService.getStudents();
-    if (this.selectedMahad && this.selectedMahad !== 'all') {
-      students = students.filter(s => s.mahadId === this.selectedMahad);
+  applyOptimisticStudentStatus(studentId, newStatus) {
+    // 1. Update in-memory cache
+    if (newStatus) {
+      this.currentRecordsCache.set(studentId, newStatus);
+    } else {
+      this.currentRecordsCache.delete(studentId);
     }
 
-    const query = (this.searchQuery || '').trim().toLowerCase();
-    if (query) {
-      students = students.filter(s => {
-        const nameMatch = (s.name || '').toLowerCase().includes(query);
-        const mahadMatch = (s.mahadName || '').toLowerCase().includes(query);
-        const emailMatch = (s.email || '').toLowerCase().includes(query);
-        return nameMatch || mahadMatch || emailMatch;
-      });
+    // 2. Find row card
+    const card = document.querySelector(`.rollcall-card[data-student-id="${studentId}"]`);
+    if (card) {
+      const btnPresent = card.querySelector('.att-action-btn[data-status="present"]');
+      const btnExcused = card.querySelector('.att-action-btn[data-status="excused"]');
+      const btnAbsent = card.querySelector('.att-action-btn[data-status="absent"]');
+
+      const isPresent = newStatus === 'present';
+      const isExcused = newStatus === 'excused';
+      const isAbsent = newStatus === 'absent';
+
+      // Update buttons styling instantaneously
+      if (btnPresent) {
+        btnPresent.dataset.currentStatus = newStatus || 'none';
+        btnPresent.className = `att-action-btn w-9 h-9 sm:w-10 sm:h-9 rounded-lg transition-all flex items-center justify-center cursor-pointer shadow-2xs ${isPresent ? 'bg-emerald-600 text-white font-bold ring-2 ring-emerald-500 shadow-xs' : 'bg-white hover:bg-emerald-50 text-stone-500 hover:text-emerald-700 hover:border-emerald-300 border border-stone-200/70'}`;
+        const svg = btnPresent.querySelector('svg');
+        if (svg) svg.setAttribute('class', `w-5 h-5 ${isPresent ? 'text-white' : 'text-emerald-700'}`);
+      }
+
+      if (btnExcused) {
+        btnExcused.dataset.currentStatus = newStatus || 'none';
+        btnExcused.className = `att-action-btn w-9 h-9 sm:w-10 sm:h-9 rounded-lg transition-all flex items-center justify-center cursor-pointer shadow-2xs ${isExcused ? 'bg-amber-500 text-white font-bold ring-2 ring-amber-400 shadow-xs' : 'bg-white hover:bg-amber-50 text-stone-500 hover:text-amber-700 hover:border-amber-300 border border-stone-200/70'}`;
+        const svg = btnExcused.querySelector('svg');
+        if (svg) svg.setAttribute('class', `w-5 h-5 ${isExcused ? 'text-white' : 'text-amber-600'}`);
+      }
+
+      if (btnAbsent) {
+        btnAbsent.dataset.currentStatus = newStatus || 'none';
+        btnAbsent.className = `att-action-btn w-9 h-9 sm:w-10 sm:h-9 rounded-lg transition-all flex items-center justify-center cursor-pointer shadow-2xs ${isAbsent ? 'bg-rose-600 text-white font-bold ring-2 ring-rose-500 shadow-xs' : 'bg-white hover:bg-rose-50 text-stone-500 hover:text-rose-700 hover:border-rose-300 border border-stone-200/70'}`;
+        const svg = btnAbsent.querySelector('svg');
+        if (svg) svg.setAttribute('class', `w-5 h-5 ${isAbsent ? 'text-white' : 'text-rose-600'}`);
+      }
     }
 
-    const queue = await AttendanceService.getDateRollCallQueue(this.selectedDate, students);
-    const records = await AttendanceService.getAttendanceForDate(this.selectedDate);
+    // 3. Instantly update KPI numbers across the dashboard
+    this.recalculateKPICounters();
+  },
 
-    const studentIdsSet = new Set(students.map(s => s.id));
-    const subsetRecords = records.filter(r => studentIdsSet.has(r.studentId));
+  /**
+   * Recalculate dashboard KPI counts instantaneously without rebuilding the DOM
+   */
+  recalculateKPICounters() {
+    let presentCount = 0;
+    let excusedCount = 0;
+    let absentCount = 0;
 
-    const presentCount = subsetRecords.filter(r => r.status === 'present').length;
-    const excusedCount = subsetRecords.filter(r => r.status === 'excused').length;
-    const absentCount = subsetRecords.filter(r => r.status === 'absent').length;
-    const recordedTotal = subsetRecords.length;
-    const totalStudents = students.length;
-    const remainingCount = queue.unrecorded.length;
+    const cards = document.querySelectorAll('.rollcall-card');
+    const totalStudents = cards.length;
 
+    cards.forEach(c => {
+      const btn = c.querySelector('.att-action-btn');
+      const st = btn ? btn.dataset.currentStatus : 'none';
+      if (st === 'present') presentCount++;
+      else if (st === 'excused') excusedCount++;
+      else if (st === 'absent') absentCount++;
+    });
+
+    const recordedTotal = presentCount + excusedCount + absentCount;
+    const remainingCount = Math.max(0, totalStudents - recordedTotal);
     const completionPct = totalStudents > 0 ? Math.round((recordedTotal / totalStudents) * 100) : 0;
 
-    // Update KPI Card: המتبقي للتحضير
     const remainingEl = document.getElementById('att-count-remaining');
     const progressBadge = document.getElementById('att-progress-badge');
     const progressBar = document.getElementById('att-completion-progress-bar');
     const recordedLabel = document.getElementById('att-recorded-label');
     const totalLabel = document.getElementById('att-total-label');
+
+    const countPresent = document.getElementById('att-count-present');
+    const countExcused = document.getElementById('att-count-excused');
+    const countAbsent = document.getElementById('att-count-absent');
 
     if (remainingEl) remainingEl.textContent = remainingCount;
     if (progressBadge) {
@@ -786,10 +814,106 @@ export const AttendanceView = {
       }
     }
     if (progressBar) progressBar.style.width = `${completionPct}%`;
-    if (recordedLabel) recordedLabel.textContent = `${recordedTotal} تم رصدهم`;
+    if (recordedLabel) recordedLabel.textContent = `${recordedTotal} مكتمل`;
     if (totalLabel) totalLabel.textContent = `${totalStudents} إجمالي`;
 
-    // Update Secondary Stats
+    if (countPresent) countPresent.textContent = presentCount;
+    if (countExcused) countExcused.textContent = excusedCount;
+    if (countAbsent) countAbsent.textContent = absentCount;
+  },
+
+  /**
+   * Render student rollcall list in a stable, unified order grouped by Mahad
+   */
+  async renderQueue() {
+    const container = document.getElementById('att-rollcall-container');
+    if (!container) return;
+
+    const mahaden = await UserService.getMahaden();
+    let allCohortStudents = await UserService.getStudents();
+    
+    // Sort all cohort students stably by name
+    allCohortStudents.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ar'));
+
+    // Filter by Mahad if selected
+    let students = allCohortStudents;
+    if (this.selectedMahad && this.selectedMahad !== 'all') {
+      students = students.filter(s => s.mahadId === this.selectedMahad);
+    }
+
+    // Filter by search query if any
+    const query = (this.searchQuery || '').trim().toLowerCase();
+    if (query) {
+      students = students.filter(s => {
+        const nameMatch = (s.name || '').toLowerCase().includes(query);
+        const mahadMatch = (s.mahadName || '').toLowerCase().includes(query);
+        const emailMatch = (s.email || '').toLowerCase().includes(query);
+        return nameMatch || mahadMatch || emailMatch;
+      });
+    }
+
+    // Fetch records for the selected date
+    const records = await AttendanceService.getAttendanceForDate(this.selectedDate);
+    const recordsMap = new Map();
+    this.currentRecordsCache.clear();
+    records.forEach(r => {
+      recordsMap.set(r.studentId, r);
+      this.currentRecordsCache.set(r.studentId, r.status);
+    });
+
+    // Build unified student items list with their recorded status
+    const studentItems = students.map(s => {
+      const rec = recordsMap.get(s.id);
+      return {
+        student: s,
+        status: rec ? rec.status : null,
+        record: rec || null
+      };
+    });
+
+    // Compute metrics
+    const totalStudents = students.length;
+    const presentCount = studentItems.filter(i => i.status === 'present').length;
+    const excusedCount = studentItems.filter(i => i.status === 'excused').length;
+    const absentCount = studentItems.filter(i => i.status === 'absent').length;
+    const recordedTotal = presentCount + excusedCount + absentCount;
+    const remainingCount = totalStudents - recordedTotal;
+    const completionPct = totalStudents > 0 ? Math.round((recordedTotal / totalStudents) * 100) : 0;
+
+    // Update KPI Card: المتبقي
+    const remainingEl = document.getElementById('att-count-remaining');
+    const progressBadge = document.getElementById('att-progress-badge');
+    const progressBar = document.getElementById('att-completion-progress-bar');
+    const recordedLabel = document.getElementById('att-recorded-label');
+    const totalLabel = document.getElementById('att-total-label');
+    const cardRemaining = document.getElementById('att-card-remaining');
+
+    if (remainingEl) remainingEl.textContent = remainingCount;
+    if (progressBadge) {
+      progressBadge.textContent = `${completionPct}% منجز`;
+      if (completionPct === 100) {
+        progressBadge.className = 'text-[11px] font-bold px-2 py-0.5 rounded-md bg-emerald-100 border border-emerald-300 text-emerald-900';
+      } else {
+        progressBadge.className = 'text-[11px] font-semibold px-2 py-0.5 rounded-md bg-white border border-amber-200 text-amber-900';
+      }
+    }
+    if (progressBar) progressBar.style.width = `${completionPct}%`;
+    if (recordedLabel) recordedLabel.textContent = `${recordedTotal} مكتمل`;
+    if (totalLabel) totalLabel.textContent = `${totalStudents} إجمالي`;
+
+    // Highlight card if remaining filter is active
+    const filterToggleHint = document.getElementById('att-filter-toggle-hint');
+    if (cardRemaining) {
+      if (this.statusFilter === 'unrecorded') {
+        cardRemaining.classList.add('ring-3', 'ring-amber-500', 'bg-amber-100/60');
+        if (filterToggleHint) filterToggleHint.textContent = '(إلغاء التصفية ✕)';
+      } else {
+        cardRemaining.classList.remove('ring-3', 'ring-amber-500', 'bg-amber-100/60');
+        if (filterToggleHint) filterToggleHint.textContent = '(انقر للتصفية 🔍)';
+      }
+    }
+
+    // Update Secondary Stats counts
     const countPresent = document.getElementById('att-count-present');
     if (countPresent) countPresent.textContent = presentCount;
     const countExcused = document.getElementById('att-count-excused');
@@ -797,45 +921,42 @@ export const AttendanceView = {
     const countAbsent = document.getElementById('att-count-absent');
     if (countAbsent) countAbsent.textContent = absentCount;
 
-    // Date status indicator
-    const dateStatusIndicator = document.getElementById('att-date-status-indicator');
-    if (dateStatusIndicator) {
-      if (remainingCount === 0 && totalStudents > 0) {
-        dateStatusIndicator.innerHTML = `
-          <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-300 shadow-2xs">
-            <span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
-            مكتمل
-          </span>
-        `;
-      } else if (recordedTotal > 0) {
-        dateStatusIndicator.innerHTML = `
-          <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-950 border border-amber-300 shadow-2xs">
-            <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-            قيد التحضير
-          </span>
-        `;
-      } else {
-        dateStatusIndicator.innerHTML = `
-          <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-stone-100 text-stone-600 border border-stone-300 shadow-2xs">
-            <span class="w-1.5 h-1.5 rounded-full bg-stone-400"></span>
-            جلسة اليوم
-          </span>
-        `;
-      }
+    // Apply Status Filter to displayed items
+    let displayedItems = studentItems;
+    if (this.statusFilter === 'unrecorded') {
+      displayedItems = studentItems.filter(i => i.status === null);
     }
 
-    const unrecordedGroups = this.groupStudentsByMahad(queue.unrecorded, mahaden);
-    const recordedGroups = this.groupStudentsByMahad(queue.recorded, mahaden);
+    // Group stably by Mahad
+    const mahadGroups = this.groupStudentsByMahad(displayedItems, mahaden);
+
+    // Filter Banner if active
+    let filterBannerHtml = '';
+    if (this.statusFilter === 'unrecorded') {
+      filterBannerHtml = `
+        <div class="flex items-center justify-between p-3 rounded-xl bg-amber-50 border border-amber-300 text-amber-950 text-xs font-bold shadow-2xs">
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-amber-600 animate-pulse"></span>
+            <span>عرض: <strong>الطلاب المتبقين فقط</strong> (${displayedItems.length} طالب)</span>
+          </div>
+          <button id="att-reset-filter-btn" class="px-3 py-1.5 rounded-lg bg-white border border-amber-300 hover:bg-amber-100 text-amber-900 transition-colors cursor-pointer text-xs font-semibold">
+            عرض جميع الطلاب (إلغاء التصفية ✕)
+          </button>
+        </div>
+      `;
+    }
 
     container.innerHTML = `
-      <!-- Unrecorded Students Section (Grouped by Mahad) -->
-      <section class="space-y-4">
+      ${filterBannerHtml}
+
+      <!-- Rollcall List (Stable In-Place Ordering Grouped by Mahad) -->
+      <section class="space-y-5">
         <div class="flex items-center justify-between flex-wrap gap-2">
           <div class="flex items-center gap-2">
             <h3 class="text-base sm:text-lg font-bold text-slate-900">
-              قائمة انتظار التحضير
+              كشف الطلاب
             </h3>
-            <span class="text-xs text-stone-500 font-medium">· انقر الرمز لرصد الحالة</span>
+            <span class="text-xs text-stone-500 font-medium">· انقر الحالة لرصدها، أو انقر الحالة المفعّلة للإلغاء</span>
           </div>
 
           ${query ? `
@@ -845,76 +966,88 @@ export const AttendanceView = {
           ` : ''}
         </div>
 
-        ${queue.unrecorded.length === 0 ? `
-          <div class="p-6 text-center bg-white rounded-2xl border border-stone-200 text-stone-700 shadow-2xs">
-            <div class="w-10 h-10 mx-auto mb-2 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-700 font-bold text-lg">✓</div>
+        ${displayedItems.length === 0 ? `
+          <div class="p-8 text-center bg-white rounded-2xl border border-stone-200 text-stone-700 shadow-2xs">
+            <div class="w-10 h-10 mx-auto mb-2 rounded-full bg-stone-100 border border-stone-200 flex items-center justify-center text-stone-500 font-bold text-lg">ℹ</div>
             <h4 class="font-bold text-base mb-1 text-slate-900">
-              ${query ? 'لا يوجد طلاب غير مسجلين يطابقون عبارة البحث' : 'اكتمل تحضير جميع الطلاب في هذه الجلسة بنجاح!'}
+              ${this.statusFilter === 'unrecorded' ? 'اكتمل رصد جميع الطلاب!' : 'لا توجد سجلات تطابق شروط التصفية'}
             </h4>
             <p class="text-xs text-stone-500">
-              ${query ? 'جرّب البحث باسم آخر.' : 'تم تسجيل جميع الطلاب. تظهر سجلاتهم في قسم المرصودين أدناه.'}
+              ${this.statusFilter !== 'all' ? 'يمكنك النقر على زر "عرض جميع الطلاب" بالأعلى لرؤية الكشف الكامل.' : 'جرّب البحث باسم آخر.'}
             </p>
           </div>
         ` : `
-          <div class="space-y-5">
-            ${unrecordedGroups.map(group => `
-              <div class="mahad-attendance-group space-y-2">
+          <div class="space-y-6">
+            ${mahadGroups.map(group => `
+              <div class="mahad-attendance-group space-y-2.5">
                 <!-- Section Header for Mahad -->
-                <div class="flex items-center justify-between px-3.5 py-2 rounded-xl bg-slate-100/90 border border-stone-200/90">
+                <div class="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-stone-100/90 border border-stone-200">
                   <div class="flex items-center gap-2">
                     <span class="w-2.5 h-2.5 rounded-full bg-blue-900"></span>
                     <h4 class="text-xs sm:text-sm font-bold text-slate-900">${Utils.escapeHtml(group.mahad.name)}</h4>
-                    ${group.mahad.neighborhood ? `<span class="text-[11px] text-stone-500">(${group.mahad.neighborhood})</span>` : ''}
+                    ${group.mahad.neighborhood ? `<span class="text-[11px] text-stone-500 font-normal">(${group.mahad.neighborhood})</span>` : ''}
                   </div>
-                  <span class="text-[11px] font-mono font-semibold text-stone-600 bg-white px-2 py-0.5 rounded-md border border-stone-200">
+                  <span class="text-[11px] font-semibold text-stone-600 bg-white px-2.5 py-0.5 rounded-lg border border-stone-200">
                     ${group.students.length} طلاب
                   </span>
                 </div>
 
-                <!-- Student Rows in this Mahad -->
-                <div class="space-y-1.5 pr-1 sm:pr-2">
+                <!-- Stable In-Place Student Rows in this Mahad -->
+                <div class="space-y-2 pr-1 sm:pr-2">
                   ${group.students.map(item => {
                     const st = item.student;
+                    const status = item.status;
                     const isSelected = this.selectedStudentIds.has(st.id);
 
-                    return `
-                      <div class="rollcall-card card p-2.5 sm:p-3 rounded-xl border ${isSelected ? 'ring-2 ring-blue-600/40 bg-blue-50/50 border-blue-300' : 'border-stone-200/80 bg-white hover:border-stone-300'} transition-all flex items-center justify-between gap-3 shadow-2xs" data-student-id="${st.id}">
-                        <!-- Student Name & Multi-select Checkbox -->
-                        <div class="flex items-center gap-2.5 flex-1 min-w-0">
-                          <label class="flex items-center justify-center p-0.5 cursor-pointer">
-                            <input type="checkbox" 
-                                   class="att-student-checkbox w-4 h-4 rounded text-blue-900 focus:ring-blue-900/20 cursor-pointer" 
-                                   data-student-id="${st.id}" 
-                                   ${isSelected ? 'checked' : ''} />
-                          </label>
+                    const isPresent = status === 'present';
+                    const isExcused = status === 'excused';
+                    const isAbsent = status === 'absent';
 
-                          <span class="text-xs sm:text-sm font-bold text-slate-900 truncate">
+                    return `
+                      <div class="rollcall-card card p-2.5 sm:p-3 rounded-xl border ${isSelected ? 'ring-2 ring-blue-600/40 bg-blue-50/50 border-blue-300' : (status ? 'bg-white border-stone-200/90' : 'bg-white border-stone-200/70 hover:border-stone-300')} transition-all flex items-center justify-between gap-3 shadow-2xs" data-student-id="${st.id}">
+                        <!-- Student Name & Multi-select Checkbox (Fully Tappable) -->
+                        <label class="flex items-center gap-2.5 flex-1 min-w-0 cursor-pointer select-none py-1">
+                          <input type="checkbox" 
+                                 class="att-student-checkbox w-4 h-4 rounded text-blue-900 focus:ring-blue-900/20 cursor-pointer shrink-0" 
+                                 data-student-id="${st.id}" 
+                                 ${isSelected ? 'checked' : ''} />
+
+                          <span class="text-xs sm:text-sm font-bold text-slate-900 truncate" title="${Utils.escapeHtml(st.name)}">
                             ${Utils.escapeHtml(st.name)}
                           </span>
-                        </div>
+                        </label>
 
-                        <!-- Compact Segmented 3-Button Control (Matching image.png) -->
+                        <!-- Segmented 3-Button Control (Clicking Active Button Cancels Record) -->
                         <div class="flex items-center gap-1.5 shrink-0 bg-stone-100/90 p-1 rounded-xl border border-stone-200/80">
-                          <!-- Present Button (✓ Check in Circle) -->
-                          <button class="att-action-btn w-9 h-9 sm:w-10 sm:h-9 rounded-lg bg-white hover:bg-emerald-50 text-stone-600 hover:text-emerald-700 hover:border-emerald-300 border border-stone-200/70 transition-all flex items-center justify-center cursor-pointer shadow-2xs active:scale-90" 
-                                  data-student-id="${st.id}" data-status="present" title="تسجيل حاضر">
-                            <svg class="w-5 h-5 text-emerald-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <!-- Present Button (✓) -->
+                          <button class="att-action-btn w-9 h-9 sm:w-10 sm:h-9 rounded-lg transition-all flex items-center justify-center cursor-pointer shadow-2xs ${isPresent ? 'bg-emerald-600 text-white font-bold ring-2 ring-emerald-500 shadow-xs' : 'bg-white hover:bg-emerald-50 text-stone-500 hover:text-emerald-700 hover:border-emerald-300 border border-stone-200/70'}" 
+                                  data-student-id="${st.id}" 
+                                  data-status="present" 
+                                  data-current-status="${status || 'none'}" 
+                                  title="${isPresent ? 'حاضر (انقر للإلغاء)' : 'حاضر'}">
+                            <svg class="w-5 h-5 ${isPresent ? 'text-white' : 'text-emerald-700'}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
                           </button>
 
-                          <!-- Excused Button (⏱ Clock in Circle) -->
-                          <button class="att-action-btn w-9 h-9 sm:w-10 sm:h-9 rounded-lg bg-white hover:bg-amber-50 text-stone-600 hover:text-amber-700 hover:border-amber-300 border border-stone-200/70 transition-all flex items-center justify-center cursor-pointer shadow-2xs active:scale-90" 
-                                  data-student-id="${st.id}" data-status="excused" title="تسجيل معتذر">
-                            <svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <!-- Excused Button (⏱) -->
+                          <button class="att-action-btn w-9 h-9 sm:w-10 sm:h-9 rounded-lg transition-all flex items-center justify-center cursor-pointer shadow-2xs ${isExcused ? 'bg-amber-500 text-white font-bold ring-2 ring-amber-400 shadow-xs' : 'bg-white hover:bg-amber-50 text-stone-500 hover:text-amber-700 hover:border-amber-300 border border-stone-200/70'}" 
+                                  data-student-id="${st.id}" 
+                                  data-status="excused" 
+                                  data-current-status="${status || 'none'}" 
+                                  title="${isExcused ? 'معتذر (انقر للإلغاء)' : 'معتذر'}">
+                            <svg class="w-5 h-5 ${isExcused ? 'text-white' : 'text-amber-600'}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
                           </button>
 
-                          <!-- Absent Button (✕ X in Circle) -->
-                          <button class="att-action-btn w-9 h-9 sm:w-10 sm:h-9 rounded-lg bg-white hover:bg-rose-50 text-stone-600 hover:text-rose-700 hover:border-rose-300 border border-stone-200/70 transition-all flex items-center justify-center cursor-pointer shadow-2xs active:scale-90" 
-                                  data-student-id="${st.id}" data-status="absent" title="تسجيل غائب">
-                            <svg class="w-5 h-5 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <!-- Absent Button (✕) -->
+                          <button class="att-action-btn w-9 h-9 sm:w-10 sm:h-9 rounded-lg transition-all flex items-center justify-center cursor-pointer shadow-2xs ${isAbsent ? 'bg-rose-600 text-white font-bold ring-2 ring-rose-500 shadow-xs' : 'bg-white hover:bg-rose-50 text-stone-500 hover:text-rose-700 hover:border-rose-300 border border-stone-200/70'}" 
+                                  data-student-id="${st.id}" 
+                                  data-status="absent" 
+                                  data-current-status="${status || 'none'}" 
+                                  title="${isAbsent ? 'غائب (انقر للإلغاء)' : 'غائب'}">
+                            <svg class="w-5 h-5 ${isAbsent ? 'text-white' : 'text-rose-600'}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
                           </button>
@@ -928,82 +1061,16 @@ export const AttendanceView = {
           </div>
         `}
       </section>
-
-      <!-- Recorded Students Section (Grouped by Mahad) -->
-      ${queue.recorded.length > 0 ? `
-        <section class="pt-5 border-t border-stone-200 space-y-4">
-          <div class="flex items-center justify-between flex-wrap gap-2">
-            <h3 class="text-sm sm:text-base font-bold text-slate-800">
-              سجل الطلاب المرصودين (${queue.recorded.length})
-            </h3>
-            <span class="text-xs text-stone-400">انقر لتعديل حالة أي طالب مباشرة</span>
-          </div>
-
-          <div class="space-y-4">
-            ${recordedGroups.map(group => `
-              <div class="mahad-recorded-group space-y-2">
-                <div class="flex items-center justify-between px-3 py-1.5 rounded-lg bg-stone-100 text-xs font-bold text-stone-700">
-                  <span>${Utils.escapeHtml(group.mahad.name)}</span>
-                  <span class="text-[11px] font-mono text-stone-500">${group.students.length} طلاب مسجلين</span>
-                </div>
-
-                <div class="space-y-1.5 pr-1 sm:pr-2">
-                  ${group.students.map(item => {
-                    const st = item.student;
-                    const status = item.status;
-                    const isSelected = this.selectedStudentIds.has(st.id);
-
-                    return `
-                      <div class="recorded-card card p-2.5 sm:p-3 rounded-xl border border-stone-200/80 ${isSelected ? 'ring-2 ring-blue-600/40 bg-blue-50/50' : 'bg-stone-50/60'} flex items-center justify-between gap-3 transition-all" data-student-id="${st.id}">
-                        <div class="flex items-center gap-2.5 flex-1 min-w-0">
-                          <label class="flex items-center justify-center p-0.5 cursor-pointer">
-                            <input type="checkbox" 
-                                   class="att-student-checkbox w-4 h-4 rounded text-blue-900 focus:ring-blue-900/20 cursor-pointer" 
-                                   data-student-id="${st.id}" 
-                                   ${isSelected ? 'checked' : ''} />
-                          </label>
-
-                          <span class="text-xs sm:text-sm font-bold text-slate-800 truncate">
-                            ${Utils.escapeHtml(st.name)}
-                          </span>
-                        </div>
-
-                        <!-- Compact Segmented Buttons with Active Selected Indicator -->
-                        <div class="flex items-center gap-1.5 shrink-0 bg-stone-200/60 p-1 rounded-xl">
-                          <!-- Present -->
-                          <button class="att-action-btn w-8 h-8 sm:w-9 sm:h-8 rounded-lg transition-all flex items-center justify-center cursor-pointer shadow-2xs ${status === 'present' ? 'bg-emerald-600 text-white font-bold ring-2 ring-emerald-500' : 'bg-white text-stone-400 hover:text-emerald-700'}" 
-                                  data-student-id="${st.id}" data-status="present" title="حاضر">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                          </button>
-
-                          <!-- Excused -->
-                          <button class="att-action-btn w-8 h-8 sm:w-9 sm:h-8 rounded-lg transition-all flex items-center justify-center cursor-pointer shadow-2xs ${status === 'excused' ? 'bg-amber-500 text-white font-bold ring-2 ring-amber-400' : 'bg-white text-stone-400 hover:text-amber-700'}" 
-                                  data-student-id="${st.id}" data-status="excused" title="معتذر">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                          </button>
-
-                          <!-- Absent -->
-                          <button class="att-action-btn w-8 h-8 sm:w-9 sm:h-8 rounded-lg transition-all flex items-center justify-center cursor-pointer shadow-2xs ${status === 'absent' ? 'bg-rose-600 text-white font-bold ring-2 ring-rose-500' : 'bg-white text-stone-400 hover:text-rose-700'}" 
-                                  data-student-id="${st.id}" data-status="absent" title="غائب">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                          </button>
-                        </div>
-                      </div>
-                    `;
-                  }).join('')}
-                </div>
-              </div>
-            `).join('')}
-          </div>
-        </section>
-      ` : ''}
     `;
+
+    // Hook reset filter button if visible
+    const resetFilterBtn = container.querySelector('#att-reset-filter-btn');
+    if (resetFilterBtn) {
+      resetFilterBtn.addEventListener('click', () => {
+        this.statusFilter = 'all';
+        this.renderQueue();
+      });
+    }
 
     // Hook student checkboxes
     container.querySelectorAll('.att-student-checkbox').forEach(cb => {
@@ -1020,32 +1087,46 @@ export const AttendanceView = {
 
     this.updateSelectionUI();
 
-    // Attach click listeners to status icon buttons
+    // Attach click listeners to status icon buttons with Instant 0ms Optimistic UI Updates
     container.querySelectorAll('.att-action-btn').forEach(btn => {
-      btn.addEventListener('click', async () => {
+      btn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+
         const studentId = btn.dataset.studentId;
-        const status = btn.dataset.status;
+        const clickedStatus = btn.dataset.status;
+        const currentStatus = btn.dataset.currentStatus;
 
         btn.classList.add('scale-90');
+        setTimeout(() => btn.classList.remove('scale-90'), 150);
 
+        const isCancel = currentStatus === clickedStatus;
+        const targetStatus = isCancel ? null : clickedStatus;
+
+        // 1. INSTANT 0ms OPTIMISTIC FEEDBACK
+        this.applyOptimisticStudentStatus(studentId, targetStatus);
+
+        let arabicStatus = 'حاضر';
+        if (clickedStatus === 'excused') arabicStatus = 'معتذر';
+        if (clickedStatus === 'absent') arabicStatus = 'غائب';
+
+        if (isCancel) {
+          Utils.showToast('تم إلغاء الرصد', 'info', 1000);
+        } else {
+          Utils.showToast(`${arabicStatus} ✓`, 'success', 1000);
+        }
+
+        // 2. ASYNC BACKGROUND PERSISTENCE
         try {
-          await AttendanceService.recordAttendance(studentId, this.selectedDate, status);
-          
-          let arabicStatus = 'حاضر';
-          if (status === 'excused') arabicStatus = 'معتذر';
-          if (status === 'absent') arabicStatus = 'غائب';
-
-          Utils.showToast(`تم التسجيل: ${arabicStatus}`, 'success', 1000);
-
-          const card = container.querySelector(`.rollcall-card[data-student-id="${studentId}"]`);
-          if (card) {
-            card.classList.add('opacity-40', 'translate-x-3');
-            setTimeout(() => this.renderQueue(), 140);
+          if (isCancel) {
+            await AttendanceService.removeAttendance(studentId, this.selectedDate);
           } else {
-            this.renderQueue();
+            await AttendanceService.recordAttendance(studentId, this.selectedDate, clickedStatus);
           }
         } catch (err) {
-          Utils.showToast(err.message, 'error');
+          // Revert on rare network/permission errors
+          this.applyOptimisticStudentStatus(studentId, currentStatus === 'none' ? null : currentStatus);
+          Utils.showToast(err.message || 'تعذر الحفظ', 'error');
         }
       });
     });

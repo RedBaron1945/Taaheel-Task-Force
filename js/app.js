@@ -39,28 +39,36 @@ export const App = {
       this.render();
     });
 
-    // Realtime subscriptions for users, assignments, progress & attendance
+    // Realtime subscriptions for supervisor remote data updates
     UserService.subscribeToStudents(() => {
-      if (this.currentUser) {
-        this.mountCurrentSection();
+      if (this.currentUser && this.currentUser.role === 'supervisor') {
+        if (this.activeSection === 'students' || this.activeSection === 'hub') {
+          this.mountCurrentSection();
+        }
       }
     });
 
     AssignmentService.subscribeToAssignments(() => {
-      if (this.currentUser) {
-        this.mountCurrentSection();
+      if (this.currentUser && this.currentUser.role === 'supervisor') {
+        if (this.activeSection === 'assignments' || this.activeSection === 'hub') {
+          this.mountCurrentSection();
+        }
       }
     });
 
     ProgressService.subscribeToProgress(() => {
-      if (this.currentUser) {
-        this.mountCurrentSection();
+      if (this.currentUser && this.currentUser.role === 'supervisor') {
+        if (this.activeSection === 'hub' || this.activeSection === 'dashboard') {
+          this.mountCurrentSection();
+        }
       }
     });
 
     AttendanceService.subscribeToAttendance(() => {
-      if (this.currentUser) {
-        this.mountCurrentSection();
+      if (this.currentUser && this.currentUser.role === 'supervisor') {
+        if (this.activeSection === 'hub' || this.activeSection === 'dashboard') {
+          this.mountCurrentSection();
+        }
       }
     });
 
@@ -372,7 +380,7 @@ export const App = {
       roleLabel = 'مشرف عام';
       roleBadgeClass = 'text-amber-800 bg-amber-50 border-amber-300';
     } else if (role === 'attendance' || role === 'attendanceAdmin') {
-      roleLabel = 'مسؤول تحضير';
+      roleLabel = 'مسؤول الحضور';
       roleBadgeClass = 'text-sky-800 bg-sky-50 border-sky-300';
     }
 
@@ -435,7 +443,7 @@ export const App = {
 
         <!-- Mobile Bottom Tab Bar with Light Clean Theme -->
         <nav class="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200 px-2 py-1 shadow-lg text-slate-600" id="mobile-bottom-nav">
-          <div class="grid ${role === 'supervisor' ? 'grid-cols-4' : 'grid-cols-2'} items-center justify-around">
+          <div class="grid ${role === 'supervisor' ? 'grid-cols-3' : 'grid-cols-1'} items-center justify-around">
             ${this.renderMobileTabsHtml(role)}
           </div>
         </nav>
@@ -491,9 +499,9 @@ export const App = {
             <svg class="w-3.5 h-3.5 text-blue-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
             <span>غرفة القيادة</span>
           </button>
-          <button data-section="attendance" class="nav-link-btn px-3 py-1.5 rounded-lg transition-all font-bold text-xs ${isAttendance ? 'text-blue-900 bg-white shadow-2xs border border-stone-200/80' : 'text-stone-600 hover:text-slate-900'} cursor-pointer flex items-center gap-1.5" title="صفحة التحضير الأسبوعي">
+          <button data-section="attendance" class="nav-link-btn px-3 py-1.5 rounded-lg transition-all font-bold text-xs ${isAttendance ? 'text-blue-900 bg-white shadow-2xs border border-stone-200/80' : 'text-stone-600 hover:text-slate-900'} cursor-pointer flex items-center gap-1.5" title="سجل الحضور الأسبوعي">
             <svg class="w-3.5 h-3.5 text-sky-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
-            <span>التحضير</span>
+            <span>الحضور</span>
           </button>
         </div>
       `;
@@ -501,7 +509,7 @@ export const App = {
       return `
         <div class="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-sky-50 text-sky-900 border border-sky-200/90 font-bold text-xs sm:text-sm shadow-2xs">
           <svg class="w-4 h-4 text-sky-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
-          <span>صفحة التحضير (الأحد والثلاثاء)</span>
+          <span>سجل الحضور (الأحد والثلاثاء)</span>
         </div>
       `;
     }
@@ -525,32 +533,24 @@ export const App = {
       const isDashboard = this.activeSection === 'dashboard';
       const isAttendance = this.activeSection === 'attendance';
       return `
-        <button data-section="hub" class="mobile-tab-btn min-h-[44px] flex flex-col items-center justify-center py-1 ${isHub ? 'text-amber-800 font-bold' : 'text-slate-500 hover:text-slate-800'}">
+        <button data-section="hub" class="mobile-tab-btn min-h-[48px] flex flex-col items-center justify-center py-1 ${isHub ? 'text-amber-800 font-bold' : 'text-slate-500 hover:text-slate-800'} cursor-pointer">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
-          <span class="text-[10px] mt-0.5">الرئيسية</span>
+          <span class="text-[10px] mt-0.5 font-bold">الرئيسية</span>
         </button>
-        <button data-section="dashboard" class="mobile-tab-btn min-h-[44px] flex flex-col items-center justify-center py-1 ${isDashboard ? 'text-blue-900 font-bold' : 'text-slate-500 hover:text-slate-800'}">
+        <button data-section="dashboard" class="mobile-tab-btn min-h-[48px] flex flex-col items-center justify-center py-1 ${isDashboard ? 'text-blue-900 font-bold' : 'text-slate-500 hover:text-slate-800'} cursor-pointer">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-          <span class="text-[10px] mt-0.5">غرفة القيادة</span>
+          <span class="text-[10px] mt-0.5 font-bold">غرفة القيادة</span>
         </button>
-        <button data-section="attendance" class="mobile-tab-btn min-h-[44px] flex flex-col items-center justify-center py-1 ${isAttendance ? 'text-sky-800 font-bold' : 'text-slate-500 hover:text-slate-800'}">
+        <button data-section="attendance" class="mobile-tab-btn min-h-[48px] flex flex-col items-center justify-center py-1 ${isAttendance ? 'text-sky-800 font-bold' : 'text-slate-500 hover:text-slate-800'} cursor-pointer">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
-          <span class="text-[10px] mt-0.5">التحضير</span>
-        </button>
-        <button id="mobile-logout-btn" class="mobile-tab-btn min-h-[44px] flex flex-col items-center justify-center py-1 text-slate-500 hover:text-red-600">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
-          <span class="text-[10px] mt-0.5">خروج</span>
+          <span class="text-[10px] mt-0.5 font-bold">الحضور</span>
         </button>
       `;
     } else {
       return `
-        <button data-section="attendance" class="mobile-tab-btn min-h-[44px] flex flex-col items-center justify-center py-1 text-sky-800 font-semibold">
+        <button data-section="attendance" class="mobile-tab-btn min-h-[48px] flex flex-col items-center justify-center py-1 text-sky-800 font-semibold cursor-pointer">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
-          <span class="text-[10px] mt-0.5">التحضير</span>
-        </button>
-        <button id="mobile-logout-btn" class="mobile-tab-btn min-h-[44px] flex flex-col items-center justify-center py-1 text-slate-500 hover:text-red-600">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
-          <span class="text-[10px] mt-0.5">خروج</span>
+          <span class="text-[10px] mt-0.5 font-bold">سجل الحضور</span>
         </button>
       `;
     }
@@ -574,7 +574,7 @@ export const App = {
     if (mobileNavContainer && this.currentUser) {
       const role = this.currentUser.role;
       mobileNavContainer.innerHTML = `
-        <div class="grid ${role === 'supervisor' ? 'grid-cols-4' : 'grid-cols-2'} items-center justify-around">
+        <div class="grid ${role === 'supervisor' ? 'grid-cols-3' : 'grid-cols-1'} items-center justify-around">
           ${this.renderMobileTabsHtml(role)}
         </div>
       `;
@@ -584,9 +584,6 @@ export const App = {
             this.switchSection(btn.dataset.section);
           }
         });
-      });
-      document.getElementById('mobile-logout-btn')?.addEventListener('click', async () => {
-        await Auth.logout();
       });
     }
 

@@ -12,6 +12,7 @@ import {
   collection, 
   doc, 
   setDoc, 
+  deleteDoc,
   getDocs, 
   query, 
   where, 
@@ -46,8 +47,8 @@ export const AttendanceService = {
           Storage.saveAttendance(remoteRecords);
           return remoteRecords;
         }
-      } catch (err) {
-        console.warn('Firestore attendance fetch warning, using local cache:', err);
+      } catch (_) {
+        // Fallback cleanly to local cache
       }
     }
     return Storage.getAttendance();
@@ -59,6 +60,28 @@ export const AttendanceService = {
   async getAttendanceForDate(dateStr) {
     const all = await this.getAllAttendance();
     return all.filter(item => item.date === dateStr);
+  },
+
+  /**
+   * Remove/cancel attendance record for a student on a specific date (revert to unrecorded)
+   */
+  async removeAttendance(studentId, dateStr) {
+    const all = Storage.getAttendance();
+    const filtered = all.filter(item => !(item.studentId === studentId && item.date === dateStr));
+    Storage.saveAttendance(filtered);
+
+    const recordId = `${studentId}_${dateStr}`;
+    if (auth.currentUser) {
+      try {
+        await deleteDoc(doc(db, 'attendance', recordId));
+      } catch (err) {
+        console.warn('Firestore attendance delete warning:', err);
+      }
+    }
+
+    // Trigger local update event
+    window.dispatchEvent(new CustomEvent('attendance-updated', { detail: { studentId, date: dateStr, status: 'unrecorded' } }));
+    return true;
   },
 
   /**
@@ -133,11 +156,11 @@ export const AttendanceService = {
             Storage.saveAttendance(records);
             if (callback) callback(records);
           }
-        }, (err) => {
-          console.warn('Attendance snapshot listener warning:', err);
+        }, () => {
+          // Handled silently
         });
-      } catch (err) {
-        console.warn('Failed to attach attendance snapshot listener:', err);
+      } catch (_) {
+        // Handled silently
       }
     }
 

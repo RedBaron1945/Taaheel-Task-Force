@@ -329,6 +329,31 @@ header.sticky {
   background: rgba(30, 58, 138, 0.4);
 }
 
+/* Typography & Numerical Consistency: Force Arabic font inheritance everywhere */
+*, 
+.font-mono, 
+[class*="font-mono"],
+.tabular-nums, 
+[class*="tabular-nums"], 
+code, kbd, samp, pre, 
+th, td, span, div, p, h1, h2, h3, h4, h5, h6,
+input, button, select, textarea {
+  font-family: var(--font-sans) !important;
+}
+
+.tabular-nums,
+[class*="tabular-nums"] {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+/* Calligraphic elements retain Quranic/Islamic font */
+.font-serif,
+[style*="var(--font-calligraphy)"],
+.calligraphy-font {
+  font-family: var(--font-calligraphy), serif !important;
+}
+
 /* حقول تسجيل الدخول وحلقة التركيز المخصصة */
 input, button, select, textarea {
   font-family: inherit;

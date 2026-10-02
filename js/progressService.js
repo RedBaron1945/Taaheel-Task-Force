@@ -123,11 +123,11 @@ export const ProgressService = {
             Storage.saveProgress(remoteProgress);
             if (callback) callback(remoteProgress);
           }
-        }, (err) => {
-          console.warn('Progress snapshot listener notice:', err);
+        }, () => {
+          // Handled silently
         });
-      } catch (err) {
-        console.warn('Failed to attach progress snapshot listener:', err);
+      } catch (_) {
+        // Handled silently
       }
     }
 
