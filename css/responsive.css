@@ -4,28 +4,24 @@
  */
 
 /* Mobile thumb zone padding */
-@media (max-width: 767px) {
+@media (max-width: 640px) {
   body {
     font-size: 14px;
   }
 
   .card {
-    border-radius: 16px;
+    border-radius: 14px;
   }
 
-  /* Sticky top bar height <= 58px */
+  /* Sticky top bar height <= 56px */
   header.sticky {
-    padding-top: 0.5rem;
-    padding-bottom: 0.5rem;
+    padding-top: 0.6rem;
+    padding-bottom: 0.6rem;
   }
 
-  /* Mobile bottom navigation bar */
-  #mobile-bottom-nav {
-    padding-bottom: max(0.4rem, env(safe-area-inset-bottom, 0px));
-  }
-
-  .bottom-nav-safe {
-    padding-bottom: max(0.4rem, env(safe-area-inset-bottom, 0px));
+  /* Safe padding for bottom navigation */
+  .pb-safe {
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 4rem);
   }
 }
 
@@ -39,8 +35,8 @@
     font-size: 0.75rem;
   }
 
-  h1, h2 {
-    font-size: 1.15rem !important;
+  h2 {
+    font-size: 1.25rem !important;
   }
 }
 

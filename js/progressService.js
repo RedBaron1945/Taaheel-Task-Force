@@ -5,31 +5,41 @@
 
 import { Storage } from './storage.js';
 import { AssignmentService } from './assignmentService.js';
-import { db, auth, collection, doc, setDoc, getDocs, onSnapshot } from './firebase.js';
+import { db, auth, collection, doc, setDoc, getDocs, query, where } from './firebase.js';
 
 export const ProgressService = {
   /**
    * Get all progress mappings: { [studentId]: { [assignmentId]: [subtaskId, ...] } }
    */
   async getAllProgress() {
-    if (!auth.currentUser) {
-      return Storage.getProgress() || {};
-    }
-    try {
-      const snapshot = await getDocs(collection(db, 'progress'));
-      const remoteProgress = {};
-      snapshot.forEach(docSnap => {
-        const data = docSnap.data();
-        if (data.studentId && data.assignmentId) {
-          if (!remoteProgress[data.studentId]) remoteProgress[data.studentId] = {};
-          remoteProgress[data.studentId][data.assignmentId] = data.completedSubtaskIds || [];
+    if (auth.currentUser) {
+      try {
+        const isStudent = Storage.getUsers().find(u => u.id === auth.currentUser.uid)?.role === 'student';
+        let q;
+        if (isStudent) {
+          q = query(collection(db, 'progress'), where('studentId', '==', auth.currentUser.uid));
+        } else {
+          q = collection(db, 'progress');
         }
-      });
-      Storage.saveProgress(remoteProgress);
-      return remoteProgress;
-    } catch (_) {
-      return Storage.getProgress() || {};
+
+        const snapshot = await getDocs(q);
+        if (!snapshot.empty) {
+          const remoteProgress = Storage.getProgress();
+          snapshot.forEach(docSnap => {
+            const data = docSnap.data();
+            if (data.studentId && data.assignmentId) {
+              if (!remoteProgress[data.studentId]) remoteProgress[data.studentId] = {};
+              remoteProgress[data.studentId][data.assignmentId] = data.completedSubtaskIds || [];
+            }
+          });
+          Storage.saveProgress(remoteProgress);
+          return remoteProgress;
+        }
+      } catch (err) {
+        console.warn('Firestore progress fetch warning:', err);
+      }
     }
+    return Storage.getProgress();
   },
 
   /**
@@ -68,18 +78,20 @@ export const ProgressService = {
 
     Storage.saveProgress(all);
 
-    // Save directly to Firestore
-    try {
-      const progressDocId = `${studentId}_${assignmentId}`;
-      await setDoc(doc(db, 'progress', progressDocId), {
-        id: progressDocId,
-        studentId,
-        assignmentId,
-        completedSubtaskIds: list,
-        updatedAt: new Date().toISOString()
-      });
-    } catch (err) {
-      console.warn('Firestore progress write notice:', err);
+    // Save to Firestore
+    if (auth.currentUser) {
+      try {
+        const progressDocId = `${studentId}_${assignmentId}`;
+        await setDoc(doc(db, 'progress', progressDocId), {
+          id: progressDocId,
+          studentId,
+          assignmentId,
+          completedSubtaskIds: list,
+          updatedAt: new Date().toISOString()
+        });
+      } catch (err) {
+        console.warn('Firestore progress write warning:', err);
+      }
     }
 
     window.dispatchEvent(new CustomEvent('progress-updated', { detail: { studentId, assignmentId, list } }));
@@ -93,17 +105,24 @@ export const ProgressService = {
     let unsubscribe = null;
     if (auth.currentUser) {
       try {
-        unsubscribe = onSnapshot(collection(db, 'progress'), (snapshot) => {
-          const remoteProgress = {};
-          snapshot.forEach(docSnap => {
-            const data = docSnap.data();
-            if (data.studentId && data.assignmentId) {
-              if (!remoteProgress[data.studentId]) remoteProgress[data.studentId] = {};
-              remoteProgress[data.studentId][data.assignmentId] = data.completedSubtaskIds || [];
-            }
-          });
-          Storage.saveProgress(remoteProgress);
-          if (callback) callback(remoteProgress);
+        const isStudent = Storage.getUsers().find(u => u.id === auth.currentUser.uid)?.role === 'student';
+        const q = isStudent
+          ? query(collection(db, 'progress'), where('studentId', '==', auth.currentUser.uid))
+          : collection(db, 'progress');
+
+        unsubscribe = onSnapshot(q, (snapshot) => {
+          if (!snapshot.empty) {
+            const remoteProgress = Storage.getProgress();
+            snapshot.forEach(docSnap => {
+              const data = docSnap.data();
+              if (data.studentId && data.assignmentId) {
+                if (!remoteProgress[data.studentId]) remoteProgress[data.studentId] = {};
+                remoteProgress[data.studentId][data.assignmentId] = data.completedSubtaskIds || [];
+              }
+            });
+            Storage.saveProgress(remoteProgress);
+            if (callback) callback(remoteProgress);
+          }
         }, () => {
           // Handled silently
         });
@@ -126,39 +145,23 @@ export const ProgressService = {
   },
 
   /**
-   * Calculate assignment-level statistics for a given assignment and student's completed subtask IDs
+   * Calculate detailed stats for an individual assignment for a student
    */
   getAssignmentStats(assignment, completedSubtaskIds = []) {
-    if (!assignment) {
-      return {
-        earnedPoints: 0,
-        totalPoints: 0,
-        totalSubtasks: 0,
-        completedCount: 0,
-        percentage: 0,
-        isCompleted: false,
-        isNotStarted: true,
-        isExpired: false
-      };
-    }
-
     const subtasks = assignment.subtasks || [];
-    const completedList = Array.isArray(completedSubtaskIds) ? completedSubtaskIds : [];
+    const totalSubtasks = subtasks.length;
     let earnedPoints = 0;
     let completedCount = 0;
 
-    subtasks.forEach(st => {
-      if (completedList.includes(st.id)) {
-        earnedPoints += Number(st.points) || 0;
+    for (const sub of subtasks) {
+      if (completedSubtaskIds.includes(sub.id)) {
+        earnedPoints += (Number(sub.points) || 0);
         completedCount++;
       }
-    });
+    }
 
-    const totalPoints = Number(assignment.points) || subtasks.reduce((sum, s) => sum + (Number(s.points) || 0), 0);
-    const totalSubtasks = subtasks.length;
-    const percentage = totalPoints > 0 
-      ? Math.round((earnedPoints / totalPoints) * 100) 
-      : (totalSubtasks > 0 ? Math.round((completedCount / totalSubtasks) * 100) : 0);
+    const totalPoints = Number(assignment.points) || 0;
+    const percentage = totalSubtasks > 0 ? Math.round((completedCount / totalSubtasks) * 100) : 0;
     const isCompleted = totalSubtasks > 0 && completedCount === totalSubtasks;
     const isNotStarted = completedCount === 0;
     const isExpired = AssignmentService.isExpired(assignment);
@@ -166,8 +169,8 @@ export const ProgressService = {
     return {
       earnedPoints,
       totalPoints,
-      totalSubtasks,
       completedCount,
+      totalSubtasks,
       percentage,
       isCompleted,
       isNotStarted,
@@ -176,82 +179,68 @@ export const ProgressService = {
   },
 
   /**
-   * Calculate summary statistics for a student
+   * Calculate overall stats for a student across all active system assignments
    */
-  async calculateStudentStats(studentId, assignments = null) {
-    const allAssignments = assignments || (await AssignmentService.getAllAssignments());
-    const progress = await this.getAllProgress();
-    const studentProgress = progress[studentId] || {};
+  async getStudentOverallStats(studentId) {
+    const assignments = await AssignmentService.getAllAssignments();
+    const allProgress = await this.getAllProgress();
+    const studentProgress = allProgress[studentId] || {};
 
     let totalEarnedPoints = 0;
     let totalMaxPoints = 0;
     let totalSubtasksAcrossAll = 0;
     let totalCompletedSubtasksAcrossAll = 0;
-    let activeAssignmentsCount = 0;
-    let completedAssignmentsCount = 0;
-    let notStartedAssignmentsCount = 0;
-    let expiredAssignmentsCount = 0;
+
+    let activeCount = 0;
+    let completedCount = 0;
+    let notStartedCount = 0;
+    let expiredCount = 0;
 
     const assignmentDetails = [];
 
-    for (const asg of allAssignments) {
+    for (const asg of assignments) {
       const isExpired = AssignmentService.isExpired(asg);
-      const subtasks = asg.subtasks || [];
       const completedSubtaskIds = studentProgress[asg.id] || [];
-
       const stats = this.getAssignmentStats(asg, completedSubtaskIds);
 
+      // Only count active assignments or all assignments in total max points
       totalEarnedPoints += stats.earnedPoints;
       totalMaxPoints += stats.totalPoints;
       totalSubtasksAcrossAll += stats.totalSubtasks;
       totalCompletedSubtasksAcrossAll += stats.completedCount;
 
-      if (asg.active !== false) {
-        if (!isExpired) activeAssignmentsCount++;
-        if (stats.isCompleted) completedAssignmentsCount++;
-        else if (stats.isNotStarted) notStartedAssignmentsCount++;
+      if (isExpired) {
+        expiredCount++;
+      } else {
+        activeCount++;
       }
 
-      if (isExpired) {
-        expiredAssignmentsCount++;
+      if (stats.isCompleted) {
+        completedCount++;
+      } else if (stats.isNotStarted) {
+        notStartedCount++;
       }
 
       assignmentDetails.push({
         assignment: asg,
         stats,
-        earnedPoints: stats.earnedPoints,
-        maxPoints: stats.totalPoints,
-        percentage: stats.percentage,
-        isCompleted: stats.isCompleted,
-        isExpired: stats.isExpired,
-        completedSubtaskIds,
-        completedSubtasksCount: stats.completedCount,
-        totalSubtasksCount: stats.totalSubtasks
+        completedSubtaskIds
       });
     }
 
-    const overallPercentage = totalMaxPoints > 0 
-      ? Math.round((totalEarnedPoints / totalMaxPoints) * 100) 
+    const overallPercentage = totalMaxPoints > 0
+      ? Math.round((totalEarnedPoints / totalMaxPoints) * 100)
       : (totalSubtasksAcrossAll > 0 ? Math.round((totalCompletedSubtasksAcrossAll / totalSubtasksAcrossAll) * 100) : 0);
 
     return {
       totalEarnedPoints,
-      totalMaxPoints: totalMaxPoints > 0 ? totalMaxPoints : 100,
+      totalMaxPoints: totalMaxPoints || 100,
       overallPercentage,
-      totalSubtasksAcrossAll,
-      totalCompletedSubtasksAcrossAll,
-      activeAssignmentsCount,
-      completedAssignmentsCount,
-      notStartedAssignmentsCount,
-      expiredAssignmentsCount,
+      activeCount,
+      completedCount,
+      notStartedCount,
+      expiredCount,
       assignmentDetails
     };
-  },
-
-  /**
-   * Alias for getStudentOverallStats
-   */
-  async getStudentOverallStats(studentId, assignments = null) {
-    return this.calculateStudentStats(studentId, assignments);
   }
 };

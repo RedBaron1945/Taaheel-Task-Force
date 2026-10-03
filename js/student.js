@@ -7,104 +7,10 @@
 import { ProgressService } from './progressService.js';
 import { Utils } from './utils.js';
 
-/**
- * Curated motivational sayings, slogans, and poetic verses for students
- * - 'slogan': 3-line format (Dark -> Royal Blue -> Amber/Brown)
- * - 'verse': 2-line poetic couplet (صدر وعجز)
- * Normalization: Cleaned without tatweel/kashida
- */
-const MOTIVATIONAL_QUOTES = [
-  {
-    type: 'slogan',
-    lines: [
-      { text: 'إذا لم تكن أسدا بالعزم ..', cls: 'text-slate-800 font-bold' },
-      { text: 'غزالًا في السبق', cls: 'text-blue-950 font-extrabold my-0.5' },
-      { text: 'فلا تتثعلب', cls: 'text-amber-800 font-black' }
-    ]
-  },
-  {
-    type: 'slogan',
-    lines: [
-      { text: 'أنا لها ..', cls: 'text-blue-950 font-extrabold' },
-      { text: 'حتى أنالها', cls: 'text-amber-800 font-black' }
-    ]
-  },
-  {
-    type: 'slogan',
-    lines: [
-      { text: 'قوي التوكّل لا يُهزم ،', cls: 'text-slate-800 font-bold' },
-      { text: 'و مُلح الدعاء', cls: 'text-blue-950 font-extrabold my-0.5' },
-      { text: 'لا يُخذل', cls: 'text-amber-800 font-black' }
-    ]
-  },
-  {
-    type: 'slogan',
-    lines: [
-      { text: 'أما تفاهة السير ..', cls: 'text-blue-950 font-extrabold' },
-      { text: 'فليست لك', cls: 'text-amber-800 font-black' }
-    ]
-  },
-  {
-    type: 'slogan',
-    lines: [
-      { text: 'فليس يجني ثمار الفوز يانعة ..', cls: 'text-slate-800 font-bold' },
-      { text: 'من جنة العلم', cls: 'text-blue-950 font-extrabold my-0.5' },
-      { text: 'إلا صادق الهمم', cls: 'text-amber-800 font-black' }
-    ]
-  },
-  {
-    type: 'slogan',
-    lines: [
-      { text: 'لن تنال الراحة', cls: 'text-blue-950 font-extrabold' },
-      { text: 'بالراحة', cls: 'text-amber-800 font-black' }
-    ]
-  },
-  {
-    type: 'slogan',
-    lines: [
-      { text: 'إنما النصر', cls: 'text-blue-950 font-extrabold' },
-      { text: 'صبر ساعة', cls: 'text-amber-800 font-black' }
-    ]
-  },
-  {
-    type: 'verse',
-    lines: [
-      { text: 'سَنَظلُّ في جبل الرماة وخلفَنا', cls: 'text-slate-900 font-bold' },
-      { text: 'صَوتُ النبيّ يهُزنا لا تبرحوا', cls: 'text-amber-800 font-black mt-1' }
-    ]
-  },
-  {
-    type: 'verse',
-    lines: [
-      { text: 'وذا الدِّينُ أَجدِر أنْ يَقُومَ بِهِ فَتًى', cls: 'text-slate-900 font-bold' },
-      { text: 'أَمِينٌ لِأَعبَاءِ الأَمَانَةِ حَامِلُ', cls: 'text-amber-800 font-black mt-1' }
-    ]
-  },
-  {
-    type: 'verse',
-    lines: [
-      { text: 'ليست جُهودُ المرءِ تصنعُ مجدهُ', cls: 'text-slate-900 font-bold' },
-      { text: 'إن لَم يكُن توفيقُهُ مِن خالِقه', cls: 'text-amber-800 font-black mt-1' }
-    ]
-  },
-  {
-    type: 'verse',
-    lines: [
-      { text: 'أنتَ الرّجاءُ وأنتَ ذُخرُ الأمّةِ', cls: 'text-slate-900 font-bold' },
-      { text: 'وَبِكَ الثغورُ سَتَمتَلي في رِفعَةِ', cls: 'text-amber-800 font-black mt-1' }
-    ]
-  }
-];
-
 export const StudentView = {
   expandedAssignmentIds: new Set(), // Track which assignment dropdowns are currently open
   _countdownInterval: null,
   _lastAssignmentHandler: null,
-  _quoteInterval: null,
-  _currentQuoteIndex: 0,
-  _isQuotePaused: false,
-  _isQuoteAnimating: false,
-  _quoteTouchStartX: 0,
 
   /**
    * Helper to compute remaining days / hours to assignment deadline
@@ -160,10 +66,6 @@ export const StudentView = {
     if (this._countdownInterval) {
       clearInterval(this._countdownInterval);
       this._countdownInterval = null;
-    }
-    if (this._quoteInterval) {
-      clearInterval(this._quoteInterval);
-      this._quoteInterval = null;
     }
 
     container.innerHTML = `
@@ -233,55 +135,34 @@ export const StudentView = {
           <div class="text-center py-12 text-slate-400">جارٍ تحميل التكاليف...</div>
         </div>
 
-        <!-- Poetic Wisdom & Motivational Quotes Carousel at the Bottom of the Page -->
-        <section id="student-quote-card" class="relative mt-8 mb-4 overflow-hidden rounded-2xl bg-gradient-to-r from-amber-50/70 via-stone-50 to-amber-50/70 border border-amber-300/40 p-5 sm:p-6 shadow-xs text-center select-none group" role="region" aria-label="مقولة تحفيزية">
+        <!-- Poetic Wisdom Quote Card at the Bottom of the Page -->
+        <section class="relative mt-8 mb-4 overflow-hidden rounded-2xl bg-gradient-to-r from-amber-50/70 via-stone-50 to-amber-50/70 border border-amber-300/40 p-5 sm:p-6 shadow-xs text-center">
           <div class="absolute inset-0 bg-[radial-gradient(#c4973b_1px,transparent_1px)] opacity-10 [background-size:16px_16px] pointer-events-none"></div>
           
-          <div class="relative z-10 max-w-xl mx-auto flex items-center justify-between gap-2 sm:gap-4">
-            <!-- Previous Quote Button -->
-            <button type="button" id="quote-prev-btn" class="w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-stone-400 hover:text-amber-800 hover:bg-amber-100/70 active:scale-90 transition-all opacity-40 group-hover:opacity-100 focus:opacity-100 focus:outline-hidden focus:ring-2 focus:ring-amber-500/40 cursor-pointer shrink-0" aria-label="العبارة السابقة" title="العبارة السابقة">
-              <svg class="w-4 h-4 rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M9 5l7 7-7 7" />
-              </svg>
-            </button>
-
-            <!-- Dynamic Quote Container with Smooth Fade Transition -->
-            <div id="quote-content-wrapper" class="flex-1 min-w-0 transition-opacity duration-350 ease-in-out">
-              <div class="flex items-center justify-center gap-2 mb-2 opacity-75">
-                <span class="w-8 h-px bg-gradient-to-l from-amber-500 to-transparent"></span>
-                <span class="text-amber-700 text-xs">✦</span>
-                <span class="w-8 h-px bg-gradient-to-r from-amber-500 to-transparent"></span>
-              </div>
-
-              <blockquote id="quote-text-container" class="font-serif min-h-[4.75rem] flex flex-col items-center justify-center" style="font-family: var(--font-calligraphy), serif;">
-                <!-- Populated dynamically -->
-              </blockquote>
-
-              <div class="flex items-center justify-center gap-2 mt-2 opacity-75">
-                <span class="w-8 h-px bg-gradient-to-l from-amber-500 to-transparent"></span>
-                <span class="text-amber-700 text-xs">✦</span>
-                <span class="w-8 h-px bg-gradient-to-r from-amber-500 to-transparent"></span>
-              </div>
+          <div class="relative z-10 max-w-xl mx-auto flex flex-col items-center justify-center">
+            <div class="flex items-center gap-2 mb-2 opacity-75">
+              <span class="w-8 h-px bg-gradient-to-l from-amber-500 to-transparent"></span>
+              <span class="text-amber-700 text-xs">✦</span>
+              <span class="w-8 h-px bg-gradient-to-r from-amber-500 to-transparent"></span>
             </div>
 
-            <!-- Next Quote Button -->
-            <button type="button" id="quote-next-btn" class="w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-stone-400 hover:text-amber-800 hover:bg-amber-100/70 active:scale-90 transition-all opacity-40 group-hover:opacity-100 focus:opacity-100 focus:outline-hidden focus:ring-2 focus:ring-amber-500/40 cursor-pointer shrink-0" aria-label="العبارة التالية" title="العبارة التالية">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M9 5l7 7-7 7" />
-              </svg>
-            </button>
-          </div>
+            <blockquote class="text-base sm:text-lg md:text-xl font-bold text-slate-800 leading-relaxed font-serif" style="font-family: var(--font-calligraphy), serif;">
+              <span class="block">إذا لم تكن أسداً في العزم</span>
+              <span class="block text-blue-950 font-extrabold my-0.5">غزالاً في السبق</span>
+              <span class="block text-amber-800 font-black">فلا تتثعلب..</span>
+            </blockquote>
 
-          <!-- Pagination Indicator Dots -->
-          <div id="quote-dots-container" class="relative z-10 flex items-center justify-center gap-1.5 mt-3 pt-1" role="tablist" aria-label="مؤشرات العبارات">
-            <!-- Populated dynamically -->
+            <div class="flex items-center gap-2 mt-2 opacity-75">
+              <span class="w-8 h-px bg-gradient-to-l from-amber-500 to-transparent"></span>
+              <span class="text-amber-700 text-xs">✦</span>
+              <span class="w-8 h-px bg-gradient-to-r from-amber-500 to-transparent"></span>
+            </div>
           </div>
         </section>
       </div>
     `;
 
     await this.refresh(student);
-    this.initQuoteCarousel();
   },
 
   /**
@@ -756,205 +637,5 @@ export const StudentView = {
         }
       });
     });
-  },
-
-  /**
-   * Initialize motivational quotes carousel with rotation, swipe, and controls
-   */
-  initQuoteCarousel() {
-    const card = document.getElementById('student-quote-card');
-    const prevBtn = document.getElementById('quote-prev-btn');
-    const nextBtn = document.getElementById('quote-next-btn');
-    const textContainer = document.getElementById('quote-text-container');
-    const dotsContainer = document.getElementById('quote-dots-container');
-    if (!card || !textContainer) return;
-
-    // Pick an initial quote different from the previous visit/login
-    const total = MOTIVATIONAL_QUOTES.length;
-    const lastStored = localStorage.getItem('taheel_last_quote_index');
-    let chosenIndex = 0;
-    if (lastStored !== null) {
-      const last = parseInt(lastStored, 10);
-      let candidate = Math.floor(Math.random() * total);
-      if (candidate === last) {
-        candidate = (candidate + 1) % total;
-      }
-      chosenIndex = candidate;
-    } else {
-      chosenIndex = Math.floor(Math.random() * total);
-    }
-    localStorage.setItem('taheel_last_quote_index', String(chosenIndex));
-    this._currentQuoteIndex = chosenIndex;
-
-    // Render initial content and dots
-    this.renderQuoteContent(chosenIndex);
-    this.renderQuoteDots(chosenIndex);
-
-    // Navigation buttons
-    if (prevBtn) {
-      prevBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        this.prevQuote();
-      });
-    }
-    if (nextBtn) {
-      nextBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        this.nextQuote();
-      });
-    }
-
-    // Dots delegation
-    if (dotsContainer) {
-      dotsContainer.addEventListener('click', (e) => {
-        const dot = e.target.closest('.quote-dot');
-        if (dot && dot.dataset.index !== undefined) {
-          e.stopPropagation();
-          const targetIdx = parseInt(dot.dataset.index, 10);
-          if (targetIdx !== this._currentQuoteIndex) {
-            this.goToQuote(targetIdx);
-          }
-        }
-      });
-    }
-
-    // Pause on hover or focus
-    card.addEventListener('mouseenter', () => { this._isQuotePaused = true; });
-    card.addEventListener('mouseleave', () => { this._isQuotePaused = false; });
-    card.addEventListener('focusin', () => { this._isQuotePaused = true; });
-    card.addEventListener('focusout', () => { this._isQuotePaused = false; });
-
-    // Touch swipe support on mobile devices
-    card.addEventListener('touchstart', (e) => {
-      this._isQuotePaused = true;
-      if (e.touches && e.touches[0]) {
-        this._quoteTouchStartX = e.touches[0].clientX;
-      }
-    }, { passive: true });
-
-    card.addEventListener('touchend', (e) => {
-      this._isQuotePaused = false;
-      if (e.changedTouches && e.changedTouches[0]) {
-        const deltaX = e.changedTouches[0].clientX - this._quoteTouchStartX;
-        if (Math.abs(deltaX) > 40) {
-          // RTL layout: swipe left goes to next quote, swipe right goes to previous
-          if (deltaX < 0) {
-            this.nextQuote();
-          } else {
-            this.prevQuote();
-          }
-        }
-      }
-    }, { passive: true });
-
-    // Auto-rotation every 45 seconds if user does NOT prefer reduced motion
-    const prefersReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (!prefersReducedMotion) {
-      if (this._quoteInterval) clearInterval(this._quoteInterval);
-      this._quoteInterval = setInterval(() => {
-        if (!this._isQuotePaused) {
-          this.nextQuote();
-        }
-      }, 45000);
-    }
-  },
-
-  /**
-   * Render quote content formatted appropriately for slogans (3 lines) or verses (2 lines)
-   */
-  renderQuoteContent(index) {
-    const textContainer = document.getElementById('quote-text-container');
-    if (!textContainer) return;
-    const q = MOTIVATIONAL_QUOTES[index];
-    if (!q) return;
-
-    if (q.type === 'verse') {
-      textContainer.className = 'font-serif text-sm sm:text-base md:text-lg font-bold leading-relaxed min-h-[4.75rem] flex flex-col items-center justify-center space-y-1';
-      textContainer.innerHTML = q.lines.map(line => `
-        <span class="block ${line.cls}">${Utils.escapeHtml(line.text)}</span>
-      `).join('');
-    } else {
-      textContainer.className = 'font-serif text-base sm:text-lg md:text-xl font-bold leading-relaxed min-h-[4.75rem] flex flex-col items-center justify-center';
-      textContainer.innerHTML = q.lines.map(line => `
-        <span class="block ${line.cls}">${Utils.escapeHtml(line.text)}</span>
-      `).join('');
-    }
-  },
-
-  /**
-   * Render pagination dots
-   */
-  renderQuoteDots(activeIndex) {
-    const dotsContainer = document.getElementById('quote-dots-container');
-    if (!dotsContainer) return;
-    dotsContainer.innerHTML = MOTIVATIONAL_QUOTES.map((_, i) => `
-      <button type="button" class="quote-dot transition-all duration-300 rounded-full h-1.5 cursor-pointer ${
-        i === activeIndex 
-          ? 'w-5 bg-amber-700 shadow-2xs' 
-          : 'w-1.5 bg-stone-300 hover:bg-amber-400'
-      }" data-index="${i}" aria-label="العبارة ${i + 1}" role="tab" aria-selected="${i === activeIndex}">
-      </button>
-    `).join('');
-  },
-
-  /**
-   * Update active status on existing dots
-   */
-  updateQuoteDots(activeIndex) {
-    const dotsContainer = document.getElementById('quote-dots-container');
-    if (!dotsContainer) return;
-    const dots = dotsContainer.querySelectorAll('.quote-dot');
-    dots.forEach((dot, i) => {
-      const isActive = i === activeIndex;
-      dot.className = `quote-dot transition-all duration-300 rounded-full h-1.5 cursor-pointer ${
-        isActive ? 'w-5 bg-amber-700 shadow-2xs' : 'w-1.5 bg-stone-300 hover:bg-amber-400'
-      }`;
-      dot.setAttribute('aria-selected', isActive ? 'true' : 'false');
-    });
-  },
-
-  /**
-   * Transition to a specific quote with smooth fade effect
-   */
-  goToQuote(newIndex) {
-    if (this._isQuoteAnimating) return;
-    const wrapper = document.getElementById('quote-content-wrapper');
-    if (!wrapper) {
-      this._currentQuoteIndex = newIndex;
-      this.renderQuoteContent(newIndex);
-      this.updateQuoteDots(newIndex);
-      return;
-    }
-
-    this._isQuoteAnimating = true;
-    wrapper.style.opacity = '0';
-
-    setTimeout(() => {
-      this._currentQuoteIndex = newIndex;
-      this.renderQuoteContent(newIndex);
-      this.updateQuoteDots(newIndex);
-      localStorage.setItem('taheel_last_quote_index', String(newIndex));
-      wrapper.style.opacity = '1';
-      setTimeout(() => {
-        this._isQuoteAnimating = false;
-      }, 350);
-    }, 220);
-  },
-
-  /**
-   * Advance to next quote
-   */
-  nextQuote() {
-    const nextIdx = (this._currentQuoteIndex + 1) % MOTIVATIONAL_QUOTES.length;
-    this.goToQuote(nextIdx);
-  },
-
-  /**
-   * Go back to previous quote
-   */
-  prevQuote() {
-    const total = MOTIVATIONAL_QUOTES.length;
-    const prevIdx = (this._currentQuoteIndex - 1 + total) % total;
-    this.goToQuote(prevIdx);
   }
 };
