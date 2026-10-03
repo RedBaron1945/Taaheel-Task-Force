@@ -1,0 +1,41 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // USERS COLLECTION (Student profiles, supervisor, officers)
+    match /users/{userId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // ATTENDANCE COLLECTION (Weekly roll-call records)
+    match /attendance/{recordId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // ASSIGNMENTS COLLECTION (Cohort curriculum & tasks)
+    match /assignments/{assignmentId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // PROGRESS COLLECTION (Student submissions & completion scores)
+    match /progress/{progressId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // MAHADEN COLLECTION (Center metadata)
+    match /mahaden/{mahadId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // SETTINGS COLLECTION (Logo & system preferences)
+    match /settings/{settingId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+  }
+}
