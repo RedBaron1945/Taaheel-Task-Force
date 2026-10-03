@@ -1,0 +1,7 @@
+{
+  "name": "منصة مرحلة التأهيل",
+  "description": "منصة تعليمية عربية لمتابعة طلاب مرحلة التأهيل ومراقبة إنجازهم للتكاليف وحضورهم",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+

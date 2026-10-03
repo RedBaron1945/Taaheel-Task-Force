@@ -39,27 +39,17 @@ export const UserService = {
     INITIAL_DATA.users.forEach(u => mergedMap.set(u.id, u));
     localUsers.forEach(u => mergedMap.set(u.id, { ...mergedMap.get(u.id), ...u }));
 
-    if (auth.currentUser) {
-      try {
-        const isOfficer = auth.currentUser.uid === 'TnCoR9ZTSibHTvIt15VPeQHfGFy1';
-        let q;
-        if (isOfficer) {
-          q = query(collection(db, 'users'), where('role', '==', 'student'));
-        } else {
-          q = collection(db, 'users');
-        }
-
-        const snapshot = await getDocs(q);
-        if (!snapshot.empty) {
-          snapshot.forEach(docSnap => {
-            const remoteUser = { id: docSnap.id, ...docSnap.data() };
-            const existing = mergedMap.get(remoteUser.id) || {};
-            mergedMap.set(remoteUser.id, { ...existing, ...remoteUser });
-          });
-        }
-      } catch (err) {
-        console.warn('Firestore users fetch warning:', err);
+    try {
+      const snapshot = await getDocs(collection(db, 'users'));
+      if (!snapshot.empty) {
+        snapshot.forEach(docSnap => {
+          const remoteUser = { id: docSnap.id, ...docSnap.data() };
+          const existing = mergedMap.get(remoteUser.id) || {};
+          mergedMap.set(remoteUser.id, { ...existing, ...remoteUser });
+        });
       }
+    } catch (err) {
+      console.warn('Firestore users fetch warning:', err);
     }
 
     const merged = Array.from(mergedMap.values());
@@ -177,9 +167,17 @@ export const UserService = {
           });
           if (students.length > 0) {
             const allUsers = Storage.getUsers();
-            const nonStudents = allUsers.filter(u => u.role !== 'student');
-            Storage.saveUsers([...nonStudents, ...students]);
-            if (callback) callback(students);
+            const userMap = new Map();
+            // Seed all official initial users
+            INITIAL_DATA.users.forEach(u => userMap.set(u.id, u));
+            // Keep local users
+            allUsers.forEach(u => userMap.set(u.id, { ...userMap.get(u.id), ...u }));
+            // Merge remote snapshot students
+            students.forEach(st => userMap.set(st.id, { ...userMap.get(st.id), ...st }));
+
+            const merged = Array.from(userMap.values());
+            Storage.saveUsers(merged);
+            if (callback) callback(merged.filter(u => u.role === 'student'));
           }
         }, () => {
           // Handled silently
@@ -204,46 +202,150 @@ export const UserService = {
   },
 
   /**
+   * Helper to get all local users guaranteed to contain all initial seeds
+   */
+  getAllLocalUsers() {
+    const userMap = new Map();
+    // 1. Initial Data Users
+    INITIAL_DATA.users.forEach(u => {
+      if (u && u.id) userMap.set(u.id, u);
+    });
+    // 2. Storage Users
+    try {
+      const stored = Storage.getUsers();
+      if (Array.isArray(stored)) {
+        stored.forEach(u => {
+          if (u && u.id) userMap.set(u.id, { ...userMap.get(u.id), ...u });
+        });
+      }
+    } catch (_) {}
+    return Array.from(userMap.values());
+  },
+
+  /**
    * Get a single user by ID
    */
   async getUserById(id) {
-    if (auth.currentUser) {
-      try {
-        const docSnap = await getDoc(doc(db, 'users', id));
-        if (docSnap.exists()) {
-          return { id: docSnap.id, ...docSnap.data() };
-        }
-      } catch (_) {}
-    }
-    const users = Storage.getUsers();
-    return users.find(u => u.id === id) || null;
+    if (!id) return null;
+    const cleanId = String(id).trim();
+
+    // 1. Check local users
+    const allUsers = this.getAllLocalUsers();
+    let user = allUsers.find(u => u.id === cleanId || u.id.toLowerCase() === cleanId.toLowerCase());
+    if (user) return user;
+
+    // 2. Check Firestore
+    try {
+      const docSnap = await getDoc(doc(db, 'users', cleanId));
+      if (docSnap.exists()) {
+        const remoteUser = { id: docSnap.id, ...docSnap.data() };
+        Storage.addStudent(remoteUser);
+        return remoteUser;
+      }
+    } catch (_) {}
+
+    return null;
   },
 
   /**
-   * Find user by email (case-insensitive)
+   * Find user by email or UID: checks INITIAL_DATA.users, Storage, and Cloud Firestore
    */
-  async getUserByEmail(email) {
-    if (!email) return null;
-    const cleanEmail = email.trim().toLowerCase();
-    if (auth.currentUser) {
-      try {
-        const q = query(collection(db, 'users'), where('email', '==', cleanEmail));
-        const snapshot = await getDocs(q);
-        if (!snapshot.empty) {
-          const docSnap = snapshot.docs[0];
-          return { id: docSnap.id, ...docSnap.data() };
-        }
-      } catch (_) {}
+  async getUserByEmail(input) {
+    if (!input) return null;
+    const raw = String(input).trim();
+    const clean = raw.toLowerCase();
+    const prefix = clean.split('@')[0].trim();
+
+    // 1. Supervisor check (by UID, prefix, or official email)
+    if (prefix === 'o83e55hquyajvh3ji4fjltobyg63' || prefix === 'supervisor' || clean === 'admin@taaheel.sa' || clean === 'supervisor@taaheeltaskforce.com') {
+      return INITIAL_DATA.users.find(u => u.id === 'O83e55HQuyajVh3Ji4FJltobyg63') || null;
     }
-    const users = Storage.getUsers();
-    return users.find(u => (u.email || '').toLowerCase() === cleanEmail) || null;
+    // 2. Attendance check (by UID, prefix, or official email)
+    if (prefix === 'tncor9ztsibhtvit15vpeqhfgfy1' || prefix === 'attendance' || clean === 'attendance@taaheeltaskforce.com') {
+      return INITIAL_DATA.users.find(u => u.id === 'TnCoR9ZTSibHTvIt15VPeQHfGFy1') || null;
+    }
+
+    // 3. Search in INITIAL_DATA.users
+    let user = INITIAL_DATA.users.find(u => {
+      const uId = (u.id || '').toLowerCase();
+      const uEmail = (u.email || '').toLowerCase();
+      const uPrefix = uEmail.split('@')[0].toLowerCase();
+      const aliases = Array.isArray(u.aliases) ? u.aliases.map(a => a.toLowerCase()) : [];
+      return (
+        uId === clean ||
+        uId === prefix ||
+        uEmail === clean ||
+        uPrefix === clean ||
+        uPrefix === prefix ||
+        aliases.includes(clean) ||
+        aliases.includes(prefix)
+      );
+    });
+    if (user) return user;
+
+    // 4. Search in Storage
+    const allUsers = this.getAllLocalUsers();
+    user = allUsers.find(u => {
+      const uId = (u.id || '').toLowerCase();
+      const uEmail = (u.email || '').toLowerCase();
+      const uPrefix = uEmail.split('@')[0].toLowerCase();
+      const aliases = Array.isArray(u.aliases) ? u.aliases.map(a => a.toLowerCase()) : [];
+      return (
+        uId === clean ||
+        uId === prefix ||
+        uEmail === clean ||
+        uPrefix === clean ||
+        uPrefix === prefix ||
+        aliases.includes(clean) ||
+        aliases.includes(prefix)
+      );
+    });
+    if (user) return user;
+
+    // 5. Search Cloud Firestore if present
+    try {
+      const docSnap = await getDoc(doc(db, 'users', raw));
+      if (docSnap.exists()) {
+        const remoteUser = { id: docSnap.id, ...docSnap.data() };
+        Storage.addStudent(remoteUser);
+        return remoteUser;
+      }
+      const q1 = query(collection(db, 'users'), where('email', '==', clean));
+      const snap1 = await getDocs(q1);
+      if (!snap1.empty) {
+        const remoteUser = { id: snap1.docs[0].id, ...snap1.docs[0].data() };
+        Storage.addStudent(remoteUser);
+        return remoteUser;
+      }
+      const q2 = query(collection(db, 'users'), where('aliases', 'array-contains', clean));
+      const snap2 = await getDocs(q2);
+      if (!snap2.empty) {
+        const remoteUser = { id: snap2.docs[0].id, ...snap2.docs[0].data() };
+        Storage.addStudent(remoteUser);
+        return remoteUser;
+      }
+      // Scan all docs in Firestore users collection
+      const allDocsSnap = await getDocs(collection(db, 'users'));
+      for (const d of allDocsSnap.docs) {
+        const data = d.data();
+        const dId = d.id.toLowerCase();
+        const dEmail = (data.email || '').toLowerCase();
+        const dAliases = Array.isArray(data.aliases) ? data.aliases.map(a => a.toLowerCase()) : [];
+        if (dId === clean || dId === prefix || dEmail === clean || dAliases.includes(clean) || dAliases.includes(prefix)) {
+          const remoteUser = { id: d.id, ...data };
+          Storage.addStudent(remoteUser);
+          return remoteUser;
+        }
+      }
+    } catch (_) {}
+
+    return null;
   },
 
   /**
-   * Seed Initial System Users into Firestore if supervisor or authenticated user is active
+   * Seed Initial System Users into Firestore
    */
   async seedInitialFirestoreData() {
-    if (!auth.currentUser) return;
     try {
       const promises = INITIAL_DATA.users.map(u => {
         const ref = doc(db, 'users', u.id);

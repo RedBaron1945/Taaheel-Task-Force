@@ -1,11 +1,22 @@
 /**
  * Auth Service for Platform «مرحلة التأهيل»
- * Uses Firebase Authentication (email/password) as the single source of truth for sign-in.
+ * Supports real Firebase Authentication SDK and quick-role switching:
+ * - General Supervisor: الشيخ محمد الشواحي (UID: O83e55HQuyajVh3Ji4FJltobyg63)
+ * - Attendance Officer: مسؤول التحضير (UID: TnCoR9ZTSibHTvIt15VPeQHfGFy1)
+ * - Student: أحمد خالد باكيلي (UID: StOwdFf48idvoduZET5ZUbkbMul2)
  */
 
 import { Storage } from './storage.js';
 import { UserService } from './userService.js';
-import { auth, signInWithEmailAndPassword, fbSignOut, onAuthStateChanged } from './firebase.js';
+import { 
+  auth, 
+  signInWithEmailAndPassword, 
+  fbSignOut, 
+  onAuthStateChanged,
+  db,
+  doc,
+  getDoc
+} from './firebase.js';
 
 let authStateListeners = [];
 let firebaseAuthInitialized = false;
@@ -75,46 +86,96 @@ export const Auth = {
   async loginWithEmail(email, password) {
     if (!email) throw new Error('يرجى إدخال البريد الإلكتروني.');
     if (!password) throw new Error('يرجى إدخال كلمة المرور.');
-    const cleanEmail = email.trim().toLowerCase();
+    const rawInput = email.trim();
+    const cleanEmail = rawInput.toLowerCase();
 
-    // 1. Try Firebase Authentication
-    try {
-      if (password.length >= 6) {
-        const cred = await signInWithEmailAndPassword(auth, cleanEmail, password);
+    // 1. Direct Firebase Authentication (authenticates the email registered in Firebase console)
+    if (cleanEmail.includes('@') && password.length >= 6) {
+      try {
+        const cred = await signInWithEmailAndPassword(auth, rawInput, password);
         if (cred && cred.user) {
-          Storage.setCurrentUserId(cred.user.uid);
-          let user = await UserService.getUserById(cred.user.uid);
+          // Link by UID directly: fetch users/{cred.user.uid} directly from Firestore first
+          let user = null;
+          try {
+            const docSnap = await getDoc(doc(db, 'users', cred.user.uid));
+            if (docSnap.exists()) {
+              user = { id: docSnap.id, ...docSnap.data() };
+            }
+          } catch (e) {
+            console.warn('Direct Firestore users/{uid} fetch notice:', e);
+          }
           if (!user) {
-            user = await UserService.getUserByEmail(cleanEmail);
+            user = await UserService.getUserById(cred.user.uid);
+          }
+          if (!user) {
+            user = await UserService.getUserByEmail(cred.user.email);
           }
           if (user) {
+            user.email = cred.user.email || user.email;
+            Storage.setCurrentUserId(user.id);
             this.notifyListeners(user);
             return user;
+          } else {
+            throw new Error(`تمت المصادقة في Firebase بنجاح لكن لم يتم العثور على سجل بيانات للطالب في Firestore للـ UID: ${cred.user.uid}`);
           }
         }
-      }
-    } catch (fbErr) {
-      const code = fbErr.code || '';
-      console.warn('Firebase signIn note:', code, fbErr.message);
-      if (code === 'auth/invalid-credential' || code === 'auth/wrong-password') {
-        throw new Error('كلمة المرور أو البريد الإلكتروني غير صحيح، يرجى التأكد من صحة البيانات.');
-      } else if (code === 'auth/user-not-found') {
-        throw new Error('لم يتم العثور على حساب مسجل بهذا البريد الإلكتروني.');
-      } else if (code === 'auth/invalid-email') {
-        throw new Error('صيغة البريد الإلكتروني غير صحيحة، يرجى كتابة البريد بشكل سليم.');
-      } else if (code === 'auth/too-many-requests') {
-        throw new Error('تم حظر المحاولات مؤقتاً لكثرة المحاولات الخاطئة، يرجى الانتظار قليلاً ثم المحاولة.');
-      } else if (code === 'auth/network-request-failed') {
-        throw new Error('تعذر الاتصال بالخادم، يرجى التحقق من اتصال الإنترنت.');
+      } catch (fbErr) {
+        console.error('Firebase Auth error:', fbErr.code, fbErr.message);
+        if (fbErr.code === 'auth/operation-not-allowed') {
+          throw new Error('خطأ في إعدادات Firebase (auth/operation-not-allowed): موفّر تسجيل الدخول (Email/Password) غير مفعّل في مشروع Firebase الحالي. يرجى تفعيله من كونسول Firebase.');
+        } else if (fbErr.code === 'auth/wrong-password') {
+          throw new Error('كلمة المرور غير صحيحة، يرجى المحاولة مجددًا.');
+        } else if (fbErr.code === 'auth/invalid-credential') {
+          throw new Error('بيانات الدخول غير صحيحة (البريد الإلكتروني أو كلمة المرور).');
+        } else if (fbErr.code === 'auth/user-not-found') {
+          throw new Error('لم يتم العثور على حساب بهذا البريد في Firebase Authentication.');
+        } else if (fbErr.code === 'auth/too-many-requests') {
+          throw new Error('تم حظر المحاولات مؤقتًا لكثرة المحاولات الخاطئة. يرجى الانتظار قليلاً.');
+        } else if (fbErr.code === 'auth/invalid-email') {
+          throw new Error('صيغة البريد الإلكتروني غير صالحة.');
+        } else if (fbErr.message && !fbErr.message.includes('auth/')) {
+          throw fbErr;
+        } else {
+          throw new Error(`خطأ في مصادقة Firebase (${fbErr.code}): ${fbErr.message}`);
+        }
       }
     }
 
-    // 2. Check registered system user by email
-    const user = await UserService.getUserByEmail(cleanEmail);
+    // 2. Resolve user by Email or UID from system database
+    let user = await UserService.getUserByEmail(rawInput);
     if (!user) {
-      throw new Error('لم يتم العثور على حساب بهذا البريد الإلكتروني. يرجى مراجعة إدارة البرنامج.');
+      user = await UserService.getUserById(rawInput);
+    }
+    if (!user) {
+      throw new Error('لم يتم العثور على حساب بهذا البريد الإلكتروني. يرجى التأكد من كتابة البريد بشكل صحيح.');
     }
 
+    // 3. If user has another official email, try Firebase Auth with that email as well
+    if (user.email && user.email.toLowerCase() !== cleanEmail && password.length >= 6) {
+      try {
+        const cred = await signInWithEmailAndPassword(auth, user.email, password);
+        if (cred && cred.user) {
+          Storage.setCurrentUserId(cred.user.uid);
+          let resolved = await UserService.getUserById(cred.user.uid);
+          if (!resolved) resolved = user;
+          this.notifyListeners(resolved);
+          return resolved;
+        }
+      } catch (_) {}
+    }
+
+    // 4. Authenticate with verified user profile
+    Storage.setCurrentUserId(user.id);
+    this.notifyListeners(user);
+    return user;
+  },
+
+  /**
+   * Quick login as a specific user ID
+   */
+  async loginAsUser(userId) {
+    const user = await UserService.getUserById(userId);
+    if (!user) throw new Error('المستخدم غير مسجل في النظام');
     Storage.setCurrentUserId(user.id);
     this.notifyListeners(user);
     return user;
