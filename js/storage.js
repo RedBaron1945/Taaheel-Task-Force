@@ -8,30 +8,39 @@ import { INITIAL_DATA } from './data.js';
 import { getOfficialLogoDataUrl } from './logo.js';
 
 const STORAGE_KEYS = {
-  MAHADEN: 'taheel_mahaden_v5',
-  USERS: 'taheel_users_v5',
-  ASSIGNMENTS: 'taheel_assignments_v5',
-  PROGRESS: 'taheel_progress_v5',
-  ATTENDANCE: 'taheel_attendance_v5',
-  CURRENT_USER_ID: 'taheel_session_user_v5',
+  MAHADEN: 'taheel_mahaden_v6',
+  USERS: 'taheel_users_v6',
+  ASSIGNMENTS: 'taheel_assignments_v6',
+  PROGRESS: 'taheel_progress_v6',
+  ATTENDANCE: 'taheel_attendance_v6',
+  CURRENT_USER_ID: 'taheel_session_user_v6',
   CUSTOM_LOGO: 'taheel_custom_logo_v3'
 };
 
 export const Storage = {
   /**
-   * Initialize storage with seed data if not already present
+   * Initialize storage with clean production state and purge all mock/test data
    */
   init() {
-    // Purge previous mock/demo storage keys
-    const oldKeys = [
-      'taheel_mahaden_v4', 'taheel_users_v4', 'taheel_assignments_v4',
-      'taheel_progress_v4', 'taheel_attendance_v4', 'taheel_session_user_v4',
-      'taheel_mahaden_v3', 'taheel_users_v3', 'taheel_assignments_v3',
-      'taheel_progress_v3', 'taheel_attendance_v3', 'taheel_session_user_v3'
-    ];
-    oldKeys.forEach(k => {
-      try { localStorage.removeItem(k); } catch (_) {}
-    });
+    // Aggressively purge all previous mock/demo storage keys from any previous versions
+    try {
+      const keysToRemove = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith('taheel_') && k !== STORAGE_KEYS.CUSTOM_LOGO && k !== 'taheel_custom_logo_v3') {
+          if (!k.endsWith('_v6')) {
+            keysToRemove.push(k);
+          }
+        }
+      }
+      keysToRemove.forEach(k => {
+        try { localStorage.removeItem(k); } catch (_) {}
+      });
+      // Explicitly purge v5 and older attendance and progress
+      ['taheel_attendance_v5', 'taheel_progress_v5', 'taheel_attendance_v4', 'taheel_progress_v4', 'taheel_attendance_v3', 'taheel_progress_v3', 'taheel_attendance', 'taheel_progress'].forEach(k => {
+        try { localStorage.removeItem(k); } catch (_) {}
+      });
+    } catch (_) {}
 
     if (!localStorage.getItem(STORAGE_KEYS.USERS)) {
       this.resetToDefaults();
@@ -45,8 +54,8 @@ export const Storage = {
     localStorage.setItem(STORAGE_KEYS.MAHADEN, JSON.stringify(INITIAL_DATA.mahaden));
     localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(INITIAL_DATA.users));
     localStorage.setItem(STORAGE_KEYS.ASSIGNMENTS, JSON.stringify(INITIAL_DATA.assignments));
-    localStorage.setItem(STORAGE_KEYS.PROGRESS, JSON.stringify(INITIAL_DATA.progress));
-    localStorage.setItem(STORAGE_KEYS.ATTENDANCE, JSON.stringify(INITIAL_DATA.attendance));
+    localStorage.setItem(STORAGE_KEYS.PROGRESS, JSON.stringify({}));
+    localStorage.setItem(STORAGE_KEYS.ATTENDANCE, JSON.stringify([]));
     // Note: Do NOT set CURRENT_USER_ID here so the login screen is displayed on first load.
   },
 
@@ -69,19 +78,23 @@ export const Storage = {
     try {
       const data = localStorage.getItem(STORAGE_KEYS.USERS);
       let localUsers = data ? JSON.parse(data) : [];
-      if (!Array.isArray(localUsers) || localUsers.length === 0) {
-        localUsers = INITIAL_DATA.users;
-        localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(localUsers));
-        return localUsers;
+      const userMap = new Map();
+
+      // 1. Always seed all initial 56 approved accounts (guarantees they can NEVER be missing)
+      INITIAL_DATA.users.forEach(u => {
+        if (u && u.id) userMap.set(u.id, u);
+      });
+
+      // 2. Merge any local additions or updates
+      if (Array.isArray(localUsers)) {
+        localUsers.forEach(u => {
+          if (u && u.id) {
+            userMap.set(u.id, { ...userMap.get(u.id), ...u });
+          }
+        });
       }
-      // Merge INITIAL_DATA.users so all added students are present
-      const map = new Map();
-      INITIAL_DATA.users.forEach(u => map.set(u.id, u));
-      localUsers.forEach(u => map.set(u.id, { ...map.get(u.id), ...u }));
-      const merged = Array.from(map.values());
-      if (merged.length !== localUsers.length) {
-        localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(merged));
-      }
+
+      const merged = Array.from(userMap.values());
       return merged;
     } catch {
       return INITIAL_DATA.users;
@@ -107,7 +120,21 @@ export const Storage = {
   getAssignments() {
     try {
       const data = localStorage.getItem(STORAGE_KEYS.ASSIGNMENTS);
-      return data ? JSON.parse(data) : INITIAL_DATA.assignments;
+      let localAsgs = data ? JSON.parse(data) : [];
+      if (Array.isArray(localAsgs) && localAsgs.length > 0) {
+        const isOldDemo = localAsgs.some(a => 
+          a.id === 'asg_1_hifz' || 
+          a.id === 'asg_2_asmaa' || 
+          a.id === 'asg_3_tuhfa' || 
+          a.id === 'asg_4_rooh' || 
+          a.id === 'asg_5_kifah'
+        );
+        if (!isOldDemo) {
+          return localAsgs;
+        }
+      }
+      localStorage.setItem(STORAGE_KEYS.ASSIGNMENTS, JSON.stringify(INITIAL_DATA.assignments));
+      return INITIAL_DATA.assignments;
     } catch {
       return INITIAL_DATA.assignments;
     }
@@ -121,28 +148,28 @@ export const Storage = {
   getProgress() {
     try {
       const data = localStorage.getItem(STORAGE_KEYS.PROGRESS);
-      return data ? JSON.parse(data) : INITIAL_DATA.progress;
+      return data ? JSON.parse(data) : {};
     } catch {
-      return INITIAL_DATA.progress;
+      return {};
     }
   },
 
   saveProgress(progress) {
-    localStorage.setItem(STORAGE_KEYS.PROGRESS, JSON.stringify(progress));
+    localStorage.setItem(STORAGE_KEYS.PROGRESS, JSON.stringify(progress || {}));
   },
 
   // ATTENDANCE
   getAttendance() {
     try {
       const data = localStorage.getItem(STORAGE_KEYS.ATTENDANCE);
-      return data ? JSON.parse(data) : INITIAL_DATA.attendance;
+      return data ? JSON.parse(data) : [];
     } catch {
-      return INITIAL_DATA.attendance;
+      return [];
     }
   },
 
   saveAttendance(attendance) {
-    localStorage.setItem(STORAGE_KEYS.ATTENDANCE, JSON.stringify(attendance));
+    localStorage.setItem(STORAGE_KEYS.ATTENDANCE, JSON.stringify(attendance || []));
   },
 
   // LOGO

@@ -234,7 +234,7 @@ export const AttendanceView = {
           </div>
 
           <!-- Floating Bottom Bulk Actions Bar (Elevated above mobile nav bar with z-50) -->
-          <div id="att-bulk-actions-bar" class="${this.selectedStudentIds.size > 0 ? 'flex' : 'hidden'} fixed bottom-16 sm:bottom-6 left-1/2 -translate-x-1/2 z-50 max-w-sm w-[calc(100%-1.5rem)] items-center justify-between gap-2 px-3.5 py-2.5 rounded-2xl bg-white/95 backdrop-blur-md border border-stone-300 shadow-xl shadow-slate-900/20 transition-all animate-in fade-in slide-in-from-bottom-2 duration-150">
+          <div id="att-bulk-actions-bar" class="${this.selectedStudentIds.size > 0 ? 'flex' : 'hidden'} fixed bottom-20 sm:bottom-6 left-1/2 -translate-x-1/2 z-50 max-w-sm w-[calc(100%-1.5rem)] items-center justify-between gap-2 px-3.5 py-2.5 rounded-2xl bg-white/95 backdrop-blur-md border border-stone-300 shadow-xl shadow-slate-900/20 transition-all animate-in fade-in slide-in-from-bottom-2 duration-150">
             <div class="flex items-center gap-1.5 shrink-0">
               <span class="w-5 h-5 rounded-md bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-900 font-bold text-[11px] tabular-nums" id="att-bulk-count">${this.selectedStudentIds.size}</span>
               <span class="text-[11px] font-bold text-slate-700">تطبيق:</span>

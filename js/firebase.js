@@ -11,7 +11,7 @@ import {
   signOut as fbSignOut 
 } from 'firebase/auth';
 import { 
-  getFirestore, 
+  initializeFirestore, 
   doc, 
   getDoc, 
   setDoc, 
@@ -22,8 +22,7 @@ import {
   collection, 
   query, 
   where, 
-  onSnapshot, 
-  getDocFromServer 
+  onSnapshot 
 } from 'firebase/firestore';
 
 export {
@@ -43,19 +42,18 @@ export {
   onSnapshot
 };
 
-export const firebaseConfig = {
-  apiKey: "AIzaSyB3MCfLCOZGOIxpc-A28WvADZD4og2QgTs",
-  authDomain: "taaheeltaskforce.firebaseapp.com",
-  projectId: "taaheeltaskforce",
-  storageBucket: "taaheeltaskforce.firebasestorage.app",
-  messagingSenderId: "1023747637213",
-  appId: "1:1023747637213:web:f65676e62c765ff4ce4034"
-};
+import firebaseAppletConfig from '../firebase-applet-config.json';
+
+export const firebaseConfig = firebaseAppletConfig;
 
 // Initialize Firebase App
 export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-export const db = getFirestore(app);
+
+// Initialize Firestore with forced long polling for optimal connection stability
+export const db = initializeFirestore(app, {
+  experimentalForceLongPolling: true
+}, firebaseConfig.firestoreDatabaseId || '(default)');
 
 export const OperationType = {
   CREATE: 'create',
@@ -86,15 +84,3 @@ export function handleFirestoreError(error, operationType, path) {
   console.error('Firestore Error: ', JSON.stringify(errInfo));
   throw new Error(JSON.stringify(errInfo));
 }
-
-// Test connection to Firestore on initialization
-export async function testConnection() {
-  try {
-    await getDocFromServer(doc(db, 'test', 'connection'));
-  } catch (error) {
-    if (error instanceof Error && error.message.includes('the client is offline')) {
-      console.warn("Firebase client is currently offline or unreachable.");
-    }
-  }
-}
-testConnection();

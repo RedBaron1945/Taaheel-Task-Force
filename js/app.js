@@ -21,6 +21,7 @@ export const App = {
 
   async init() {
     Storage.init();
+    UserService.seedInitialFirestoreData().catch(() => {});
 
     // Setup global auth listener
     Auth.onAuthStateChanged((user) => {
@@ -152,7 +153,7 @@ export const App = {
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
                   </div>
                   <!-- Input with LTR content direction & Arabic-aligned placeholder -->
-                  <input type="email" id="login-email" dir="ltr" class="login-input w-full min-h-[48px] text-sm py-3 pr-11 pl-4 text-left rounded-2xl bg-white border border-stone-200 focus:outline-hidden transition-all text-slate-900 shadow-2xs" placeholder="أدخل بريدك الإلكتروني" required autocomplete="email">
+                  <input type="text" id="login-email" dir="ltr" inputmode="email" class="login-input w-full min-h-[48px] text-sm py-3 pr-11 pl-4 text-left rounded-2xl bg-white border border-stone-200 focus:outline-hidden transition-all text-slate-900 shadow-2xs" placeholder="أدخل بريدك الإلكتروني" required autocomplete="email">
                 </div>
               </div>
 
@@ -385,65 +386,75 @@ export const App = {
     }
 
     const headerLogoHtml = customLogo
-      ? `<img src="${customLogo}" alt="الشعار" class="h-14 sm:h-16 md:h-20 w-auto max-w-[180px] sm:max-w-[220px] rounded-2xl object-contain bg-white border border-amber-200/60 p-2 shrink-0 shadow-xs select-none pointer-events-none" />`
-      : `<div class="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-blue-900 via-blue-950 to-blue-900 text-amber-300 flex items-center justify-center font-bold text-lg sm:text-xl shrink-0 shadow-sm border border-amber-400/40 select-none pointer-events-none">ت</div>`;
+      ? `<img src="${customLogo}" alt="الشعار" class="h-10 w-10 sm:h-14 sm:w-14 md:h-16 md:w-auto max-w-[120px] sm:max-w-[180px] rounded-xl object-contain bg-white border border-amber-200/60 p-1 shrink-0 shadow-2xs select-none pointer-events-none" />`
+      : `<div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-blue-900 via-blue-950 to-blue-900 text-amber-300 flex items-center justify-center font-bold text-base sm:text-lg shrink-0 shadow-sm border border-amber-400/40 select-none pointer-events-none">ت</div>`;
+
+    const colsClass = role === 'supervisor' ? 'grid-cols-4' : 'grid-cols-2';
 
     root.innerHTML = `
-      <div class="min-h-screen flex flex-col site-pattern-bg text-slate-900 pb-20 md:pb-6">
+      <div class="min-h-screen flex flex-col site-pattern-bg text-slate-900 pb-24 md:pb-6">
         <!-- Top App Bar with Uniform max-w-5xl Architecture aligned with Content -->
-        <header class="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-stone-200/80 px-4 sm:px-6 md:px-8 py-3 shadow-xs">
-          <div class="max-w-5xl mx-auto flex items-center justify-between gap-4">
+        <header class="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-stone-200/80 px-3 sm:px-6 md:px-8 py-2.5 sm:py-3 shadow-xs">
+          <div class="max-w-5xl mx-auto flex items-center justify-between gap-2.5 sm:gap-4">
             
             <!-- Zone 1: Brand & Logo -->
-            <div class="flex items-center gap-3.5 sm:gap-4 shrink-0">
+            <div class="flex items-center gap-2 sm:gap-3 shrink min-w-0 flex-1 sm:flex-none">
               ${headerLogoHtml}
-              <div class="flex flex-col justify-center">
-                <span class="text-lg sm:text-xl md:text-2xl font-black text-slate-900 tracking-tight leading-none">
+              <div class="flex flex-col justify-center min-w-0">
+                <span class="text-base sm:text-lg md:text-xl font-black text-slate-900 tracking-tight leading-tight truncate">
                   مرحلة التأهيل
                 </span>
-                <span class="text-xs sm:text-sm text-amber-900 font-bold tracking-wide mt-1 flex items-center gap-1.5">
-                  <span class="w-1.5 h-1.5 rounded-full bg-amber-600 inline-block"></span>
-                  دفعة التأهيل 48 (إياك والتلون.. فإن دين الله واحد)
-                </span>
+                <div class="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[10px] sm:text-xs text-amber-900 mt-0.5">
+                  <span class="inline-flex items-center gap-1 font-bold shrink-0">
+                    <span class="w-1.5 h-1.5 rounded-full bg-amber-600 inline-block shrink-0"></span>
+                    <span>دفعة التأهيل 48</span>
+                  </span>
+                  <span class="text-stone-600 font-medium text-[10px] sm:text-[11px] leading-tight">
+                    (إياك والتلون.. فإن دين الله واحد)
+                  </span>
+                </div>
               </div>
             </div>
 
-            <!-- Zone 2: Navigation Links (Desktop) -->
-            <nav class="hidden md:flex items-center gap-2" id="desktop-nav-links">
+            <!-- Zone 2: Navigation Links for Desktop -->
+            <div id="desktop-nav-links" class="hidden md:flex items-center gap-2">
               ${this.renderNavLinksHtml(role)}
-            </nav>
+            </div>
 
-            <!-- Zone 3: Account Actions (Logout) -->
-            <div class="flex items-center gap-2.5 shrink-0">
-              <!-- Logout Button with Clear Tooltip and Aria Label -->
-              <button id="btn-logout" type="button" class="p-2 sm:px-3 sm:py-2 text-stone-500 hover:text-red-700 hover:bg-red-50 rounded-xl transition-all cursor-pointer border border-stone-200/80 hover:border-red-200 shadow-2xs flex items-center gap-1.5 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-red-500" aria-label="تسجيل الخروج" title="تسجيل الخروج">
-                <svg class="w-4 h-4 sm:w-5 sm:h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
-                <span class="hidden sm:inline text-xs font-bold">تسجيل الخروج</span>
+            <!-- Zone 3: Account Actions (Icon-only Logout Button) -->
+            <div class="flex items-center gap-2 shrink-0">
+              <button id="btn-logout" type="button" class="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-xl bg-red-50 hover:bg-red-100 active:scale-95 text-red-700 border border-red-200/90 shadow-2xs transition-all cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-red-500 shrink-0" aria-label="تسجيل الخروج" title="تسجيل الخروج">
+                <svg class="w-5 h-5 text-red-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
               </button>
             </div>
           </div>
         </header>
 
         <!-- Main Content Area with Perfectly Matched max-w-5xl Width -->
-        <main class="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 md:px-8 py-6" id="main-view-container">
+        <main class="flex-1 max-w-5xl w-full mx-auto px-3 sm:px-6 md:px-8 py-4 sm:py-6" id="main-view-container">
           <!-- Active view mounted here -->
         </main>
 
-        <!-- Mobile Bottom Tab Bar (hidden on md and up, where the desktop nav takes over) -->
-        <nav id="mobile-bottom-nav" class="md:hidden fixed bottom-0 inset-x-0 z-30 bg-white/95 backdrop-blur-md border-t border-stone-200/80 shadow-[0_-4px_12px_-4px_rgba(0,0,0,0.08)]" style="padding-bottom: env(safe-area-inset-bottom, 0px);">
-          <div class="grid ${this.mobileNavGridClass(role)} items-center justify-around py-1">
+        <!-- Mobile Bottom Navigation Bar (Fixed Footer with Safe-Area Support) -->
+        <nav id="mobile-bottom-nav" class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-md border-t border-stone-200/90 shadow-lg px-2 py-1 bottom-nav-safe">
+          <div class="grid ${colsClass} items-center justify-around max-w-md mx-auto">
             ${this.renderMobileTabsHtml(role)}
           </div>
         </nav>
       </div>
     `;
 
-    // Hook Logout with confirmation
-    root.querySelector('#btn-logout')?.addEventListener('click', async () => {
+    // Hook Logout with confirmation (Header & Mobile)
+    const handleLogout = async () => {
       const confirmed = await Utils.confirm('هل ترغب في تسجيل الخروج من المنصة؟', 'تأكيد تسجيل الخروج');
       if (confirmed) {
         await Auth.logout();
       }
+    };
+
+    root.querySelector('#btn-logout')?.addEventListener('click', handleLogout);
+    root.querySelectorAll('.btn-trigger-logout').forEach(btn => {
+      btn.addEventListener('click', handleLogout);
     });
 
     // Hook desktop nav clicks
@@ -504,26 +515,16 @@ export const App = {
     return '';
   },
 
-  /**
-   * Grid column count for the mobile bottom tab bar, matched to how many
-   * tabs renderMobileTabsHtml() actually returns for each role.
-   */
-  mobileNavGridClass(role) {
-    if (role === 'supervisor') return 'grid-cols-3';
-    if (role === 'student') return 'grid-cols-2';
-    return 'grid-cols-1';
-  },
-
   renderMobileTabsHtml(role) {
     if (role === 'student') {
       return `
-        <button data-section="home" class="mobile-tab-btn min-h-[44px] flex flex-col items-center justify-center py-1 text-blue-800 font-semibold">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
-          <span class="text-[10px] mt-0.5">التكاليف</span>
+        <button data-section="home" class="mobile-tab-btn min-h-[48px] flex flex-col items-center justify-center py-1 text-blue-900 font-bold active:scale-95 transition-transform cursor-pointer">
+          <svg class="w-5 h-5 text-blue-800" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+          <span class="text-[11px] mt-0.5 font-bold">التكاليف</span>
         </button>
-        <button id="mobile-logout-btn" class="mobile-tab-btn min-h-[44px] flex flex-col items-center justify-center py-1 text-slate-500 hover:text-red-600">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
-          <span class="text-[10px] mt-0.5">خروج</span>
+        <button id="mobile-logout-btn" type="button" class="btn-trigger-logout min-h-[48px] flex flex-col items-center justify-center py-1 text-red-600 hover:text-red-800 active:scale-95 transition-transform cursor-pointer">
+          <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+          <span class="text-[11px] mt-0.5 font-bold">خروج</span>
         </button>
       `;
     } else if (role === 'supervisor') {
@@ -531,24 +532,43 @@ export const App = {
       const isDashboard = this.activeSection === 'dashboard';
       const isAttendance = this.activeSection === 'attendance';
       return `
-        <button data-section="hub" class="mobile-tab-btn min-h-[48px] flex flex-col items-center justify-center py-1 ${isHub ? 'text-amber-800 font-bold' : 'text-slate-500 hover:text-slate-800'} cursor-pointer">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
-          <span class="text-[10px] mt-0.5 font-bold">الرئيسية</span>
+        <button data-section="hub" class="mobile-tab-btn min-h-[48px] flex flex-col items-center justify-center py-1 ${isHub ? 'text-blue-900 font-extrabold' : 'text-stone-500 hover:text-slate-900'} active:scale-95 transition-transform cursor-pointer">
+          <div class="p-1 rounded-xl ${isHub ? 'bg-blue-50 text-blue-900 shadow-2xs' : ''}">
+            <svg class="w-5 h-5 ${isHub ? 'text-blue-900' : 'text-stone-400'}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
+          </div>
+          <span class="text-[10px] mt-0.5 ${isHub ? 'font-black text-blue-950' : 'font-medium'}">الرئيسية</span>
         </button>
-        <button data-section="dashboard" class="mobile-tab-btn min-h-[48px] flex flex-col items-center justify-center py-1 ${isDashboard ? 'text-blue-900 font-bold' : 'text-slate-500 hover:text-slate-800'} cursor-pointer">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-          <span class="text-[10px] mt-0.5 font-bold">غرفة القيادة</span>
+
+        <button data-section="dashboard" class="mobile-tab-btn min-h-[48px] flex flex-col items-center justify-center py-1 ${isDashboard ? 'text-blue-900 font-extrabold' : 'text-stone-500 hover:text-slate-900'} active:scale-95 transition-transform cursor-pointer">
+          <div class="p-1 rounded-xl ${isDashboard ? 'bg-blue-50 text-blue-900 shadow-2xs' : ''}">
+            <svg class="w-5 h-5 ${isDashboard ? 'text-blue-900' : 'text-stone-400'}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+          </div>
+          <span class="text-[10px] mt-0.5 ${isDashboard ? 'font-black text-blue-950' : 'font-medium'}">غرفة القيادة</span>
         </button>
-        <button data-section="attendance" class="mobile-tab-btn min-h-[48px] flex flex-col items-center justify-center py-1 ${isAttendance ? 'text-sky-800 font-bold' : 'text-slate-500 hover:text-slate-800'} cursor-pointer">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
-          <span class="text-[10px] mt-0.5 font-bold">الحضور</span>
+
+        <button data-section="attendance" class="mobile-tab-btn min-h-[48px] flex flex-col items-center justify-center py-1 ${isAttendance ? 'text-blue-900 font-extrabold' : 'text-stone-500 hover:text-slate-900'} active:scale-95 transition-transform cursor-pointer">
+          <div class="p-1 rounded-xl ${isAttendance ? 'bg-blue-50 text-blue-900 shadow-2xs' : ''}">
+            <svg class="w-5 h-5 ${isAttendance ? 'text-blue-900' : 'text-stone-400'}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+          </div>
+          <span class="text-[10px] mt-0.5 ${isAttendance ? 'font-black text-blue-950' : 'font-medium'}">الحضور</span>
+        </button>
+
+        <button id="mobile-logout-btn" type="button" class="btn-trigger-logout min-h-[48px] flex flex-col items-center justify-center py-1 text-red-600 hover:text-red-800 active:scale-95 transition-transform cursor-pointer">
+          <div class="p-1 rounded-xl text-red-600">
+            <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+          </div>
+          <span class="text-[10px] mt-0.5 font-bold text-red-700">خروج</span>
         </button>
       `;
     } else {
       return `
-        <button data-section="attendance" class="mobile-tab-btn min-h-[48px] flex flex-col items-center justify-center py-1 text-sky-800 font-semibold cursor-pointer">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
-          <span class="text-[10px] mt-0.5 font-bold">سجل الحضور</span>
+        <button data-section="attendance" class="mobile-tab-btn min-h-[48px] flex flex-col items-center justify-center py-1 text-sky-800 font-bold active:scale-95 transition-transform cursor-pointer">
+          <svg class="w-5 h-5 text-sky-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+          <span class="text-[11px] mt-0.5 font-bold">سجل الحضور</span>
+        </button>
+        <button id="mobile-logout-btn" type="button" class="btn-trigger-logout min-h-[48px] flex flex-col items-center justify-center py-1 text-red-600 hover:text-red-800 active:scale-95 transition-transform cursor-pointer">
+          <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+          <span class="text-[11px] mt-0.5 font-bold">خروج</span>
         </button>
       `;
     }
@@ -571,8 +591,9 @@ export const App = {
     const mobileNavContainer = document.getElementById('mobile-bottom-nav');
     if (mobileNavContainer && this.currentUser) {
       const role = this.currentUser.role;
+      const colsClass = role === 'supervisor' ? 'grid-cols-4' : 'grid-cols-2';
       mobileNavContainer.innerHTML = `
-        <div class="grid ${this.mobileNavGridClass(role)} items-center justify-around py-1">
+        <div class="grid ${colsClass} items-center justify-around max-w-md mx-auto">
           ${this.renderMobileTabsHtml(role)}
         </div>
       `;
@@ -582,6 +603,16 @@ export const App = {
             this.switchSection(btn.dataset.section);
           }
         });
+      });
+      // Attach logout handlers to mobile bottom nav
+      const handleLogout = async () => {
+        const confirmed = await Utils.confirm('هل ترغب في تسجيل الخروج من المنصة؟', 'تأكيد تسجيل الخروج');
+        if (confirmed) {
+          await Auth.logout();
+        }
+      };
+      mobileNavContainer.querySelectorAll('.btn-trigger-logout').forEach(btn => {
+        btn.addEventListener('click', handleLogout);
       });
     }
 
@@ -658,11 +689,13 @@ export const App = {
     }
 
     // Attach mobile role button listeners if present
-    document.getElementById('mobile-logout-btn')?.addEventListener('click', async () => {
-      const confirmed = await Utils.confirm('هل ترغب في تسجيل الخروج من المنصة؟', 'تأكيد تسجيل الخروج');
-      if (confirmed) {
-        await Auth.logout();
-      }
+    document.querySelectorAll('.btn-trigger-logout, #mobile-logout-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const confirmed = await Utils.confirm('هل ترغب في تسجيل الخروج من المنصة؟', 'تأكيد تسجيل الخروج');
+        if (confirmed) {
+          await Auth.logout();
+        }
+      });
     });
   },
 

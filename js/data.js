@@ -21,7 +21,7 @@ export const INITIAL_DATA = {
     {
       id: 'O83e55HQuyajVh3Ji4FJltobyg63',
       name: 'الشيخ محمد الشواحي',
-      email: 'supervisor@taaheeltaskforce.com',
+      email: 'admin@taaheel.sa',
       role: 'supervisor',
       avatar: 'الشيخ محمد',
       createdAt: '2026-09-01T08:00:00Z'
@@ -547,6 +547,7 @@ export const INITIAL_DATA = {
       id: 'tpNwAC13RsZs3RB7hfBRefwzedH2',
       name: 'بسيل خالد باكيلي',
       email: 'tpNwAC13RsZs3RB7hfBRefwzedH2@taaheeltaskforce.com',
+      aliases: ['bbrys005@gmail.com', 'bbrys005', 'basil', 'bassil'],
       role: 'student',
       avatar: 'بسيل',
       mahadId: 'mahd_takween_naseem',
@@ -597,97 +598,52 @@ export const INITIAL_DATA = {
 
   assignments: [
     {
-      id: 'asg_1_hifz',
-      title: 'حفظ 3 أجزاء جديدة',
-      description: 'إتقان حفظ الأجزاء الثلاثة المقررة في مرحلة التأهيل مع ضبط الأحكام والتلاوة المتقنة.',
-      sourceType: 'none',
+      id: 'asg_tafseer_hijr_israa',
+      title: 'التفسير الميسر من سورة الحجر إلى الإسراء',
+      description: 'مدارسة وتدبر تفسير الآيات الكريمة من سورة الحجر وسورة النحل إلى سورة الإسراء عبر التفسير الميسر.',
+      sourceType: 'link',
       sourceUrl: '',
       startDate: '2026-09-01',
-      endDate: '2026-10-30',
-      points: 20,
+      endDate: '2026-11-30',
+      points: 34,
       active: true,
       subtasks: [
-        { id: 'sub_1_1', title: 'حفظ جزء واحد', points: 6 },
-        { id: 'sub_1_2', title: 'حفظ جزئين', points: 7 },
-        { id: 'sub_1_3', title: 'حفظ 3 أجزاء (المقرر كاملاً)', points: 7 }
+        { id: 'sub_tafseer_1', title: 'تفسير سورة الحجر', points: 11 },
+        { id: 'sub_tafseer_2', title: 'تفسير سورة النحل', points: 11 },
+        { id: 'sub_tafseer_3', title: 'تفسير سورة الإسراء', points: 12 }
       ]
     },
     {
-      id: 'asg_2_asmaa',
-      title: 'مختصر الأسماء والصفات',
-      description: 'دراسة كتاب مختصر الأسماء والصفات وفهم فصوله التسعة وقواعده العقدية الجليلة.',
-      sourceType: 'drive',
-      sourceUrl: 'https://drive.google.com/drive/folders/demo-asma-wa-sifat',
-      startDate: '2026-09-01',
-      endDate: '2026-10-25',
-      points: 20,
-      active: true,
-      subtasks: [
-        { id: 'sub_2_1', title: 'الفصل الأول: مدخل وقواعد عامة', points: 2 },
-        { id: 'sub_2_2', title: 'الفصل الثاني: القواعد الحسان في الأسماء', points: 2 },
-        { id: 'sub_2_3', title: 'الفصل الثالث: دلالات الأسماء الحسنى', points: 2 },
-        { id: 'sub_2_4', title: 'الفصل الرابع: صفات الذات وصفات الأفعال', points: 2 },
-        { id: 'sub_2_5', title: 'الفصل الخامس: صفة العلو والاستواء', points: 2 },
-        { id: 'sub_2_6', title: 'الفصل السادس: صفات المعية والقرب', points: 2 },
-        { id: 'sub_2_7', title: 'الفصل السابع: نصوص التنزيه والإثبات', points: 2 },
-        { id: 'sub_2_8', title: 'الفصل الثامن: ثمرات الإيمان بالأسماء والصفات', points: 3 },
-        { id: 'sub_2_9', title: 'الفصل التاسع: تطبيقات وخاتمة منهجية', points: 3 }
-      ]
-    },
-    {
-      id: 'asg_3_tuhfa',
-      title: 'تحفة الأطفال',
-      description: 'حفظ منظومة تحفة الأطفال للإمام الجمزوري (61 بيتاً) مقسمة عبر محطات إنجاز واضحة.',
-      sourceType: 'drive',
-      sourceUrl: 'https://drive.google.com/drive/folders/demo-tuhfat-al-atfal',
+      id: 'asg_nawaqid_islam',
+      title: 'حفظ متن نواقض الإسلام',
+      description: 'حفظ وضبط متن نواقض الإسلام للإمام المجدد محمد بن عبدالوهاب رحمه الله وفهم معانيها العقدية.',
+      sourceType: 'link',
+      sourceUrl: '',
       startDate: '2026-09-01',
       endDate: '2026-11-15',
-      points: 20,
+      points: 33,
       active: true,
       subtasks: [
-        { id: 'sub_3_1', title: 'المحطة الأولى: حفظ 10 أبيات', points: 3 },
-        { id: 'sub_3_2', title: 'المحطة الثانية: حفظ 20 بيتاً', points: 3 },
-        { id: 'sub_3_3', title: 'المحطة الثالثة: حفظ 30 بيتاً', points: 3 },
-        { id: 'sub_3_4', title: 'المحطة الرابعة: حفظ 40 بيتاً', points: 3 },
-        { id: 'sub_3_5', title: 'المحطة الخامسة: حفظ 50 بيتاً', points: 3 },
-        { id: 'sub_3_6', title: 'المحطة السادسة: حفظ 60 بيتاً', points: 3 },
-        { id: 'sub_3_7', title: 'المحطة السابعة: حفظ 61 بيتاً (المنظومة كاملة)', points: 2 }
+        { id: 'sub_nawaqid_1', title: 'حفظ المقدمة والنواقض (الأول والثاني والثالث)', points: 11 },
+        { id: 'sub_nawaqid_2', title: 'حفظ النواقض (الرابع والخامس والسادس)', points: 11 },
+        { id: 'sub_nawaqid_3', title: 'حفظ النواقض (السابع إلى العاشر) والخاتمة', points: 11 }
       ]
     },
     {
-      id: 'asg_4_rooh',
-      title: 'الروح والريحان',
-      description: 'حفظ منظومة الروح والريحان (20 بيتاً) بمعدل 4 محطات رئيسية.',
-      sourceType: 'drive',
-      sourceUrl: 'https://drive.google.com/drive/folders/demo-al-rooh',
-      startDate: '2026-08-01',
-      endDate: '2026-09-15',
-      points: 20,
+      id: 'asg_qawaid_arbaa',
+      title: 'حفظ متن القواعد الأربع',
+      description: 'حفظ وإتقان متن القواعد الأربع في بيان حقيقة التوحيد والشرك وتطبيقاتها.',
+      sourceType: 'link',
+      sourceUrl: '',
+      startDate: '2026-09-01',
+      endDate: '2026-11-15',
+      points: 33,
       active: true,
       subtasks: [
-        { id: 'sub_4_1', title: 'المستوى الأول: حفظ 5 أبيات', points: 5 },
-        { id: 'sub_4_2', title: 'المستوى الثاني: حفظ 10 أبيات', points: 5 },
-        { id: 'sub_4_3', title: 'المستوى الثالث: حفظ 15 بيتاً', points: 5 },
-        { id: 'sub_4_4', title: 'المستوى الرابع: حفظ 20 بيتاً (المنظومة كاملة)', points: 5 }
-      ]
-    },
-    {
-      id: 'asg_5_kifah',
-      title: 'كفاح الصبر',
-      description: 'متابعة سلسلة كفاح الصبر المرئية (29 حلقة) عبر محطات خمسية منظمة.',
-      sourceType: 'youtube',
-      sourceUrl: 'https://www.youtube.com/playlist?list=demo-kifah-al-sabr',
-      startDate: '2026-09-05',
-      endDate: '2026-10-20',
-      points: 20,
-      active: true,
-      subtasks: [
-        { id: 'sub_5_1', title: 'مشاهدة 5 حلقات', points: 3 },
-        { id: 'sub_5_2', title: 'مشاهدة 10 حلقات', points: 3 },
-        { id: 'sub_5_3', title: 'مشاهدة 15 حلقة', points: 3 },
-        { id: 'sub_5_4', title: 'مشاهدة 20 حلقة', points: 3 },
-        { id: 'sub_5_5', title: 'مشاهدة 25 حلقة', points: 4 },
-        { id: 'sub_5_6', title: 'مشاهدة 29 حلقة (السلسلة كاملة)', points: 4 }
+        { id: 'sub_qawaid_1', title: 'حفظ المقدمة والقاعدة الأولى', points: 8 },
+        { id: 'sub_qawaid_2', title: 'حفظ القاعدة الثانية', points: 8 },
+        { id: 'sub_qawaid_3', title: 'حفظ القاعدة الثالثة', points: 8 },
+        { id: 'sub_qawaid_4', title: 'حفظ القاعدة الرابعة وخاتمة المتن', points: 9 }
       ]
     }
   ],
