@@ -34,6 +34,11 @@ export const UserService = {
    * Get all users with Firestore integration and cache fallback
    */
   async getAllUsers() {
+    const localUsers = Storage.getUsers();
+    const mergedMap = new Map();
+    INITIAL_DATA.users.forEach(u => mergedMap.set(u.id, u));
+    localUsers.forEach(u => mergedMap.set(u.id, { ...mergedMap.get(u.id), ...u }));
+
     if (auth.currentUser) {
       try {
         const isOfficer = auth.currentUser.uid === 'TnCoR9ZTSibHTvIt15VPeQHfGFy1';
@@ -46,56 +51,73 @@ export const UserService = {
 
         const snapshot = await getDocs(q);
         if (!snapshot.empty) {
-          const remoteUsers = [];
           snapshot.forEach(docSnap => {
-            remoteUsers.push({ id: docSnap.id, ...docSnap.data() });
+            const remoteUser = { id: docSnap.id, ...docSnap.data() };
+            const existing = mergedMap.get(remoteUser.id) || {};
+            mergedMap.set(remoteUser.id, { ...existing, ...remoteUser });
           });
-          
-          // Merge with stored users to ensure supervisor/officer profiles are maintained
-          const currentUsers = Storage.getUsers();
-          const mergedMap = new Map();
-          currentUsers.forEach(u => mergedMap.set(u.id, u));
-          remoteUsers.forEach(u => mergedMap.set(u.id, u));
-          const merged = Array.from(mergedMap.values());
-          Storage.saveUsers(merged);
-          return isOfficer ? merged.filter(u => u.role === 'student') : merged;
         }
-      } catch (_) {
-        // Fallback cleanly to local storage cache
+      } catch (err) {
+        console.warn('Firestore users fetch warning:', err);
       }
     }
-    return Storage.getUsers();
+
+    const merged = Array.from(mergedMap.values());
+    Storage.saveUsers(merged);
+    const isOfficer = auth.currentUser?.uid === 'TnCoR9ZTSibHTvIt15VPeQHfGFy1';
+    return isOfficer ? merged.filter(u => u.role === 'student') : merged;
   },
 
   /**
    * Get all students (role === 'student')
-   * Synchronized directly with Firestore
+   * Synchronized directly with Firestore, always preserving all registered students
    */
   async getStudents(mahadId = null) {
-    let students = [];
+    const localUsers = Storage.getUsers();
+    const studentsMap = new Map();
+
+    // 1. Seed base student accounts
+    INITIAL_DATA.users.filter(u => u.role === 'student').forEach(u => {
+      studentsMap.set(u.id, u);
+    });
+
+    // 2. Merge local storage students
+    localUsers.filter(u => u.role === 'student').forEach(u => {
+      const existing = studentsMap.get(u.id) || {};
+      studentsMap.set(u.id, { ...existing, ...u });
+    });
+
+    // 3. Merge remote Firestore students
     if (auth.currentUser) {
       try {
         const q = query(collection(db, 'users'), where('role', '==', 'student'));
         const snapshot = await getDocs(q);
         if (!snapshot.empty) {
           snapshot.forEach(docSnap => {
-            students.push({ id: docSnap.id, ...docSnap.data() });
+            const remoteStudent = { id: docSnap.id, ...docSnap.data() };
+            const existing = studentsMap.get(remoteStudent.id) || {};
+            studentsMap.set(remoteStudent.id, { ...existing, ...remoteStudent });
           });
-
-          // Sync into storage cache
-          const allUsers = Storage.getUsers();
-          const nonStudents = allUsers.filter(u => u.role !== 'student');
-          Storage.saveUsers([...nonStudents, ...students]);
         }
-      } catch (_) {
-        // Fallback cleanly to local storage cache
+      } catch (err) {
+        console.warn('Firestore students fetch warning:', err);
       }
     }
 
-    if (students.length === 0) {
-      const allUsers = Storage.getUsers();
-      students = allUsers.filter(u => u.role === 'student');
-    }
+    const mahaden = Storage.getMahaden();
+    const mahadenMap = new Map(mahaden.map(m => [m.id, m.name]));
+
+    let students = Array.from(studentsMap.values()).map(st => {
+      // Ensure mahadName is always populated
+      if (!st.mahadName && st.mahadId && mahadenMap.has(st.mahadId)) {
+        st.mahadName = mahadenMap.get(st.mahadId);
+      }
+      return st;
+    });
+
+    // Save back to local storage
+    const nonStudents = localUsers.filter(u => u.role !== 'student');
+    Storage.saveUsers([...nonStudents, ...students]);
 
     if (mahadId && mahadId !== 'all') {
       students = students.filter(s => s.mahadId === mahadId);

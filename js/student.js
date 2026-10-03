@@ -128,10 +128,6 @@ export const StudentView = {
             <!-- Compact Integrated Deadline & Period Badge -->
             <div id="student-deadline-pill" class="inline-flex"></div>
           </div>
-
-          <div class="text-xs text-stone-500 hidden sm:block">
-            <span>تنتقل التكاليف المكتملة تلقائياً للأسفل</span>
-          </div>
         </div>
 
         <!-- Assignments Container -->

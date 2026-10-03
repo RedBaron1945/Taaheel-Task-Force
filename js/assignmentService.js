@@ -76,6 +76,47 @@ export const AssignmentService = {
   },
 
   /**
+   * Get the unified schedule dates across assignments
+   */
+  async getUnifiedDates() {
+    const assignments = await this.getAllAssignments();
+    if (assignments.length > 0) {
+      // Use unified dates from the assignments
+      const startDate = assignments[0].startDate || '2026-09-01';
+      const endDate = assignments[0].endDate || '2026-10-30';
+      return { startDate, endDate };
+    }
+    return {
+      startDate: '2026-09-01',
+      endDate: '2026-10-30'
+    };
+  },
+
+  /**
+   * Update and unify the start and end dates across all system assignments
+   */
+  async updateUnifiedDates(startDate, endDate) {
+    if (!startDate || !endDate) {
+      throw new Error('يرجى تحديد تاريخي البداية والنهاية.');
+    }
+    if (startDate > endDate) {
+      throw new Error('تاريخ البداية يجب أن يكون قبل تاريخ النهاية.');
+    }
+
+    const assignments = await this.getAllAssignments();
+    assignments.forEach(asg => {
+      asg.startDate = startDate;
+      asg.endDate = endDate;
+    });
+
+    Storage.saveAssignments(assignments);
+    await this.syncAssignmentsToFirestore(assignments);
+
+    window.dispatchEvent(new CustomEvent('assignments-updated', { detail: assignments }));
+    return { startDate, endDate, updatedCount: assignments.length };
+  },
+
+  /**
    * Distribute a total amount of points evenly among subtasks of an assignment
    */
   distributeSubtaskPoints(subtasks, totalPoints) {
@@ -173,6 +214,7 @@ export const AssignmentService = {
   async createAssignment(data, autoDistribute = true) {
     const assignments = await this.getAllAssignments();
     const newId = 'asg_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
+    const unified = await this.getUnifiedDates();
 
     const subtasks = (data.subtasks || []).map((st, idx) => ({
       id: st.id || `sub_${newId}_${idx + 1}`,
@@ -186,8 +228,8 @@ export const AssignmentService = {
       description: (data.description || '').trim(),
       sourceType: data.sourceType || (data.sourceUrl ? 'link' : 'none'),
       sourceUrl: (data.sourceUrl || '').trim(),
-      startDate: data.startDate || new Date().toISOString().split('T')[0],
-      endDate: data.endDate || new Date().toISOString().split('T')[0],
+      startDate: data.startDate || unified.startDate,
+      endDate: data.endDate || unified.endDate,
       points: Number(data.points) || subtasks.reduce((sum, s) => sum + s.points, 0),
       active: data.active !== false,
       subtasks

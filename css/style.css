@@ -231,8 +231,6 @@ header.sticky {
 }
 
 /* النوافذ المنبثقة (Modals) */
-.hidden,
-[hidden],
 .modal-overlay.hidden,
 .modal-overlay[hidden] {
   display: none !important;
@@ -379,6 +377,25 @@ input::placeholder {
   border-color: #1e3a8a !important;
   box-shadow: 0 0 0 4px rgba(30, 58, 138, 0.12) !important;
   outline: none !important;
+}
+
+/* Responsive Leaderboard Display Rules */
+@media (max-width: 767px) {
+  .leaderboard-desktop-view {
+    display: none !important;
+  }
+  .leaderboard-mobile-view {
+    display: block !important;
+  }
+}
+
+@media (min-width: 768px) {
+  .leaderboard-mobile-view {
+    display: none !important;
+  }
+  .leaderboard-desktop-view {
+    display: block !important;
+  }
 }
 
 /* Print optimization for official Leaderboard PDF */

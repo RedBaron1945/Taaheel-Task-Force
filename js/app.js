@@ -42,7 +42,7 @@ export const App = {
     // Realtime subscriptions for supervisor remote data updates
     UserService.subscribeToStudents(() => {
       if (this.currentUser && this.currentUser.role === 'supervisor') {
-        if (this.activeSection === 'students' || this.activeSection === 'hub') {
+        if (this.activeSection === 'students' || this.activeSection === 'hub' || this.activeSection === 'dashboard') {
           this.mountCurrentSection();
         }
       }
@@ -50,7 +50,7 @@ export const App = {
 
     AssignmentService.subscribeToAssignments(() => {
       if (this.currentUser && this.currentUser.role === 'supervisor') {
-        if (this.activeSection === 'assignments' || this.activeSection === 'hub') {
+        if (this.activeSection === 'assignments' || this.activeSection === 'hub' || this.activeSection === 'dashboard') {
           this.mountCurrentSection();
         }
       }
@@ -413,20 +413,8 @@ export const App = {
               ${this.renderNavLinksHtml(role)}
             </nav>
 
-            <!-- Zone 3: Account Info & Quick Actions -->
-            <div class="flex items-center gap-2.5 sm:gap-3 shrink-0">
-              <!-- User Profile Capsule -->
-              <div class="hidden sm:flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-stone-50 border border-stone-200/90 shadow-2xs">
-                <div class="w-7 h-7 rounded-lg bg-blue-900 text-amber-300 flex items-center justify-center font-bold text-xs shrink-0">
-                  ${Utils.escapeHtml(this.currentUser.name.charAt(0))}
-                </div>
-                <div class="flex flex-col text-right">
-                  <span class="text-xs font-bold text-slate-800 leading-tight">${Utils.escapeHtml(this.currentUser.name)}</span>
-                  <span class="text-[10px] text-stone-500 font-mono">${Utils.escapeHtml(this.currentUser.email)}</span>
-                </div>
-                <span class="text-[11px] font-semibold px-2 py-0.5 rounded-md border ${roleBadgeClass} mr-1">${roleLabel}</span>
-              </div>
-
+            <!-- Zone 3: Account Actions (Logout) -->
+            <div class="flex items-center gap-2.5 shrink-0">
               <!-- Logout Button with Clear Tooltip and Aria Label -->
               <button id="btn-logout" type="button" class="p-2 sm:px-3 sm:py-2 text-stone-500 hover:text-red-700 hover:bg-red-50 rounded-xl transition-all cursor-pointer border border-stone-200/80 hover:border-red-200 shadow-2xs flex items-center gap-1.5 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-red-500" aria-label="تسجيل الخروج" title="تسجيل الخروج">
                 <svg class="w-4 h-4 sm:w-5 sm:h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
@@ -441,9 +429,9 @@ export const App = {
           <!-- Active view mounted here -->
         </main>
 
-        <!-- Mobile Bottom Tab Bar with Light Clean Theme -->
-        <nav class="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200 px-2 py-1 shadow-lg text-slate-600" id="mobile-bottom-nav">
-          <div class="grid ${role === 'supervisor' ? 'grid-cols-3' : 'grid-cols-1'} items-center justify-around">
+        <!-- Mobile Bottom Tab Bar (hidden on md and up, where the desktop nav takes over) -->
+        <nav id="mobile-bottom-nav" class="md:hidden fixed bottom-0 inset-x-0 z-30 bg-white/95 backdrop-blur-md border-t border-stone-200/80 shadow-[0_-4px_12px_-4px_rgba(0,0,0,0.08)]" style="padding-bottom: env(safe-area-inset-bottom, 0px);">
+          <div class="grid ${this.mobileNavGridClass(role)} items-center justify-around py-1">
             ${this.renderMobileTabsHtml(role)}
           </div>
         </nav>
@@ -516,6 +504,16 @@ export const App = {
     return '';
   },
 
+  /**
+   * Grid column count for the mobile bottom tab bar, matched to how many
+   * tabs renderMobileTabsHtml() actually returns for each role.
+   */
+  mobileNavGridClass(role) {
+    if (role === 'supervisor') return 'grid-cols-3';
+    if (role === 'student') return 'grid-cols-2';
+    return 'grid-cols-1';
+  },
+
   renderMobileTabsHtml(role) {
     if (role === 'student') {
       return `
@@ -574,7 +572,7 @@ export const App = {
     if (mobileNavContainer && this.currentUser) {
       const role = this.currentUser.role;
       mobileNavContainer.innerHTML = `
-        <div class="grid ${role === 'supervisor' ? 'grid-cols-3' : 'grid-cols-1'} items-center justify-around">
+        <div class="grid ${this.mobileNavGridClass(role)} items-center justify-around py-1">
           ${this.renderMobileTabsHtml(role)}
         </div>
       `;
@@ -613,17 +611,10 @@ export const App = {
           <div class="space-y-4">
             <!-- Supervisor Return Navigation Strip -->
             <div class="flex flex-wrap items-center justify-between gap-3 bg-white p-3 sm:px-4 rounded-2xl border border-stone-200/90 shadow-2xs">
-              <div class="flex items-center gap-3">
-                <button id="btn-sup-back-hub" class="inline-flex items-center gap-2 px-3.5 py-2 text-xs sm:text-sm font-bold text-slate-800 bg-stone-100 hover:bg-amber-100/80 hover:text-amber-950 border border-stone-300 hover:border-amber-300 rounded-xl transition-all shadow-2xs cursor-pointer active:scale-95">
-                  <svg class="w-4 h-4 rotate-180 text-amber-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
-                  <span>رجوع إلى الخيارات الرئيسية</span>
-                </button>
-                <div class="hidden sm:flex items-center gap-2 text-xs">
-                  <span class="text-stone-400">·</span>
-                  <span class="text-stone-500">أنت الآن في:</span>
-                  <span class="font-bold text-sky-950 bg-sky-50 px-2.5 py-1 rounded-lg border border-sky-200">التحضير</span>
-                </div>
-              </div>
+              <button id="btn-sup-back-hub" class="inline-flex items-center gap-2 px-3.5 py-2 text-xs sm:text-sm font-bold text-slate-800 bg-stone-100 hover:bg-amber-100/80 hover:text-amber-950 border border-stone-300 hover:border-amber-300 rounded-xl transition-all shadow-2xs cursor-pointer active:scale-95">
+                <svg class="w-4 h-4 rotate-180 text-amber-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+                <span>رجوع إلى الخيارات الرئيسية</span>
+              </button>
             </div>
 
             <!-- Mounted Sub-view -->
@@ -642,17 +633,10 @@ export const App = {
           <div class="space-y-4">
             <!-- Supervisor Return Navigation Strip -->
             <div class="flex flex-wrap items-center justify-between gap-3 bg-white p-3 sm:px-4 rounded-2xl border border-stone-200/90 shadow-2xs">
-              <div class="flex items-center gap-3">
-                <button id="btn-sup-back-hub" class="inline-flex items-center gap-2 px-3.5 py-2 text-xs sm:text-sm font-bold text-slate-800 bg-stone-100 hover:bg-amber-100/80 hover:text-amber-950 border border-stone-300 hover:border-amber-300 rounded-xl transition-all shadow-2xs cursor-pointer active:scale-95">
-                  <svg class="w-4 h-4 rotate-180 text-amber-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
-                  <span>رجوع إلى الخيارات الرئيسية</span>
-                </button>
-                <div class="hidden sm:flex items-center gap-2 text-xs">
-                  <span class="text-stone-400">·</span>
-                  <span class="text-stone-500">أنت الآن في:</span>
-                  <span class="font-bold text-amber-950 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200">غرفة القيادة (بيانات الطلاب)</span>
-                </div>
-              </div>
+              <button id="btn-sup-back-hub" class="inline-flex items-center gap-2 px-3.5 py-2 text-xs sm:text-sm font-bold text-slate-800 bg-stone-100 hover:bg-amber-100/80 hover:text-amber-950 border border-stone-300 hover:border-amber-300 rounded-xl transition-all shadow-2xs cursor-pointer active:scale-95">
+                <svg class="w-4 h-4 rotate-180 text-amber-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+                <span>رجوع إلى الخيارات الرئيسية</span>
+              </button>
             </div>
 
             <!-- Mounted Sub-view -->
