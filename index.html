@@ -5,21 +5,83 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
     <title>منصة مرحلة التأهيل</title>
     <meta name="description" content="منصة تعليمية عربية لمتابعة طلاب مرحلة التأهيل ومراقبة إنجازهم للتكاليف وحضورهم" />
+    <meta name="author" content="منصة مرحلة التأهيل" />
+    <meta name="theme-color" content="#0d2252" />
+
+    <!-- OpenGraph Social Sharing (WhatsApp, Telegram, Facebook, LinkedIn, iMessage) -->
+    <meta property="og:site_name" content="منصة مرحلة التأهيل" />
     <meta property="og:title" content="منصة مرحلة التأهيل" />
     <meta property="og:description" content="منصة تعليمية عربية لمتابعة طلاب مرحلة التأهيل ومراقبة إنجازهم للتكاليف وحضورهم" />
     <meta property="og:type" content="website" />
-    <meta name="twitter:card" content="summary_large_image" />
+    <meta property="og:locale" content="ar_SA" />
+    <meta property="og:url" content="https://REPLACE-WITH-YOUR-DEPLOYED-DOMAIN" />
+    <meta property="og:image" content="https://REPLACE-WITH-YOUR-DEPLOYED-DOMAIN/og-image.png" />
+    <meta property="og:image:secure_url" content="https://REPLACE-WITH-YOUR-DEPLOYED-DOMAIN/og-image.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="شعار منصة مرحلة التأهيل" />
 
-    <link rel="manifest" href="/manifest.webmanifest" />
-    <meta name="theme-color" content="#1b3679" />
-    <!-- أيقونة التبويب (مولّدة من الشعار الرسمي) -->
+    <!-- Twitter / X Card Meta Tags -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="منصة مرحلة التأهيل" />
+    <meta name="twitter:description" content="منصة تعليمية عربية لمتابعة طلاب مرحلة التأهيل ومراقبة إنجازهم للتكاليف وحضورهم" />
+    <meta name="twitter:image" content="https://REPLACE-WITH-YOUR-DEPLOYED-DOMAIN/og-image.png" />
+    <meta name="twitter:image:alt" content="شعار منصة مرحلة التأهيل" />
+
+    <!-- Schema.org Microdata & Legacy Crawlers -->
+    <meta itemprop="name" content="منصة مرحلة التأهيل" />
+    <meta itemprop="description" content="منصة تعليمية عربية لمتابعة طلاب مرحلة التأهيل ومراقبة إنجازهم للتكاليف وحضورهم" />
+    <meta itemprop="image" content="https://REPLACE-WITH-YOUR-DEPLOYED-DOMAIN/og-image.png" />
+    <link rel="image_src" href="https://REPLACE-WITH-YOUR-DEPLOYED-DOMAIN/og-image.png" />
+
+    <!-- Favicon & Touch Icons (مولّدة من الشعار الرسمي branding/taaheel-logo.png) -->
     <link rel="icon" href="/favicon.ico" sizes="any" />
-    <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png" />
-    <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16.png" />
-    <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
-    <!-- أيقونة التطبيق عند "إضافة إلى الشاشة الرئيسية" في آيفون -->
-    <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+
+    <!-- تطبيق ويب تقدمي (PWA): يسمح بالتثبيت على الشاشة الرئيسية في الهاتف -->
+    <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="mobile-web-app-capable" content="yes" />
+
+    <!-- Structured Data (JSON-LD) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "منصة مرحلة التأهيل",
+      "url": "https://REPLACE-WITH-YOUR-DEPLOYED-DOMAIN",
+      "image": "https://REPLACE-WITH-YOUR-DEPLOYED-DOMAIN/og-image.png",
+      "description": "منصة تعليمية عربية لمتابعة طلاب مرحلة التأهيل ومراقبة إنجازهم للتكاليف وحضورهم",
+      "applicationCategory": "EducationalApplication",
+      "operatingSystem": "All",
+      "inLanguage": "ar"
+    }
+    </script>
+
+    <!-- Dynamic Social Share URL Resolver for Current Host Origin -->
+    <script>
+      (function() {
+        try {
+          const origin = window.location.origin;
+          if (origin && origin.startsWith('http')) {
+            const updateMeta = (selector, attr, val) => {
+              const el = document.querySelector(selector);
+              if (el) el.setAttribute(attr, val);
+            };
+            const fullImgUrl = origin + '/og-image.png';
+            updateMeta('meta[property="og:image"]', 'content', fullImgUrl);
+            updateMeta('meta[property="og:image:secure_url"]', 'content', fullImgUrl);
+            updateMeta('meta[name="twitter:image"]', 'content', fullImgUrl);
+            updateMeta('meta[itemprop="image"]', 'content', fullImgUrl);
+            updateMeta('link[rel="image_src"]', 'href', fullImgUrl);
+            updateMeta('meta[property="og:url"]', 'content', origin + window.location.pathname);
+          }
+        } catch (_) {}
+      })();
+    </script>
 
     <!-- Google Fonts: Tajawal & Amiri -->
     <link rel="preconnect" href="https://fonts.googleapis.com">

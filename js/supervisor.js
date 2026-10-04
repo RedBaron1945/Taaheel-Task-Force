@@ -1853,16 +1853,16 @@ export const SupervisorView = {
         </div>
 
         <!-- Unified Cohort Schedule Card (الموعد الموحد لجميع التكاليف) -->
-        <div class="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-blue-900/5 via-amber-500/5 to-blue-900/5 border border-blue-900/15 shadow-2xs space-y-3.5">
+        <div id="unified-schedule-card" class="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-blue-900/5 via-amber-500/5 to-blue-900/5 border border-blue-900/15 shadow-2xs space-y-3.5">
           <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div class="flex items-center gap-2">
-              <span class="w-2.5 h-2.5 rounded-full bg-blue-700 animate-pulse"></span>
+              <span class="w-2.5 h-2.5 rounded-full bg-blue-700"></span>
               <h4 class="text-sm sm:text-base font-black text-slate-900">الموعد الزمني الموحد لكافة التكاليف</h4>
             </div>
             
-            <button id="btn-apply-unified-dates" type="button" class="px-4 py-2 bg-blue-900 hover:bg-blue-950 text-white text-xs font-bold rounded-xl transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer self-start sm:self-auto shrink-0">
-              <svg class="w-3.5 h-3.5 text-amber-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-              <span>تطبيق الموعد الموحّد</span>
+            <button id="btn-apply-unified-dates" type="button" class="px-4 py-2 bg-blue-900 hover:bg-blue-950 text-white text-xs font-bold rounded-xl transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer self-start sm:self-auto shrink-0 active:scale-95">
+              <svg id="btn-apply-icon" class="w-3.5 h-3.5 text-amber-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+              <span id="btn-apply-text">تطبيق الموعد الموحّد</span>
             </button>
           </div>
 
@@ -1876,7 +1876,7 @@ export const SupervisorView = {
 
             <div class="space-y-1">
               <label for="unified-asg-end" class="block text-xs font-bold text-slate-800">
-                <span>تاريخ انتهاء التكاليف (الموعد النهائي الموحّد)</span>
+                <span>تاريخ انتهاء التكاليف الموحّد</span>
               </label>
               <input type="date" id="unified-asg-end" value="${unifiedEndDate}" class="w-full text-xs sm:text-sm p-2.5 rounded-xl bg-white border border-slate-300 focus:ring-2 focus:ring-blue-900 focus:outline-hidden font-bold text-slate-900 shadow-2xs">
             </div>
@@ -1952,10 +1952,12 @@ export const SupervisorView = {
       </div>
     `;
 
-    // Hook Unified Dates Apply Button
-    content.querySelector('#btn-apply-unified-dates')?.addEventListener('click', async () => {
+    // Hook Unified Dates Apply Button with Clean Toast Notification
+    const applyBtn = content.querySelector('#btn-apply-unified-dates');
+    applyBtn?.addEventListener('click', async () => {
       const start = content.querySelector('#unified-asg-start')?.value;
       const end = content.querySelector('#unified-asg-end')?.value;
+
       if (!start || !end) {
         Utils.showToast('يرجى تحديد تاريخي البداية والنهاية', 'error');
         return;
@@ -1964,12 +1966,27 @@ export const SupervisorView = {
         Utils.showToast('تاريخ البداية يجب أن يكون قبل تاريخ النهاية', 'error');
         return;
       }
+
+      applyBtn.disabled = true;
+      const btnIcon = applyBtn.querySelector('#btn-apply-icon');
+      const btnText = applyBtn.querySelector('#btn-apply-text');
+      if (btnIcon) {
+        btnIcon.outerHTML = `<svg id="btn-apply-icon" class="w-3.5 h-3.5 animate-spin text-amber-300" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`;
+      }
+      if (btnText) btnText.textContent = 'جارٍ الحفظ...';
+
       try {
         await AssignmentService.updateUnifiedDates(start, end);
-        Utils.showToast('تم توحيد مواعيد البدء والانتهاء لجميع التكاليف بنجاح ✓', 'success');
+        Utils.showToast('تم توحيد مواعيد كافة التكاليف بنجاح ✓', 'success');
         await this.loadAll();
       } catch (err) {
-        Utils.showToast(err.message, 'error');
+        applyBtn.disabled = false;
+        if (btnText) btnText.textContent = 'تطبيق الموعد الموحّد';
+        const currentIcon = applyBtn.querySelector('#btn-apply-icon');
+        if (currentIcon) {
+          currentIcon.outerHTML = `<svg id="btn-apply-icon" class="w-3.5 h-3.5 text-amber-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>`;
+        }
+        Utils.showToast(err.message || 'حدث خطأ في تطبيق الموعد', 'error');
       }
     });
 
@@ -2422,25 +2439,13 @@ export const SupervisorView = {
           <input type="url" id="asg-input-source-url" value="${Utils.escapeHtml(asg.sourceUrl || '')}" class="w-full text-xs sm:text-sm p-2.5 rounded-xl border border-slate-300 focus:ring-blue-900 focus:border-blue-900 focus:outline-hidden" placeholder="https://... (رابط المادة، Drive، أو يوتيوب)">
         </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div>
-            <label class="block text-xs font-semibold text-slate-700 mb-1">
-              <span>تاريخ البداية *</span>
-              <span class="text-[10px] text-blue-800 font-bold bg-blue-50 border border-blue-200 px-1 py-0.2 rounded">موحّد</span>
-            </label>
-            <input type="date" id="asg-input-start" required value="${asg.startDate}" class="w-full text-xs sm:text-sm p-2.5 rounded-xl border border-slate-300 focus:ring-blue-900 focus:outline-hidden font-bold">
-          </div>
-          <div>
-            <label class="block text-xs font-semibold text-slate-700 mb-1">
-              <span>تاريخ النهاية *</span>
-              <span class="text-[10px] text-blue-800 font-bold bg-blue-50 border border-blue-200 px-1 py-0.2 rounded">موحّد</span>
-            </label>
-            <input type="date" id="asg-input-end" required value="${asg.endDate}" class="w-full text-xs sm:text-sm p-2.5 rounded-xl border border-slate-300 focus:ring-blue-900 focus:outline-hidden font-bold">
-          </div>
-          <div>
-            <label class="block text-xs font-semibold text-slate-700 mb-1">إجمالي النقاط *</label>
-            <input type="number" id="asg-input-points" min="1" max="100" required value="${asg.points}" class="w-full text-xs sm:text-sm p-2.5 rounded-xl border border-slate-300 focus:ring-emerald-500 focus:outline-hidden font-bold">
-          </div>
+        <!-- Hidden unified date fields to preserve data without display -->
+        <input type="hidden" id="asg-input-start" value="${asg.startDate || ''}">
+        <input type="hidden" id="asg-input-end" value="${asg.endDate || ''}">
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">إجمالي النقاط *</label>
+          <input type="number" id="asg-input-points" min="1" max="100" required value="${asg.points}" class="w-full text-xs sm:text-sm p-2.5 rounded-xl border border-slate-300 focus:ring-blue-900 focus:outline-hidden font-bold" placeholder="مثال: 20">
         </div>
 
         <!-- Subtasks Builder with clear breathing room and distinct action buttons -->
@@ -2569,8 +2574,8 @@ export const SupervisorView = {
         const description = document.getElementById('asg-input-desc').value.trim();
         const sourceUrl = (document.getElementById('asg-input-source-url')?.value || '').trim();
         const sourceType = sourceUrl ? 'link' : 'none';
-        const startDate = document.getElementById('asg-input-start').value;
-        const endDate = document.getElementById('asg-input-end').value;
+        const startDate = document.getElementById('asg-input-start')?.value || this.currentFormData.startDate || '2026-09-01';
+        const endDate = document.getElementById('asg-input-end')?.value || this.currentFormData.endDate || '2026-09-30';
         const points = Number(document.getElementById('asg-input-points').value);
         const active = document.getElementById('asg-input-active').checked;
 

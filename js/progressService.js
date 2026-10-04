@@ -60,6 +60,27 @@ export const ProgressService = {
     const list = all[studentId][assignmentId];
     const index = list.indexOf(subtaskId);
 
+    // Sequential Validation
+    const subtasks = assignment.subtasks || [];
+    const targetIdx = subtasks.findIndex(s => s.id === subtaskId);
+    if (targetIdx > -1) {
+      if (index === -1) {
+        // Checking: All prior steps must be completed
+        for (let i = 0; i < targetIdx; i++) {
+          if (!list.includes(subtasks[i].id)) {
+            throw new Error(`يرجى إنجاز الخطوة السابقة أولاً: «${subtasks[i].title}»`);
+          }
+        }
+      } else {
+        // Unchecking: All subsequent steps must be uncompleted first
+        for (let i = targetIdx + 1; i < subtasks.length; i++) {
+          if (list.includes(subtasks[i].id)) {
+            throw new Error(`يرجى إلغاء الخطوة اللاحقة أولاً للحفاظ على ترتيب الإنجاز`);
+          }
+        }
+      }
+    }
+
     if (index > -1) {
       list.splice(index, 1);
     } else {

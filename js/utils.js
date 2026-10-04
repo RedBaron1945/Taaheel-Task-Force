@@ -104,11 +104,56 @@ export const Utils = {
   },
 
   /**
-   * Show a toast message (Disabled per user request)
+   * Show a modern floating toast notification
    */
-  showToast(message, type = 'info', duration = 3000) {
-    // Top-of-page notifications disabled
-    return;
+  showToast(message, type = 'info', duration = 3500) {
+    if (!message) return;
+    try {
+      const containerId = 'app-toast-container';
+      let container = document.getElementById(containerId);
+      if (!container) {
+        container = document.createElement('div');
+        container.id = containerId;
+        container.className = 'fixed top-5 left-1/2 -translate-x-1/2 z-[9999] flex flex-col items-center gap-2 pointer-events-none w-full max-w-md px-4';
+        document.body.appendChild(container);
+      }
+
+      const toast = document.createElement('div');
+      let bgClasses = 'bg-slate-900 text-white border-slate-700 shadow-lg';
+      let iconSvg = '<svg class="w-4 h-4 text-blue-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>';
+
+      if (type === 'success') {
+        bgClasses = 'bg-emerald-700 text-white border-emerald-500 shadow-xl shadow-emerald-900/20';
+        iconSvg = '<svg class="w-4 h-4 text-emerald-200 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>';
+      } else if (type === 'error') {
+        bgClasses = 'bg-rose-700 text-white border-rose-500 shadow-xl shadow-rose-900/20';
+        iconSvg = '<svg class="w-4 h-4 text-rose-200 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>';
+      } else if (type === 'warning') {
+        bgClasses = 'bg-amber-600 text-white border-amber-400 shadow-xl shadow-amber-900/20';
+        iconSvg = '<svg class="w-4 h-4 text-amber-200 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>';
+      }
+
+      toast.className = `pointer-events-auto px-4 py-3 rounded-2xl border flex items-center gap-2.5 text-xs sm:text-sm font-bold transition-all duration-300 transform -translate-y-2 opacity-0 ${bgClasses}`;
+      toast.innerHTML = `
+        ${iconSvg}
+        <span class="flex-1 leading-snug">${this.escapeHtml(message)}</span>
+      `;
+
+      container.appendChild(toast);
+
+      // Trigger enter animation
+      requestAnimationFrame(() => {
+        toast.classList.remove('-translate-y-2', 'opacity-0');
+        toast.classList.add('translate-y-0', 'opacity-100');
+      });
+
+      // Auto dismiss
+      setTimeout(() => {
+        toast.classList.remove('translate-y-0', 'opacity-100');
+        toast.classList.add('-translate-y-2', 'opacity-0');
+        setTimeout(() => toast.remove(), 350);
+      }, duration);
+    } catch (_) {}
   },
 
   /**

@@ -561,15 +561,15 @@ export const StudentView = {
                         </div>
                       </div>
 
-                      <!-- Step Number Circle: Clean sequence indicator with native Arabic font -->
+                      <!-- Step Number Circle: Clean sequence indicator with native Arabic font (always retains step number) -->
                       <div data-step-index="${idx + 1}" class="step-number-circle w-6 h-6 rounded-full flex items-center justify-center tabular-nums font-bold text-xs shrink-0 transition-colors ${
                         isChecked 
                           ? 'bg-emerald-100 text-emerald-800' 
                           : (isNextStep 
-                              ? 'bg-blue-100 text-blue-900 border border-blue-300' 
+                              ? 'bg-blue-100 text-blue-900 border border-blue-400/80 shadow-xs' 
                               : 'bg-stone-100 text-stone-500')
                       }">
-                        ${isChecked ? '✓' : (idx + 1)}
+                        ${idx + 1}
                       </div>
 
                       <!-- Step Title Text -->
@@ -625,108 +625,184 @@ export const StudentView = {
       });
     });
 
-    // Attach checkbox event listeners with INSTANT OPTIMISTIC IN-PLACE UI UPDATES
+    // Helper to dynamically update row classes, single checkmark, and active blue highlight for all steps in a card
+    const updateCardStepsVisualState = (card) => {
+      const rows = Array.from(card.querySelectorAll('.subtask-row'));
+      // Find the first unchecked index
+      let nextUncheckedIdx = -1;
+      for (let i = 0; i < rows.length; i++) {
+        const checkbox = rows[i].querySelector('.subtask-checkbox');
+        if (checkbox && !checkbox.checked) {
+          nextUncheckedIdx = i;
+          break;
+        }
+      }
+
+      rows.forEach((row, i) => {
+        const checkbox = row.querySelector('.subtask-checkbox');
+        const isChecked = checkbox ? checkbox.checked : false;
+        const isNextStep = (i === nextUncheckedIdx);
+
+        const customBox = row.querySelector('.custom-check-box');
+        const checkSvg = customBox ? customBox.querySelector('svg') : null;
+        const circle = row.querySelector('.step-number-circle');
+        const titleSpan = row.querySelector('.step-title-text');
+        const stepNum = circle ? (circle.dataset.stepIndex || (i + 1)) : (i + 1);
+
+        // 1. Row Background & Blue Border Highlight
+        if (isChecked) {
+          row.className = 'subtask-row flex items-center justify-between p-4 sm:p-4.5 transition-all duration-200 bg-stone-50/60 cursor-pointer';
+        } else if (isNextStep) {
+          row.className = 'subtask-row flex items-center justify-between p-4 sm:p-4.5 transition-all duration-200 bg-blue-50/50 ring-1 ring-inset ring-blue-500/60 shadow-2xs cursor-pointer';
+        } else {
+          row.className = 'subtask-row flex items-center justify-between p-4 sm:p-4.5 transition-all duration-200 hover:bg-stone-50/70 cursor-pointer opacity-85 hover:opacity-100';
+        }
+
+        // 2. Custom Checkbox Box
+        if (customBox) {
+          if (isChecked) {
+            customBox.className = 'custom-check-box w-7 h-7 sm:w-8 sm:h-8 rounded-lg border-2 transition-all duration-200 flex items-center justify-center shadow-2xs bg-emerald-600 border-emerald-600 text-white scale-105 shadow-sm shadow-emerald-600/20';
+          } else if (isNextStep) {
+            customBox.className = 'custom-check-box w-7 h-7 sm:w-8 sm:h-8 rounded-lg border-2 transition-all duration-200 flex items-center justify-center shadow-2xs border-blue-600 bg-white hover:border-blue-700 hover:bg-blue-50/60 ring-2 ring-blue-400/30';
+          } else {
+            customBox.className = 'custom-check-box w-7 h-7 sm:w-8 sm:h-8 rounded-lg border-2 transition-all duration-200 flex items-center justify-center shadow-2xs border-stone-300 bg-white hover:border-stone-400';
+          }
+        }
+
+        // 3. Checkbox SVG icon (ONLY ONE checkmark appears here!)
+        if (checkSvg) {
+          if (isChecked) {
+            checkSvg.setAttribute('class', 'w-4 h-4 sm:w-5 sm:h-5 transition-transform duration-200 scale-100 opacity-100 text-white');
+          } else {
+            checkSvg.setAttribute('class', 'w-4 h-4 sm:w-5 sm:h-5 transition-transform duration-200 scale-50 opacity-0');
+          }
+        }
+
+        // 4. Step Number Circle: ALWAYS retains stepNum, NEVER '✓'
+        if (circle) {
+          circle.textContent = String(stepNum);
+          if (isChecked) {
+            circle.className = 'step-number-circle w-6 h-6 rounded-full flex items-center justify-center tabular-nums font-bold text-xs shrink-0 transition-colors bg-emerald-100 text-emerald-800';
+          } else if (isNextStep) {
+            circle.className = 'step-number-circle w-6 h-6 rounded-full flex items-center justify-center tabular-nums font-extrabold text-xs shrink-0 transition-colors bg-blue-100 text-blue-900 border border-blue-400/80 shadow-xs';
+          } else {
+            circle.className = 'step-number-circle w-6 h-6 rounded-full flex items-center justify-center tabular-nums font-bold text-xs shrink-0 transition-colors bg-stone-100 text-stone-500';
+          }
+        }
+
+        // 5. Step Title Text
+        if (titleSpan) {
+          if (isChecked) {
+            titleSpan.className = 'step-title-text text-xs sm:text-sm line-through text-stone-500 font-medium leading-relaxed flex-1 min-w-0';
+          } else if (isNextStep) {
+            titleSpan.className = 'step-title-text text-xs sm:text-sm text-blue-950 font-black leading-relaxed flex-1 min-w-0';
+          } else {
+            titleSpan.className = 'step-title-text text-xs sm:text-sm text-slate-800 font-medium leading-relaxed flex-1 min-w-0';
+          }
+        }
+      });
+    };
+
+    // Attach checkbox event listeners with INSTANT OPTIMISTIC IN-PLACE UI UPDATES & SEQUENTIAL ENFORCEMENT
     listEl.querySelectorAll('.subtask-checkbox').forEach(chk => {
       chk.addEventListener('change', async () => {
         const asgId = chk.dataset.asgId;
         const subId = chk.dataset.subId;
         const isChecked = chk.checked;
-        const rowLabel = chk.closest('.subtask-row');
         const card = chk.closest('.assignment-card');
+        if (!card) return;
 
-        // 1. Instant in-place Row DOM Update (0ms)
-        if (rowLabel) {
-          const customBox = rowLabel.querySelector('.custom-check-box');
-          const checkSvg = customBox ? customBox.querySelector('svg') : null;
-          const circle = rowLabel.querySelector('.step-number-circle');
-          const titleSpan = rowLabel.querySelector('.step-title-text');
+        const allCardCheckboxes = Array.from(card.querySelectorAll('.subtask-checkbox'));
+        const currentIndex = allCardCheckboxes.indexOf(chk);
 
-          if (isChecked) {
-            rowLabel.classList.add('bg-stone-50/60');
-            rowLabel.classList.remove('bg-blue-50/40', 'ring-1', 'ring-inset', 'ring-blue-400/50');
-            if (customBox) {
-              customBox.className = 'custom-check-box w-7 h-7 sm:w-8 sm:h-8 rounded-lg border-2 transition-all duration-200 flex items-center justify-center shadow-2xs bg-emerald-600 border-emerald-600 text-white scale-105 shadow-sm shadow-emerald-600/20';
+        // Sequential Step Completion Validation:
+        if (isChecked) {
+          // Verify that all prior steps are completed
+          let firstUnchecked = -1;
+          for (let i = 0; i < currentIndex; i++) {
+            if (!allCardCheckboxes[i].checked) {
+              firstUnchecked = i;
+              break;
             }
-            if (checkSvg) {
-              checkSvg.classList.remove('scale-50', 'opacity-0');
-              checkSvg.classList.add('scale-100', 'opacity-100');
+          }
+          if (firstUnchecked > -1) {
+            chk.checked = false; // Revert change
+            const priorTitle = card.querySelectorAll('.step-title-text')[firstUnchecked]?.textContent?.trim() || '';
+            Utils.showToast(`يرجى إنجاز الخطوات بالترتيب، ابدأ أولاً بالخطوة (${firstUnchecked + 1})${priorTitle ? ': «' + priorTitle + '»' : ''}`, 'warning');
+            
+            // Subtle pulse animation on the required next step
+            const targetRow = card.querySelectorAll('.subtask-row')[firstUnchecked];
+            if (targetRow) {
+              targetRow.classList.add('animate-pulse');
+              setTimeout(() => targetRow.classList.remove('animate-pulse'), 1200);
             }
-            if (circle) {
-              circle.className = 'step-number-circle w-6 h-6 rounded-full flex items-center justify-center tabular-nums font-bold text-xs shrink-0 transition-colors bg-emerald-100 text-emerald-800';
-              circle.textContent = '✓';
+            return;
+          }
+        } else {
+          // Unchecking: Verify that no subsequent steps are still completed
+          let laterChecked = -1;
+          for (let i = currentIndex + 1; i < allCardCheckboxes.length; i++) {
+            if (allCardCheckboxes[i].checked) {
+              laterChecked = i;
+              break;
             }
-            if (titleSpan) {
-              titleSpan.classList.add('line-through', 'text-stone-500');
-              titleSpan.classList.remove('text-slate-900', 'text-blue-950', 'font-bold');
-            }
-          } else {
-            rowLabel.classList.remove('bg-stone-50/60');
-            if (customBox) {
-              customBox.className = 'custom-check-box w-7 h-7 sm:w-8 sm:h-8 rounded-lg border-2 transition-all duration-200 flex items-center justify-center shadow-2xs border-stone-300 bg-white hover:border-stone-400';
-            }
-            if (checkSvg) {
-              checkSvg.classList.remove('scale-100', 'opacity-100');
-              checkSvg.classList.add('scale-50', 'opacity-0');
-            }
-            if (circle) {
-              circle.className = 'step-number-circle w-6 h-6 rounded-full flex items-center justify-center tabular-nums font-bold text-xs shrink-0 transition-colors bg-stone-100 text-stone-500';
-              circle.textContent = circle.dataset.stepIndex || '1';
-            }
-            if (titleSpan) {
-              titleSpan.classList.remove('line-through', 'text-stone-500');
-              titleSpan.classList.add('text-slate-900', 'font-medium');
-            }
+          }
+          if (laterChecked > -1) {
+            chk.checked = true; // Revert change to stay checked
+            Utils.showToast('يرجى إلغاء الخطوات اللاحقة أولاً للحفاظ على تسلسل الإنجاز', 'warning');
+            return;
           }
         }
 
+        // 1. Instant in-place Visual Update for all rows in this card (0ms)
+        // Moves the active blue highlight immediately to the next step, keeps number in circle!
+        updateCardStepsVisualState(card);
+
         // 2. Instant in-place Card Progress Calculation (0ms)
-        if (card) {
-          const allCardCheckboxes = card.querySelectorAll('.subtask-checkbox');
-          const checkedCardCheckboxes = card.querySelectorAll('.subtask-checkbox:checked');
-          const totalSub = allCardCheckboxes.length;
-          const doneSub = checkedCardCheckboxes.length;
-          const percentage = totalSub > 0 ? Math.round((doneSub / totalSub) * 100) : 0;
-          const isAllDone = totalSub > 0 && doneSub === totalSub;
+        const checkedCardCheckboxes = card.querySelectorAll('.subtask-checkbox:checked');
+        const totalSub = allCardCheckboxes.length;
+        const doneSub = checkedCardCheckboxes.length;
+        const percentage = totalSub > 0 ? Math.round((doneSub / totalSub) * 100) : 0;
+        const isAllDone = totalSub > 0 && doneSub === totalSub;
 
-          const counterText = card.querySelector('.card-step-counter');
-          if (counterText) {
-            counterText.textContent = `${doneSub} من ${totalSub} خطوات`;
-            counterText.className = `card-step-counter ${isAllDone ? 'text-emerald-700' : 'text-blue-900'} font-extrabold`;
+        const counterText = card.querySelector('.card-step-counter');
+        if (counterText) {
+          counterText.textContent = `${doneSub} من ${totalSub} خطوات`;
+          counterText.className = `card-step-counter ${isAllDone ? 'text-emerald-700' : 'text-blue-900'} font-extrabold`;
+        }
+
+        const tipCounter = card.querySelector('.tip-step-counter');
+        if (tipCounter) tipCounter.textContent = `${doneSub} / ${totalSub}`;
+
+        const bar = card.querySelector('.card-progress-bar');
+        if (bar) {
+          bar.style.width = `${percentage}%`;
+          bar.className = `card-progress-bar h-full rounded-full transition-all duration-500 ease-out ${isAllDone ? 'bg-emerald-600' : 'bg-blue-700'}`;
+        }
+
+        const badgeWrapper = card.querySelector('.card-status-badge');
+        if (badgeWrapper) {
+          badgeWrapper.innerHTML = isAllDone
+            ? `<span class="w-2 h-2 rounded-full bg-emerald-600 inline-block"></span><span>مكتمل بالكامل</span>`
+            : `<span class="w-2 h-2 rounded-full bg-amber-500 inline-block animate-pulse"></span><span>قيد الإنجاز</span>`;
+          badgeWrapper.className = `card-status-badge inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full border shadow-2xs shrink-0 ${isAllDone ? 'text-emerald-800 bg-emerald-50 border-emerald-200' : 'text-amber-800 bg-amber-50 border-amber-200/90'}`;
+        }
+
+        const cardTitle = card.querySelector('.card-asg-title');
+        if (cardTitle) {
+          if (isAllDone) {
+            cardTitle.classList.add('line-through', 'decoration-emerald-500/50');
+          } else {
+            cardTitle.classList.remove('line-through', 'decoration-emerald-500/50');
           }
+        }
 
-          const tipCounter = card.querySelector('.tip-step-counter');
-          if (tipCounter) tipCounter.textContent = `${doneSub} / ${totalSub}`;
-
-          const bar = card.querySelector('.card-progress-bar');
-          if (bar) {
-            bar.style.width = `${percentage}%`;
-            bar.className = `card-progress-bar h-full rounded-full transition-all duration-500 ease-out ${isAllDone ? 'bg-emerald-600' : 'bg-blue-700'}`;
-          }
-
-          const badgeWrapper = card.querySelector('.card-status-badge');
-          if (badgeWrapper) {
-            badgeWrapper.innerHTML = isAllDone
-              ? `<span class="w-2 h-2 rounded-full bg-emerald-600 inline-block"></span><span>مكتمل بالكامل</span>`
-              : `<span class="w-2 h-2 rounded-full bg-amber-500 inline-block animate-pulse"></span><span>قيد الإنجاز</span>`;
-            badgeWrapper.className = `card-status-badge inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full border shadow-2xs shrink-0 ${isAllDone ? 'text-emerald-800 bg-emerald-50 border-emerald-200' : 'text-amber-800 bg-amber-50 border-amber-200/90'}`;
-          }
-
-          const cardTitle = card.querySelector('.card-asg-title');
-          if (cardTitle) {
-            if (isAllDone) {
-              cardTitle.classList.add('line-through', 'decoration-emerald-500/50');
-            } else {
-              cardTitle.classList.remove('line-through', 'decoration-emerald-500/50');
-            }
-          }
-
-          const celebCard = card.querySelector('.card-celebration');
-          if (celebCard) {
-            if (isAllDone) {
-              celebCard.classList.remove('hidden');
-            } else {
-              celebCard.classList.add('hidden');
-            }
+        const celebCard = card.querySelector('.card-celebration');
+        if (celebCard) {
+          if (isAllDone) {
+            celebCard.classList.remove('hidden');
+          } else {
+            celebCard.classList.add('hidden');
           }
         }
 
@@ -752,6 +828,7 @@ export const StudentView = {
         } catch (err) {
           // Revert visual state on error
           chk.checked = !isChecked;
+          updateCardStepsVisualState(card);
           Utils.showToast(err.message || 'حدث خطأ في حفظ الإنجاز', 'error');
         }
       });
@@ -847,7 +924,7 @@ export const StudentView = {
       }
     }, { passive: true });
 
-    // Auto-rotation every 45 seconds if user does NOT prefer reduced motion
+    // Auto-rotation every 15 seconds if user does NOT prefer reduced motion
     const prefersReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (!prefersReducedMotion) {
       if (this._quoteInterval) clearInterval(this._quoteInterval);
@@ -855,7 +932,7 @@ export const StudentView = {
         if (!this._isQuotePaused) {
           this.nextQuote();
         }
-      }, 45000);
+      }, 15000);
     }
   },
 

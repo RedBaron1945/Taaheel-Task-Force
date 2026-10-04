@@ -280,8 +280,8 @@ export const AssignmentService = {
       description: (data.description || '').trim(),
       sourceType: data.sourceType || (data.sourceUrl ? 'link' : 'none'),
       sourceUrl: (data.sourceUrl || '').trim(),
-      startDate: data.startDate,
-      endDate: data.endDate,
+      startDate: data.startDate || assignments[index].startDate,
+      endDate: data.endDate || assignments[index].endDate,
       points: Number(data.points) || subtasks.reduce((sum, s) => sum + s.points, 0),
       active: data.active !== false,
       subtasks
