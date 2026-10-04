@@ -234,13 +234,13 @@ export const AttendanceView = {
           </div>
 
           <!-- Floating Bottom Bulk Actions Bar (Elevated above mobile nav bar with z-50) -->
-          <div id="att-bulk-actions-bar" class="${this.selectedStudentIds.size > 0 ? 'flex' : 'hidden'} fixed bottom-20 sm:bottom-6 left-1/2 -translate-x-1/2 z-50 max-w-sm w-[calc(100%-1.5rem)] items-center justify-between gap-2 px-3.5 py-2.5 rounded-2xl bg-white/95 backdrop-blur-md border border-stone-300 shadow-xl shadow-slate-900/20 transition-all animate-in fade-in slide-in-from-bottom-2 duration-150">
+          <div id="att-bulk-actions-bar" class="${this.selectedStudentIds.size > 0 ? 'flex' : 'hidden'} fixed bottom-20 sm:bottom-6 left-1/2 -translate-x-1/2 z-50 max-w-md w-[calc(100%-1.5rem)] items-center justify-between gap-2 px-3.5 py-2.5 rounded-2xl bg-white/95 backdrop-blur-md border border-stone-300 shadow-xl shadow-slate-900/20 transition-all animate-in fade-in slide-in-from-bottom-2 duration-150">
             <div class="flex items-center gap-1.5 shrink-0">
               <span class="w-5 h-5 rounded-md bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-900 font-bold text-[11px] tabular-nums" id="att-bulk-count">${this.selectedStudentIds.size}</span>
               <span class="text-[11px] font-bold text-slate-700">تطبيق:</span>
             </div>
 
-            <div class="flex items-center gap-1.5">
+            <div class="flex items-center gap-1.5 flex-wrap justify-end">
               <button id="bulk-btn-present" type="button" class="px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-50 hover:bg-emerald-600 text-emerald-800 hover:text-white border border-emerald-200 transition-all flex items-center gap-1 cursor-pointer active:scale-95">
                 <span>✓ حاضر</span>
               </button>
@@ -249,6 +249,9 @@ export const AttendanceView = {
               </button>
               <button id="bulk-btn-absent" type="button" class="px-2.5 py-1 rounded-lg text-xs font-bold bg-rose-50 hover:bg-rose-600 text-rose-800 hover:text-white border border-rose-200 transition-all flex items-center gap-1 cursor-pointer active:scale-95">
                 <span>✕ غائب</span>
+              </button>
+              <button id="bulk-btn-clear" type="button" class="px-2 py-1 rounded-lg text-xs font-bold bg-stone-100 hover:bg-stone-700 text-stone-700 hover:text-white border border-stone-300 transition-all flex items-center gap-1 cursor-pointer active:scale-95" title="إلغاء رصد الطلاب المحددين وحذف تسجيلهم">
+                <span>⊘ إلغاء الرصد</span>
               </button>
             </div>
           </div>
@@ -394,14 +397,17 @@ export const AttendanceView = {
           ids.forEach(sid => {
             this.applyOptimisticStudentStatus(sid, status);
           });
-          Utils.showToast(`تم رصد ${ids.length} طالب بحالة: ${label}`, 'success', 1500);
           this.selectedStudentIds.clear();
           this.updateSelectionUI();
 
           // 2. Persist in background
           try {
             for (const sid of ids) {
-              await AttendanceService.recordAttendance(sid, this.selectedDate, status);
+              if (status === null) {
+                await AttendanceService.removeAttendance(sid, this.selectedDate);
+              } else {
+                await AttendanceService.recordAttendance(sid, this.selectedDate, status);
+              }
             }
           } catch (err) {
             Utils.showToast(err.message, 'error');
@@ -414,6 +420,7 @@ export const AttendanceView = {
     bindBulkBtn('#bulk-btn-present', 'present', 'حاضر');
     bindBulkBtn('#bulk-btn-excused', 'excused', 'معتذر');
     bindBulkBtn('#bulk-btn-absent', 'absent', 'غائب');
+    bindBulkBtn('#bulk-btn-clear', null, 'إلغاء');
 
     await this.renderQueue();
   },
@@ -1105,16 +1112,6 @@ export const AttendanceView = {
 
         // 1. INSTANT 0ms OPTIMISTIC FEEDBACK
         this.applyOptimisticStudentStatus(studentId, targetStatus);
-
-        let arabicStatus = 'حاضر';
-        if (clickedStatus === 'excused') arabicStatus = 'معتذر';
-        if (clickedStatus === 'absent') arabicStatus = 'غائب';
-
-        if (isCancel) {
-          Utils.showToast('تم إلغاء الرصد', 'info', 1000);
-        } else {
-          Utils.showToast(`${arabicStatus} ✓`, 'success', 1000);
-        }
 
         // 2. ASYNC BACKGROUND PERSISTENCE
         try {

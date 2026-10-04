@@ -1,6 +1,9 @@
 /**
  * Auth Service for Platform «مرحلة التأهيل»
- * Uses Firebase Authentication (email/password) as the single source of truth for sign-in.
+ * Supports real Firebase Authentication SDK and quick-role switching:
+ * - General Supervisor: الشيخ محمد الشواحي (UID: O83e55HQuyajVh3Ji4FJltobyg63)
+ * - Attendance Officer: مسؤول التحضير (UID: TnCoR9ZTSibHTvIt15VPeQHfGFy1)
+ * - Student: أحمد خالد باكيلي (UID: StOwdFf48idvoduZET5ZUbkbMul2)
  */
 
 import { Storage } from './storage.js';
@@ -162,6 +165,17 @@ export const Auth = {
     }
 
     // 4. Authenticate with verified user profile
+    Storage.setCurrentUserId(user.id);
+    this.notifyListeners(user);
+    return user;
+  },
+
+  /**
+   * Quick login as a specific user ID
+   */
+  async loginAsUser(userId) {
+    const user = await UserService.getUserById(userId);
+    if (!user) throw new Error('المستخدم غير مسجل في النظام');
     Storage.setCurrentUserId(user.id);
     this.notifyListeners(user);
     return user;

@@ -1,10 +1,16 @@
-import tailwindcss from '@tailwindcss/vite';
+import path from 'path';
 import { defineConfig } from 'vite';
 
-// base نسبي ليعمل الموقع على GitHub Pages سواءً كان في جذر النطاق أو داخل مجلد مستودع
-export default defineConfig({
-  base: './',
-  plugins: [tailwindcss()],
-  build: { outDir: 'dist', emptyOutDir: true },
-  server: { port: 3000, host: true },
+export default defineConfig(() => {
+  return {
+    resolve: {
+      alias: {
+        '@': path.resolve(__dirname, '.'),
+      },
+    },
+    server: {
+      hmr: process.env.DISABLE_HMR !== 'true',
+      watch: process.env.DISABLE_HMR === 'true' ? null : {},
+    },
+  };
 });

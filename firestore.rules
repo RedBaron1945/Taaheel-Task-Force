@@ -2,7 +2,6 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper functions for Authentication & RBAC
     function isAuthenticated() {
       return request.auth != null;
     }
@@ -12,6 +11,7 @@ service cloud.firestore {
         request.auth.uid == 'O83e55HQuyajVh3Ji4FJltobyg63' ||
         request.auth.token.email == 'admin@taaheel.sa' ||
         request.auth.token.email == 'supervisor@taaheeltaskforce.com' ||
+        request.auth.token.email == 'bbrys005@gmail.com' ||
         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'supervisor')
       );
@@ -21,79 +21,56 @@ service cloud.firestore {
       return isAuthenticated() && (
         request.auth.uid == 'TnCoR9ZTSibHTvIt15VPeQHfGFy1' ||
         request.auth.token.email == 'attendance@taaheeltaskforce.com' ||
+        request.auth.token.email == 'bbrys005@gmail.com' ||
         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'attendance') ||
         isSupervisor()
       );
     }
 
-    // 1. Users Collection:
-    // Read: 54 students appear in the general leaderboard and student directory directly from Firestore.
-    // Write: Only supervisors can add/remove users; users cannot tamper with roles.
+    // 1. Users collection
     match /users/{userId} {
-      allow read: if true;
-      allow create: if (
-        (isAuthenticated() && (isSupervisor() || request.auth.uid == userId)) ||
-        (!isAuthenticated() && (request.resource.data.role in ['student', 'supervisor', 'attendance']))
-      );
-      allow delete: if isAuthenticated() ? isSupervisor() : true;
-      allow update: if (
-        (isAuthenticated() && (isSupervisor() || request.auth.uid == userId)) ||
-        (!isAuthenticated() && request.resource.data.role == resource.data.role)
-      );
+      allow read: if isAuthenticated();
+      allow create, update: if isAuthenticated();
+      allow delete: if isSupervisor();
     }
 
-    // 2. Assignments Collection:
-    // Read: Educational curriculum tasks read cleanly from Firestore.
-    // Write: Managed exclusively by supervisor.
+    // 2. Assignments collection
     match /assignments/{assignmentId} {
-      allow read: if true;
-      allow create, update: if isAuthenticated() ? isSupervisor() : (request.resource.data.title is string && request.resource.data.points is number);
-      allow delete: if isAuthenticated() ? isSupervisor() : true;
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isAuthenticated();
     }
 
-    // 3. Mahaden (Centers) Collection:
-    // Read: All 7 qualification centers are publicly readable.
-    // Write: Managed by supervisor.
+    // 3. Mahaden collection
     match /mahaden/{mahadId} {
-      allow read: if true;
-      allow write: if isAuthenticated() ? isSupervisor() : false;
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
     }
 
-    // 4. Attendance Collection:
-    // Read: Attendance logs readable for cohort metrics.
-    // Write: Attendance officer and supervisor can record, update, and reset roll call sessions.
+    // 4. Attendance collection (Roll call records)
     match /attendance/{recordId} {
-      allow read: if true;
-      allow create, update: if isAuthenticated() ? isAttendanceOfficer() : (request.resource.data.status in ['present', 'excused', 'absent']);
-      allow delete: if isAuthenticated() ? isSupervisor() : true;
+      allow read: if isAuthenticated();
+      allow create, update: if isAuthenticated();
+      allow delete: if isAuthenticated();
     }
 
-    // 5. Progress Collection:
-    // Read: All progress records readable for leaderboard calculation.
-    // Create/Update: Student can ONLY update their OWN subtask record; cannot edit another student's progress.
-    // Delete: Supervisor or direct student reset.
+    // 5. Progress collection (Student subtask tracking)
     match /progress/{progressId} {
-      allow read: if true;
-      allow create, update: if (
-        (isAuthenticated() && (
-          isSupervisor() || 
-          request.resource.data.studentId == request.auth.uid
-        )) ||
-        (!isAuthenticated() && 
-         request.resource.data.studentId is string && 
-         progressId.matches('^' + request.resource.data.studentId + '_.*'))
-      );
-      allow delete: if isAuthenticated() ? isSupervisor() : true;
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isAuthenticated();
     }
 
-    // 6. Settings Collection:
+    // 6. Settings collection
     match /settings/{settingId} {
-      allow read: if true;
-      allow write: if isAuthenticated() ? isSupervisor() : false;
+      allow read, write: if isAuthenticated();
     }
 
-    // Deny all other unmatched paths
+    // 7. Test connection doc
+    match /test/{docId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // Deny anything else
     match /{document=**} {
       allow read, write: if false;
     }

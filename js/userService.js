@@ -16,7 +16,9 @@ import {
   where, 
   onSnapshot, 
   handleFirestoreError, 
-  OperationType 
+  OperationType,
+  writeBatch,
+  deleteField 
 } from './firebase.js';
 import { INITIAL_DATA } from './data.js';
 
@@ -127,7 +129,6 @@ export const UserService = {
       mahadId: studentData.mahadId,
       mahadName: studentData.mahadName || '',
       email: studentData.email ? studentData.email.trim() : `${studentData.id || 'student'}@taaheeltaskforce.com`,
-      avatar: studentData.name.trim().substring(0, 2),
       createdAt: new Date().toISOString()
     };
 
@@ -343,6 +344,29 @@ export const UserService = {
   },
 
   /**
+   * Purge obsolete avatar field from all user documents in Firestore
+   */
+  async purgeAvatarFromFirestore() {
+    try {
+      const snap = await getDocs(collection(db, 'users'));
+      if (snap.empty) return;
+      const batch = writeBatch(db);
+      let count = 0;
+      snap.forEach(d => {
+        if (d.data().avatar !== undefined) {
+          batch.update(doc(db, 'users', d.id), { avatar: deleteField() });
+          count++;
+        }
+      });
+      if (count > 0) {
+        await batch.commit();
+      }
+    } catch (_) {
+      // Handled silently
+    }
+  },
+
+  /**
    * Seed Initial System Users into Firestore
    */
   async seedInitialFirestoreData() {
@@ -352,6 +376,7 @@ export const UserService = {
         return setDoc(ref, u, { merge: true });
       });
       await Promise.all(promises);
+      await this.purgeAvatarFromFirestore();
     } catch (_) {
       // Handled silently
     }

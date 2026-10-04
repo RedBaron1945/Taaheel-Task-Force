@@ -22,7 +22,11 @@ import {
   collection, 
   query, 
   where, 
-  onSnapshot 
+  onSnapshot,
+  writeBatch,
+  deleteField,
+  persistentLocalCache,
+  persistentMultipleTabManager 
 } from 'firebase/firestore';
 
 export {
@@ -39,7 +43,11 @@ export {
   collection,
   query,
   where,
-  onSnapshot
+  onSnapshot,
+  writeBatch,
+  deleteField,
+  persistentLocalCache,
+  persistentMultipleTabManager
 };
 
 import firebaseAppletConfig from '../firebase-applet-config.json';
@@ -50,10 +58,20 @@ export const firebaseConfig = firebaseAppletConfig;
 export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 
-// Initialize Firestore with forced long polling for optimal connection stability
-export const db = initializeFirestore(app, {
-  experimentalForceLongPolling: true
-}, firebaseConfig.firestoreDatabaseId || '(default)');
+// Initialize Firestore with persistent IndexedDB multi-tab cache and long polling
+let firestoreInstance;
+try {
+  firestoreInstance = initializeFirestore(app, {
+    localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+    experimentalForceLongPolling: true
+  }, firebaseConfig.firestoreDatabaseId || '(default)');
+} catch (_) {
+  firestoreInstance = initializeFirestore(app, {
+    experimentalForceLongPolling: true
+  }, firebaseConfig.firestoreDatabaseId || '(default)');
+}
+
+export const db = firestoreInstance;
 
 export const OperationType = {
   CREATE: 'create',

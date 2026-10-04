@@ -8,15 +8,27 @@
     <meta name="author" content="منصة مرحلة التأهيل" />
     <meta name="theme-color" content="#0d2252" />
 
+    <!--
+      OpenGraph image/preview tags below use root-relative paths (e.g. "/og-image.png")
+      on purpose: WhatsApp/Telegram/Facebook/etc. crawlers resolve these against the
+      actual URL the page is fetched from, so they work correctly on whatever domain
+      this ends up deployed to, with nothing to edit after deploying.
+
+      og:url and the JSON-LD "url" below are left out, since the final domain isn't
+      known yet. Once deployed, you can optionally add:
+        <meta property="og:url" content="https://your-real-domain/" />
+      and the matching "url" field in the JSON-LD block — neither is required for the
+      logo/title/description preview itself to show up.
+    -->
+
     <!-- OpenGraph Social Sharing (WhatsApp, Telegram, Facebook, LinkedIn, iMessage) -->
     <meta property="og:site_name" content="منصة مرحلة التأهيل" />
     <meta property="og:title" content="منصة مرحلة التأهيل" />
     <meta property="og:description" content="منصة تعليمية عربية لمتابعة طلاب مرحلة التأهيل ومراقبة إنجازهم للتكاليف وحضورهم" />
     <meta property="og:type" content="website" />
     <meta property="og:locale" content="ar_SA" />
-    <meta property="og:url" content="https://REPLACE-WITH-YOUR-DEPLOYED-DOMAIN" />
-    <meta property="og:image" content="https://REPLACE-WITH-YOUR-DEPLOYED-DOMAIN/og-image.png" />
-    <meta property="og:image:secure_url" content="https://REPLACE-WITH-YOUR-DEPLOYED-DOMAIN/og-image.png" />
+    <meta property="og:image" content="/og-image.png" />
+    <meta property="og:image:secure_url" content="/og-image.png" />
     <meta property="og:image:type" content="image/png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
@@ -26,25 +38,29 @@
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="منصة مرحلة التأهيل" />
     <meta name="twitter:description" content="منصة تعليمية عربية لمتابعة طلاب مرحلة التأهيل ومراقبة إنجازهم للتكاليف وحضورهم" />
-    <meta name="twitter:image" content="https://REPLACE-WITH-YOUR-DEPLOYED-DOMAIN/og-image.png" />
+    <meta name="twitter:image" content="/og-image.png" />
     <meta name="twitter:image:alt" content="شعار منصة مرحلة التأهيل" />
 
     <!-- Schema.org Microdata & Legacy Crawlers -->
     <meta itemprop="name" content="منصة مرحلة التأهيل" />
     <meta itemprop="description" content="منصة تعليمية عربية لمتابعة طلاب مرحلة التأهيل ومراقبة إنجازهم للتكاليف وحضورهم" />
-    <meta itemprop="image" content="https://REPLACE-WITH-YOUR-DEPLOYED-DOMAIN/og-image.png" />
-    <link rel="image_src" href="https://REPLACE-WITH-YOUR-DEPLOYED-DOMAIN/og-image.png" />
+    <meta itemprop="image" content="/og-image.png" />
+    <link rel="image_src" href="/og-image.png" />
 
-    <!-- Favicon & Touch Icons (مولّدة من الشعار الرسمي branding/taaheel-logo.png) -->
-    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <!-- Favicon & Touch Icons -->
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
-    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="shortcut icon" href="/favicon.ico" />
+    <link rel="manifest" href="/manifest.json" />
 
-    <!-- تطبيق ويب تقدمي (PWA): يسمح بالتثبيت على الشاشة الرئيسية في الهاتف -->
-    <link rel="manifest" href="/manifest.webmanifest" />
-    <meta name="mobile-web-app-capable" content="yes" />
+    <script>
+      if ('serviceWorker' in navigator && window.location.protocol.startsWith('http')) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').catch(() => {});
+        });
+      }
+    </script>
 
     <!-- Structured Data (JSON-LD) -->
     <script type="application/ld+json">
@@ -52,35 +68,12 @@
       "@context": "https://schema.org",
       "@type": "WebApplication",
       "name": "منصة مرحلة التأهيل",
-      "url": "https://REPLACE-WITH-YOUR-DEPLOYED-DOMAIN",
-      "image": "https://REPLACE-WITH-YOUR-DEPLOYED-DOMAIN/og-image.png",
+      "image": "/og-image.png",
       "description": "منصة تعليمية عربية لمتابعة طلاب مرحلة التأهيل ومراقبة إنجازهم للتكاليف وحضورهم",
       "applicationCategory": "EducationalApplication",
       "operatingSystem": "All",
       "inLanguage": "ar"
     }
-    </script>
-
-    <!-- Dynamic Social Share URL Resolver for Current Host Origin -->
-    <script>
-      (function() {
-        try {
-          const origin = window.location.origin;
-          if (origin && origin.startsWith('http')) {
-            const updateMeta = (selector, attr, val) => {
-              const el = document.querySelector(selector);
-              if (el) el.setAttribute(attr, val);
-            };
-            const fullImgUrl = origin + '/og-image.png';
-            updateMeta('meta[property="og:image"]', 'content', fullImgUrl);
-            updateMeta('meta[property="og:image:secure_url"]', 'content', fullImgUrl);
-            updateMeta('meta[name="twitter:image"]', 'content', fullImgUrl);
-            updateMeta('meta[itemprop="image"]', 'content', fullImgUrl);
-            updateMeta('link[rel="image_src"]', 'href', fullImgUrl);
-            updateMeta('meta[property="og:url"]', 'content', origin + window.location.pathname);
-          }
-        } catch (_) {}
-      })();
     </script>
 
     <!-- Google Fonts: Tajawal & Amiri -->
@@ -89,7 +82,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
 
     <!-- Tailwind & Custom Stylesheets -->
-    <link rel="stylesheet" href="/src/index.css" />
     <link rel="stylesheet" href="/css/style.css" />
     <link rel="stylesheet" href="/css/responsive.css" />
   </head>
@@ -116,12 +108,12 @@
           </svg>
         </div>
 
-        <h3 id="forgot-pwd-title" class="text-lg font-black text-slate-900 mb-4">الدعم الفني</h3>
+        <h3 id="forgot-pwd-title" class="text-lg font-black text-slate-900 mb-4">الدعم الفني والمقترحات</h3>
         
         <!-- Content Card with Balanced Vertical Rhythm -->
         <div class="bg-stone-50 border border-stone-200/90 rounded-2xl p-4 sm:p-5 space-y-3.5 leading-relaxed text-center">
           <p class="text-slate-700 font-normal text-xs sm:text-sm leading-relaxed">
-            نسيت بياناتك؟ لاحظت مشكلة؟ حيّاك الله، راسلني على الواتساب وأنا بخدمتك
+            نسيت بياناتك؟ لاحظت مشكلة؟ اقتراح؟ حيّاك الله، راسلني على الواتساب وأنا بخدمتك
           </p>
           
           <div class="text-base sm:text-lg font-black text-blue-950 tracking-tight">أخوك بسيل خالد</div>
@@ -143,7 +135,7 @@
 
         <!-- Action Buttons: Hero WhatsApp Action with Subtle Text Close -->
         <div class="flex flex-col items-center justify-center gap-2 pt-4">
-          <a id="btn-open-wa" href="https://wa.me/966536820848?text=%D8%A7%D9%84%D8%B3%D9%84%D8%A7%D9%85%20%D8%B9%D9%84%D9%8A%D9%83%D9%85%20%D8%A3%D8%AE%D9%8A%20%D8%A8%D8%B3%D9%8A%D9%84%D8%8C%20%D8%A3%D8%AD%D8%AA%D8%A7%D8%AC%20%D9%85%D8%B3%D8%A7%D8%B9%D8%AF%D8%A9%20%D9%81%D9%8A%20%D9%85%D9%86%D8%B5%D8%A9%20%D9%85%D8%B1%D8%AD%D9%84%D8%A9%20%D8%A7%D9%84%D8%AA%D8%A3%D9%87%D9%8A%D9%84.%20%D8%A7%D8%B3%D9%85%D9%8A%3A%20...%20%D8%A7%D9%84%D9%85%D8%AD%D8%B6%D9%86%3A%20..." target="_blank" rel="noopener noreferrer" class="w-full min-h-[48px] sm:min-h-[50px] py-3 px-5 text-sm sm:text-base font-bold text-white bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] rounded-xl transition-all shadow-md shadow-emerald-900/15 flex items-center justify-center gap-2.5 cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-emerald-600">
+          <a id="btn-open-wa" href="https://wa.me/966536820848?text=%D8%A7%D9%84%D8%B3%D9%84%D8%A7%D9%85%20%D8%B9%D9%84%D9%8A%D9%83%D9%85%20%D9%88%20%D8%B1%D8%AD%D9%85%D8%A9%20%D8%A7%D9%84%D9%84%D9%87%20%D9%88%20%D8%A8%D8%B1%D9%83%D8%A7%D8%AA%D9%87%0A%D8%A7%D8%B3%D9%85%D9%8A%3A%20%0A%D8%A7%D9%84%D9%85%D8%AD%D8%B6%D9%86%3A%20%0A%D8%A7%D9%84%D9%85%D8%B4%D9%83%D9%84%D8%A9%2F%20%D8%A7%D9%84%D8%A5%D9%82%D8%AA%D8%B1%D8%A7%D8%AD%3A%20" target="_blank" rel="noopener noreferrer" class="w-full min-h-[48px] sm:min-h-[50px] py-3 px-5 text-sm sm:text-base font-bold text-white bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] rounded-xl transition-all shadow-md shadow-emerald-900/15 flex items-center justify-center gap-2.5 cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-emerald-600">
             <svg class="w-5 h-5 fill-current shrink-0" viewBox="0 0 24 24"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0012.04 2zm.01 1.67c4.54 0 8.24 3.7 8.24 8.24 0 2.2-.86 4.28-2.42 5.84a8.19 8.19 0 01-5.82 2.41h-.01c-1.42 0-2.82-.37-4.05-1.07l-.29-.17-3.11.82.83-3.03-.19-.31a8.17 8.17 0 01-1.25-4.49c0-4.54 3.7-8.24 8.24-8.24zm4.51 11.64c-.25-.13-1.47-.72-1.7-.81-.23-.08-.39-.13-.56.13-.17.25-.64.81-.79.97-.14.17-.29.19-.54.06-.25-.13-1.05-.39-2-1.24-.74-.66-1.24-1.47-1.39-1.72-.14-.25-.02-.39.11-.51.11-.11.25-.29.37-.44.13-.14.17-.25.25-.42.08-.17.04-.31-.02-.44-.06-.13-.56-1.34-.76-1.84-.2-.49-.4-.42-.56-.43h-.47c-.17 0-.44.06-.67.31-.23.25-.88.86-.88 2.1 0 1.24.9 2.44 1.03 2.61.13.17 1.77 2.7 4.29 3.78.6.26 1.07.41 1.43.53.6.19 1.15.16 1.58.1.48-.07 1.47-.6 1.68-1.18.21-.58.21-1.07.15-1.18-.06-.11-.21-.18-.46-.31z"/></svg>
             <span>تواصل عبر واتساب</span>
           </a>

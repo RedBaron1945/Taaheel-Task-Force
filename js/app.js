@@ -66,9 +66,15 @@ export const App = {
     });
 
     AttendanceService.subscribeToAttendance(() => {
-      if (this.currentUser && this.currentUser.role === 'supervisor') {
-        if (this.activeSection === 'hub' || this.activeSection === 'dashboard') {
-          this.mountCurrentSection();
+      if (this.currentUser) {
+        if (this.currentUser.role === 'supervisor') {
+          if (this.activeSection === 'hub' || this.activeSection === 'dashboard') {
+            this.mountCurrentSection();
+          }
+        } else if (this.currentUser.role === 'attendance' || this.currentUser.role === 'attendanceAdmin') {
+          if (this.activeSection === 'attendance') {
+            this.mountCurrentSection();
+          }
         }
       }
     });
@@ -76,6 +82,20 @@ export const App = {
     window.addEventListener('logo-updated', () => {
       this.render();
     });
+
+    window.addEventListener('online', () => {
+      const banner = document.getElementById('offline-network-banner');
+      if (banner) banner.classList.add('hidden');
+      Utils.showToast('تمت استعادة الاتصال بالإنترنت ✓', 'success', 2500);
+    });
+
+    window.addEventListener('offline', () => {
+      const banner = document.getElementById('offline-network-banner');
+      if (banner) banner.classList.remove('hidden');
+      Utils.showToast('انقطع الاتصال — يعمل النظام محلياً مع الحفظ التلقائي', 'warning', 3500);
+    });
+
+    this.setupSupportModalEvents();
 
     this.currentUser = await Auth.getCurrentUser();
     if (this.currentUser) {
@@ -219,94 +239,6 @@ export const App = {
       });
     }
 
-    // Hook Forgot Password Modal via Footer Support Link
-    const supportBtn = root.querySelector('#btn-login-support');
-    const forgotModal = document.getElementById('forgot-password-modal');
-    const forgotClose = document.getElementById('forgot-pwd-close');
-    const forgotCloseX = document.getElementById('forgot-pwd-x');
-    const copyPhoneBtn = document.getElementById('btn-copy-phone');
-    const copyIcon = document.getElementById('copy-icon');
-    const checkIcon = document.getElementById('check-icon');
-    const copyStatus = document.getElementById('copy-status');
-
-    const openForgotModal = () => {
-      if (!forgotModal) return;
-      forgotModal.classList.remove('hidden');
-      forgotModal.classList.add('active');
-      forgotModal.style.display = 'flex';
-      // Reset copy indicator
-      if (copyIcon && checkIcon) {
-        copyIcon.classList.remove('hidden');
-        checkIcon.classList.add('hidden');
-      }
-      if (copyStatus) {
-        copyStatus.classList.add('opacity-0');
-        copyStatus.classList.remove('opacity-100');
-      }
-    };
-
-    const closeForgotModal = () => {
-      if (!forgotModal) return;
-      forgotModal.classList.add('hidden');
-      forgotModal.classList.remove('active');
-      forgotModal.style.display = 'none';
-    };
-
-    if (supportBtn && forgotModal) {
-      supportBtn.addEventListener('click', openForgotModal);
-    }
-
-    if (forgotClose && forgotModal) {
-      forgotClose.addEventListener('click', closeForgotModal);
-    }
-
-    if (forgotCloseX && forgotModal) {
-      forgotCloseX.addEventListener('click', closeForgotModal);
-    }
-
-    if (forgotModal) {
-      forgotModal.addEventListener('click', (e) => {
-        if (e.target === forgotModal) {
-          closeForgotModal();
-        }
-      });
-      window.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && !forgotModal.classList.contains('hidden')) {
-          closeForgotModal();
-        }
-      });
-    }
-
-    // Hook copy phone button with clear visual feedback
-    if (copyPhoneBtn) {
-      copyPhoneBtn.addEventListener('click', async () => {
-        try {
-          await navigator.clipboard.writeText('0536820848');
-          if (copyIcon && checkIcon) {
-            copyIcon.classList.add('hidden');
-            checkIcon.classList.remove('hidden');
-          }
-          if (copyStatus) {
-            copyStatus.classList.remove('opacity-0');
-            copyStatus.classList.add('opacity-100');
-          }
-          Utils.showToast('تم النسخ ✓', 'success');
-          setTimeout(() => {
-            if (copyIcon && checkIcon) {
-              copyIcon.classList.remove('hidden');
-              checkIcon.classList.add('hidden');
-            }
-            if (copyStatus) {
-              copyStatus.classList.add('opacity-0');
-              copyStatus.classList.remove('opacity-100');
-            }
-          }, 2000);
-        } catch (_) {
-          Utils.showToast('0536820848', 'info');
-        }
-      });
-    }
-
     // Hook email & password form submission with loading state & tactile shake
     const form = root.querySelector('#login-form');
     const errBanner = root.querySelector('#login-error-banner');
@@ -430,10 +362,24 @@ export const App = {
           </div>
         </header>
 
+        <!-- Offline / Slow Network Banner -->
+        <div id="offline-network-banner" class="${typeof navigator !== 'undefined' && !navigator.onLine ? 'flex' : 'hidden'} bg-amber-600 text-white text-xs font-bold px-4 py-2 justify-center items-center gap-2 shadow-inner select-none transition-all">
+          <svg class="w-4 h-4 shrink-0 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636a9 9 0 010 12.728m0 0l-2.829-2.829m2.829 2.829L21 21M15.536 8.464a5 5 0 010 7.072m0 0l-2.829-2.829m-4.243 4.243a9 9 0 01-12.728 0m0 0l2.829-2.829m-2.829 2.829L3 21M8.464 15.536a5 5 0 010-7.072m0 0l2.829 2.829"/></svg>
+          <span>وضع عدم الاتصال / شبكة ضعيفة — يتم حفظ بياناتك ومزامنتها تلقائياً فور عودة الاتصال.</span>
+        </div>
+
         <!-- Main Content Area with Perfectly Matched max-w-5xl Width -->
         <main class="flex-1 max-w-5xl w-full mx-auto px-3 sm:px-6 md:px-8 py-4 sm:py-6" id="main-view-container">
           <!-- Active view mounted here -->
         </main>
+
+        <!-- Global Site Footer across All Authenticated Sections -->
+        <footer class="w-full max-w-5xl mx-auto px-4 py-6 sm:py-8 mt-auto text-center relative z-10 flex flex-col items-center gap-1 border-t border-stone-200/80">
+          <div class="text-xs sm:text-sm font-semibold text-slate-700">منصة مرحلة التأهيل © 2026</div>
+          <button type="button" id="btn-site-support" class="btn-open-support text-xs text-[#1e3a8a] hover:text-[#172554] font-bold hover:underline cursor-pointer focus:outline-hidden rounded-md py-0.5">
+            تواجه مشكلة؟ اقتراح؟
+          </button>
+        </footer>
 
         <!-- Mobile Bottom Navigation Bar (Fixed Footer with Safe-Area Support) -->
         <nav id="mobile-bottom-nav" class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-md border-t border-stone-200/90 shadow-lg px-2 py-1 bottom-nav-safe">
@@ -816,6 +762,115 @@ export const App = {
     });
     container.querySelector('#hub-card-command')?.addEventListener('click', () => {
       this.switchSection('dashboard');
+    });
+  },
+
+  /**
+   * Open Technical Support and Suggestions Modal
+   */
+  openSupportModal() {
+    const forgotModal = document.getElementById('forgot-password-modal');
+    if (!forgotModal) return;
+    forgotModal.classList.remove('hidden');
+    forgotModal.classList.add('active');
+    forgotModal.style.display = 'flex';
+
+    const copyIcon = document.getElementById('copy-icon');
+    const checkIcon = document.getElementById('check-icon');
+    const copyStatus = document.getElementById('copy-status');
+    if (copyIcon && checkIcon) {
+      copyIcon.classList.remove('hidden');
+      checkIcon.classList.add('hidden');
+    }
+    if (copyStatus) {
+      copyStatus.classList.add('opacity-0');
+      copyStatus.classList.remove('opacity-100');
+    }
+  },
+
+  /**
+   * Close Technical Support and Suggestions Modal
+   */
+  closeSupportModal() {
+    const forgotModal = document.getElementById('forgot-password-modal');
+    if (!forgotModal) return;
+    forgotModal.classList.add('hidden');
+    forgotModal.classList.remove('active');
+    forgotModal.style.display = 'none';
+  },
+
+  /**
+   * Global Setup for Support & Suggestions Modal and Triggers
+   */
+  setupSupportModalEvents() {
+    if (this._supportEventsInitialized) return;
+    this._supportEventsInitialized = true;
+
+    const forgotModal = document.getElementById('forgot-password-modal');
+    const forgotClose = document.getElementById('forgot-pwd-close');
+    const forgotCloseX = document.getElementById('forgot-pwd-x');
+    const copyPhoneBtn = document.getElementById('btn-copy-phone');
+    const copyIcon = document.getElementById('copy-icon');
+    const checkIcon = document.getElementById('check-icon');
+    const copyStatus = document.getElementById('copy-status');
+
+    if (forgotClose) {
+      forgotClose.addEventListener('click', () => this.closeSupportModal());
+    }
+
+    if (forgotCloseX) {
+      forgotCloseX.addEventListener('click', () => this.closeSupportModal());
+    }
+
+    if (forgotModal) {
+      forgotModal.addEventListener('click', (e) => {
+        if (e.target === forgotModal) {
+          this.closeSupportModal();
+        }
+      });
+      window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !forgotModal.classList.contains('hidden')) {
+          this.closeSupportModal();
+        }
+      });
+    }
+
+    if (copyPhoneBtn) {
+      copyPhoneBtn.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText('0536820848');
+          if (copyIcon && checkIcon) {
+            copyIcon.classList.add('hidden');
+            checkIcon.classList.remove('hidden');
+          }
+          if (copyStatus) {
+            copyStatus.classList.remove('opacity-0');
+            copyStatus.classList.add('opacity-100');
+          }
+          Utils.showToast('تم النسخ ✓', 'success');
+          setTimeout(() => {
+            if (copyIcon && checkIcon) {
+              copyIcon.classList.remove('hidden');
+              checkIcon.classList.add('hidden');
+            }
+            if (copyStatus) {
+              copyStatus.classList.add('opacity-0');
+              copyStatus.classList.remove('opacity-100');
+            }
+          }, 2000);
+        } catch (_) {
+          Utils.showToast('0536820848', 'info');
+        }
+      });
+    }
+
+    // Global click delegation for all support buttons (.btn-open-support, #btn-login-support, #btn-site-support)
+    document.addEventListener('click', (e) => {
+      const btn = e.target.closest('#btn-login-support, #btn-site-support, .btn-open-support');
+      if (btn) {
+        e.preventDefault();
+        this.openSupportModal();
+      }
     });
   }
 };
