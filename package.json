@@ -1,0 +1,21 @@
+{
+  "name": "marhala-taheel",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --port=3000 --host=0.0.0.0",
+    "prebuild": "node scripts/generate-assets.js",
+    "build": "vite build",
+    "preview": "vite preview",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "firebase": "^12.19.0"
+  },
+  "devDependencies": {
+    "@resvg/resvg-js": "^2.6.2",
+    "vite": "^6.2.3",
+    "wrangler": "^4.24.4"
+  }
+}

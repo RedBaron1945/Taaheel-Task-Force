@@ -1,0 +1,57 @@
+/**
+ * Mobile-First Responsive Styles for Platform «مرحلة التأهيل»
+ * Supports 320px, 360px, 375px, 390px, 412px, 430px, Tablets, and Desktops.
+ */
+
+/* Mobile thumb zone padding */
+@media (max-width: 767px) {
+  body {
+    font-size: 14px;
+  }
+
+  .card {
+    border-radius: 16px;
+  }
+
+  /* Sticky top bar height <= 58px */
+  header.sticky {
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+
+  /* Mobile bottom navigation bar */
+  #mobile-bottom-nav {
+    padding-bottom: max(0.4rem, env(safe-area-inset-bottom, 0px));
+  }
+
+  .bottom-nav-safe {
+    padding-bottom: max(0.4rem, env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* Small mobile devices (320px - 360px) */
+@media (max-width: 360px) {
+  .subtask-row {
+    padding: 0.5rem;
+  }
+
+  .subtask-row span {
+    font-size: 0.75rem;
+  }
+
+  h1, h2 {
+    font-size: 1.15rem !important;
+  }
+}
+
+/* Print Styles */
+@media print {
+  header, #mobile-bottom-nav, #toast-container, .btn-no-print {
+    display: none !important;
+  }
+
+  body {
+    background: #ffffff;
+    color: #000000;
+  }
+}
