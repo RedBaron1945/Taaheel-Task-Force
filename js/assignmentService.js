@@ -22,10 +22,13 @@ let assignmentsUnsubscribe = null;
 
 export const AssignmentService = {
   /**
-   * Get all assignments with Cloud Firestore synchronization
+   * Get all assignments with Cloud Firestore synchronization.
+   * Employs Fast-Timeout Race for slow internet: returns local cache in <= 1200ms
    */
   async getAllAssignments() {
-    try {
+    const local = Storage.getAssignments() || [];
+
+    const fetchRemote = async () => {
       const snapshot = await getDocs(collection(db, 'assignments'));
       if (!snapshot.empty) {
         const remoteAssignments = [];
@@ -33,22 +36,20 @@ export const AssignmentService = {
           remoteAssignments.push({ id: docSnap.id, ...docSnap.data() });
         });
 
-        // Sort assignments deterministically
         remoteAssignments.sort((a, b) => (a.startDate || '').localeCompare(b.startDate || ''));
         Storage.saveAssignments(remoteAssignments);
         return remoteAssignments;
-      } else if (auth.currentUser) {
-        // If Firestore is empty and user is logged in, seed the initial assignments
-        const current = Storage.getAssignments();
-        if (current && current.length > 0) {
-          this.syncAssignmentsToFirestore(current);
-          return current;
-        }
       }
+      return local;
+    };
+
+    const timeout = new Promise((resolve) => setTimeout(() => resolve(local), 1200));
+
+    try {
+      return await Promise.race([fetchRemote(), timeout]);
     } catch (_) {
-      // Fallback cleanly to local storage without console warnings
+      return local;
     }
-    return Storage.getAssignments();
   },
 
   /**
@@ -364,6 +365,8 @@ export const AssignmentService = {
       assignmentsUnsubscribe = null;
     }
 
+    let lastAssignmentsHash = '';
+
     try {
       assignmentsUnsubscribe = onSnapshot(collection(db, 'assignments'), (snapshot) => {
         if (!snapshot.empty) {
@@ -372,8 +375,13 @@ export const AssignmentService = {
             records.push({ id: docSnap.id, ...docSnap.data() });
           });
           records.sort((a, b) => (a.startDate || '').localeCompare(b.startDate || ''));
-          Storage.saveAssignments(records);
-          if (callback) callback(records);
+
+          const newHash = JSON.stringify(records.map(r => `${r.id}:${r.title}:${r.status}`));
+          if (newHash !== lastAssignmentsHash) {
+            lastAssignmentsHash = newHash;
+            Storage.saveAssignments(records);
+            if (callback) callback(records);
+          }
         }
       }, () => {
         // Fallback silently to local cache without console noise
@@ -383,9 +391,12 @@ export const AssignmentService = {
     }
 
     const handleLocalUpdate = () => {
-      this.getAllAssignments().then(records => {
+      const records = Storage.getAssignments() || [];
+      const newHash = JSON.stringify(records.map(r => `${r.id}:${r.title}:${r.status}`));
+      if (newHash !== lastAssignmentsHash) {
+        lastAssignmentsHash = newHash;
         if (callback) callback(records);
-      });
+      }
     };
     window.addEventListener('assignments-updated', handleLocalUpdate);
 

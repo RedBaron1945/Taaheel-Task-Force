@@ -74,11 +74,11 @@ export const SupervisorView = {
     container.innerHTML = `
       <div class="space-y-6">
         <!-- Supervisor Top Header Banner -->
-        <section class="card bg-gradient-to-l from-slate-950 via-slate-900 to-blue-950 text-white p-6 rounded-2xl shadow-md border border-amber-500/30 relative overflow-hidden">
+        <section class="card bg-gradient-to-l from-slate-950 via-slate-900 to-blue-950 text-white p-5 sm:p-6 rounded-2xl shadow-md border border-amber-500/30 relative overflow-hidden">
           <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
-              <h2 class="text-2xl sm:text-3xl font-bold tracking-tight text-white">
-                لوحة المتابعة العامة والإحصائيات
+              <h2 class="text-2xl sm:text-3xl font-black tracking-tight text-white flex items-center gap-2.5">
+                <span>لوحة المتابعة العامة والإحصائيات</span>
               </h2>
             </div>
             
@@ -91,43 +91,84 @@ export const SupervisorView = {
           </div>
         </section>
 
-        <!-- Top Overall KPI Statistics -->
-        <section class="grid grid-cols-2 lg:grid-cols-6 gap-3 sm:gap-4" id="sup-kpi-grid">
-          <div class="card p-4 rounded-xl border border-stone-200 bg-white">
-            <div class="text-xs text-stone-500 mb-1">عدد المحاضن</div>
-            <div class="text-2xl font-bold text-blue-900 tabular-nums" id="kpi-mahaden">${mahaden.length}</div>
-            <div class="text-[11px] text-stone-400 mt-0.5">محاضن نشطة</div>
+        <!-- Top Operational KPI Statistics Grid (3 Primary Focus Areas: الحضور -> الإنجاز -> التكاليف) -->
+        <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4" id="sup-kpi-grid">
+          
+          <!-- 1. Operational Metric #1 (Rightmost): نسبة الحضور والالتزام with Visual Progress Bar -->
+          <div class="card p-4 sm:p-5 rounded-2xl border border-stone-200 bg-white flex flex-col justify-between shadow-2xs hover:shadow-xs transition-shadow" id="kpi-card-attendance">
+            <div>
+              <div class="flex items-center justify-between gap-1 mb-1.5">
+                <span class="text-xs font-bold text-stone-600 flex items-center gap-1.5">
+                  <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                  <span>نسبة الحضور والالتزام</span>
+                </span>
+                <span class="text-[10px] text-stone-400 font-medium">جلسات الأحد والثلاثاء</span>
+              </div>
+              <div class="flex items-baseline gap-2 mt-1">
+                <div class="text-2xl sm:text-3xl font-black tabular-nums text-slate-900 font-mono tracking-tight" id="kpi-attendance">—%</div>
+                <div class="text-xs font-semibold" id="kpi-attendance-sub"><span class="text-stone-400">بانتظار الرصد</span></div>
+              </div>
+            </div>
+
+            <!-- Visual Progress Bar for Attendance -->
+            <div class="mt-3.5 pt-2.5 border-t border-stone-100">
+              <div class="w-full bg-stone-100 rounded-full h-2.5 overflow-hidden p-0.5 border border-stone-200/70">
+                <div id="kpi-attendance-bar" class="h-full rounded-full transition-all duration-700 bg-stone-300" style="width: 0%"></div>
+              </div>
+              <div class="flex items-center justify-between text-[10px] text-stone-500 mt-1 font-mono">
+                <span>0%</span>
+                <span id="kpi-attendance-label" class="font-bold text-stone-700">معدل الحضور العام</span>
+                <span>100%</span>
+              </div>
+            </div>
           </div>
 
-          <div class="card p-4 rounded-xl border border-stone-200 bg-white">
-            <div class="text-xs text-stone-500 mb-1">عدد الطلاب</div>
-            <div class="text-2xl font-bold text-slate-900 tabular-nums" id="kpi-students">—</div>
-            <div class="text-[11px] text-stone-400 mt-0.5">طالب مسجل</div>
+          <!-- 2. Operational Metric #2: متوسط الإنجاز with Visual Progress Bar -->
+          <div class="card p-4 sm:p-5 rounded-2xl border border-stone-200 bg-white flex flex-col justify-between shadow-2xs hover:shadow-xs transition-shadow" id="kpi-card-progress">
+            <div>
+              <div class="flex items-center justify-between gap-1 mb-1.5">
+                <span class="text-xs font-bold text-stone-600 flex items-center gap-1.5">
+                  <span class="w-2 h-2 rounded-full bg-blue-600"></span>
+                  <span>متوسط إنجاز التكاليف</span>
+                </span>
+                <span class="text-[10px] text-stone-400 font-medium">معدل الدفعة ككل</span>
+              </div>
+              <div class="flex items-baseline gap-2 mt-1">
+                <div class="text-2xl sm:text-3xl font-black tabular-nums text-slate-900 font-mono tracking-tight" id="kpi-avg-progress">—%</div>
+                <div class="text-xs font-semibold" id="kpi-avg-progress-sub"><span class="text-stone-400">بانتظار بدء الرصد</span></div>
+              </div>
+            </div>
+
+            <!-- Progress Bar for Avg Progress -->
+            <div class="mt-3.5 pt-2.5 border-t border-stone-100">
+              <div class="w-full bg-stone-100 rounded-full h-2.5 overflow-hidden p-0.5 border border-stone-200/70">
+                <div id="kpi-avg-progress-bar" class="h-full rounded-full transition-all duration-700 bg-stone-300" style="width: 0%"></div>
+              </div>
+              <div class="flex items-center justify-between text-[10px] text-stone-500 mt-1 font-mono">
+                <span>0%</span>
+                <span id="kpi-avg-progress-label" class="font-bold text-stone-700">معدل إنجاز المهام</span>
+                <span>100%</span>
+              </div>
+            </div>
           </div>
 
-          <div class="card p-4 rounded-xl border border-stone-200 bg-white" id="kpi-card-progress">
-            <div class="text-xs text-stone-500 mb-1">متوسط الإنجاز</div>
-            <div class="text-2xl font-bold tabular-nums text-slate-900" id="kpi-avg-progress">—%</div>
-            <div class="text-[11px] mt-0.5" id="kpi-avg-progress-sub"><span class="text-stone-400">معدل الدفعة ككل</span></div>
+          <!-- 3. Operational Metric #3: التكاليف المقررة النشطة -->
+          <div class="card p-4 sm:p-5 rounded-2xl border border-stone-200 bg-white flex flex-col justify-between shadow-2xs hover:shadow-xs transition-shadow" id="kpi-card-active-asg">
+            <div>
+              <div class="flex items-center justify-between gap-1 mb-1.5">
+                <span class="text-xs font-bold text-stone-600 flex items-center gap-1.5">
+                  <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+                  <span>التكاليف المقررة</span>
+                </span>
+                <span class="text-[10px] text-stone-400 font-medium">الدفعة 48</span>
+              </div>
+              <div class="flex items-baseline gap-1.5 mt-2">
+                <div class="text-2xl sm:text-3xl font-black tabular-nums text-slate-900 font-mono tracking-tight" id="kpi-active-asg">—</div>
+                <span class="text-xs font-bold text-stone-500">مقررات نشطة</span>
+              </div>
+            </div>
           </div>
 
-          <div class="card p-4 rounded-xl border border-stone-200 bg-white" id="kpi-card-attendance">
-            <div class="text-xs text-stone-500 mb-1">نسبة الحضور</div>
-            <div class="text-2xl font-bold tabular-nums text-slate-900" id="kpi-attendance">—%</div>
-            <div class="text-[11px] mt-0.5" id="kpi-attendance-sub"><span class="text-stone-400">حضور الأحد والثلاثاء</span></div>
-          </div>
-
-          <div class="card p-4 rounded-xl border border-stone-200 bg-white" id="kpi-card-absences">
-            <div class="text-xs text-stone-500 mb-1">إجمالي الغياب</div>
-            <div class="text-2xl font-bold tabular-nums text-slate-900" id="kpi-absences">—</div>
-            <div class="text-[11px] text-stone-400 mt-0.5" id="kpi-absences-sub">أيام الغياب الكلية</div>
-          </div>
-
-          <div class="card p-4 rounded-xl border border-stone-200 bg-white" id="kpi-card-active-asg">
-            <div class="text-xs text-stone-500 mb-1">التكاليف المقررة</div>
-            <div class="text-2xl font-bold tabular-nums text-slate-900" id="kpi-active-asg">—</div>
-            <div class="text-[11px] text-stone-400 mt-0.5" id="kpi-active-asg-sub">تكليفات نشطة</div>
-          </div>
         </section>
 
         <!-- Navigation Tabs Bar for Supervisor (Grouped logically with distinct Action tab) -->
@@ -398,77 +439,132 @@ export const SupervisorView = {
     const kpiStudents = document.getElementById('kpi-students');
     if (kpiStudents) kpiStudents.textContent = students.length;
 
-    // 1. Average progress with neutral initial state and calm severity rules
-    const avgProgEl = document.getElementById('kpi-avg-progress');
-    const avgProgSub = document.getElementById('kpi-avg-progress-sub');
-    if (avgProgEl) {
-      if (avgProgress === 0) {
-        avgProgEl.textContent = '—';
-        avgProgEl.className = 'text-2xl font-bold text-stone-500 font-mono tabular-nums';
-        if (avgProgSub) avgProgSub.innerHTML = '<span class="text-stone-400">بانتظار بدء الرصد</span>';
-      } else {
-        avgProgEl.textContent = `${avgProgress}%`;
-        if (avgProgress >= 75) {
-          avgProgEl.className = 'text-2xl font-bold text-emerald-700 font-mono tabular-nums';
-          if (avgProgSub) avgProgSub.innerHTML = '<span class="text-emerald-700 font-bold">معدل جيد ومتقدم</span>';
-        } else if (avgProgress >= 50) {
-          avgProgEl.className = 'text-2xl font-bold text-blue-900 font-mono tabular-nums';
-          if (avgProgSub) avgProgSub.innerHTML = '<span class="text-blue-900 font-bold">متوسط الإنجاز</span>';
-        } else {
-          avgProgEl.className = 'text-2xl font-bold text-amber-700 font-mono tabular-nums';
-          if (avgProgSub) avgProgSub.innerHTML = '<span class="text-amber-700 font-bold">بحاجة لمتابعة ودعم</span>';
-        }
-      }
-    }
-
-    // 2. Attendance rate with severity rules
+    // 1. Attendance rate with visual progress bar and severity rules (Operational Metric #1)
     const attEl = document.getElementById('kpi-attendance');
     const attSub = document.getElementById('kpi-attendance-sub');
+    const attBar = document.getElementById('kpi-attendance-bar');
+    const attLabel = document.getElementById('kpi-attendance-label');
     if (attEl) {
       if (totalSessions === 0) {
         attEl.textContent = '—';
-        attEl.className = 'text-2xl font-bold text-stone-500 font-mono tabular-nums';
+        attEl.className = 'text-2xl sm:text-3xl font-black tabular-nums text-stone-400 font-mono tracking-tight';
         if (attSub) attSub.innerHTML = '<span class="text-stone-400">بانتظار رصد الجلسات</span>';
+        if (attBar) {
+          attBar.style.width = '0%';
+          attBar.className = 'h-full rounded-full transition-all duration-700 bg-stone-300';
+        }
+        if (attLabel) attLabel.textContent = 'لا توجد جلسات مسجلة بعد';
       } else {
         attEl.textContent = `${attendanceRate}%`;
+        if (attBar) {
+          attBar.style.width = `${attendanceRate}%`;
+          if (attendanceRate >= 80) {
+            attBar.className = 'h-full rounded-full transition-all duration-700 bg-emerald-600';
+          } else if (attendanceRate >= 65) {
+            attBar.className = 'h-full rounded-full transition-all duration-700 bg-teal-600';
+          } else {
+            attBar.className = 'h-full rounded-full transition-all duration-700 bg-rose-600';
+          }
+        }
         if (attendanceRate >= 80) {
-          attEl.className = 'text-2xl font-bold text-emerald-700 font-mono tabular-nums';
-          if (attSub) attSub.innerHTML = '<span class="text-emerald-700 font-semibold">حضور ممتاز ومنتظم</span>';
+          attEl.className = 'text-2xl sm:text-3xl font-black tabular-nums text-emerald-700 font-mono tracking-tight';
+          if (attSub) attSub.innerHTML = '<span class="text-emerald-700 font-bold">حضور ممتاز ومنتظم</span>';
+          if (attLabel) attLabel.innerHTML = `<span class="text-emerald-800 font-bold">${attendanceRate}% محقق (ممتاز)</span>`;
         } else if (attendanceRate >= 65) {
-          attEl.className = 'text-2xl font-bold text-teal-700 font-mono tabular-nums';
-          if (attSub) attSub.innerHTML = '<span class="text-stone-500 font-medium">معدل حضور مستقر</span>';
+          attEl.className = 'text-2xl sm:text-3xl font-black tabular-nums text-teal-700 font-mono tracking-tight';
+          if (attSub) attSub.innerHTML = '<span class="text-teal-800 font-bold">معدل حضور مستقر</span>';
+          if (attLabel) attLabel.innerHTML = `<span class="text-teal-800 font-bold">${attendanceRate}% محقق (مستقر)</span>`;
         } else {
-          attEl.className = 'text-2xl font-bold text-red-600 font-mono tabular-nums';
-          if (attSub) attSub.innerHTML = '<span class="text-red-700 font-bold">تراجع ملحوظ بالحضور</span>';
+          attEl.className = 'text-2xl sm:text-3xl font-black tabular-nums text-rose-600 font-mono tracking-tight';
+          if (attSub) attSub.innerHTML = '<span class="text-rose-700 font-bold">تراجع ملحوظ بالحضور</span>';
+          if (attLabel) attLabel.innerHTML = `<span class="text-rose-700 font-bold">${attendanceRate}% محقق (منخفض)</span>`;
         }
       }
     }
 
-    // 3. Absences
+    // 2. Absences with full contextual comparison (Operational Metric #2)
     const absEl = document.getElementById('kpi-absences');
     const absSub = document.getElementById('kpi-absences-sub');
+    const absBarPres = document.getElementById('kpi-absences-bar-pres');
+    const absBarAbs = document.getElementById('kpi-absences-bar-abs');
+    const absPresLabel = document.getElementById('kpi-absences-pres-label');
+    const absAbsLabel = document.getElementById('kpi-absences-abs-label');
     if (absEl) {
       absEl.textContent = totalAbsent;
-      if (totalAbsent === 0) {
-        absEl.className = 'text-2xl font-bold text-stone-700 font-mono tabular-nums';
-        if (absSub) absSub.innerHTML = '<span class="text-emerald-700 font-medium">لا يوجد أي غياب مسجل</span>';
+      if (totalSessions === 0) {
+        absEl.className = 'text-2xl sm:text-3xl font-black text-stone-400 font-mono tabular-nums tracking-tight';
+        if (absSub) absSub.innerHTML = '<span class="text-stone-400">بانتظار رصد الحضور والغياب</span>';
+        if (absBarPres) absBarPres.style.width = '0%';
+        if (absBarAbs) absBarAbs.style.width = '0%';
+        if (absPresLabel) absPresLabel.textContent = '0 يوم حضور';
+        if (absAbsLabel) absAbsLabel.textContent = '0 يوم غياب';
       } else {
-        absEl.className = 'text-2xl font-bold text-red-600 font-mono tabular-nums';
-        if (absSub) absSub.innerHTML = `<span class="text-red-700 font-bold">${totalAbsent} يوم غياب مسجل</span>`;
+        const absPct = Math.round((totalAbsent / totalSessions) * 100);
+        if (totalAbsent === 0) {
+          absEl.className = 'text-2xl sm:text-3xl font-black text-emerald-700 font-mono tabular-nums tracking-tight';
+          if (absSub) absSub.innerHTML = `<span class="text-emerald-700 font-bold">سجل ممتاز: 0% غياب من أصل ${totalSessions} يوم مسجل</span>`;
+        } else {
+          absEl.className = 'text-2xl sm:text-3xl font-black text-rose-600 font-mono tabular-nums tracking-tight';
+          if (absSub) absSub.innerHTML = `<span class="text-rose-700 font-bold">من أصل ${totalSessions} يوم مسجل (${absPct}% من الجلسات)</span>`;
+        }
+        if (absBarPres) absBarPres.style.width = `${attendanceRate}%`;
+        if (absBarAbs) absBarAbs.style.width = `${absPct}%`;
+        if (absPresLabel) absPresLabel.textContent = `${totalPresent} يوم حضور (${attendanceRate}%)`;
+        if (absAbsLabel) absAbsLabel.textContent = `${totalAbsent} يوم غياب (${absPct}%)`;
       }
     }
 
-    // 4. Active assignments count
+    // 3. Average progress with visual progress bar (Operational Metric #3)
+    const avgProgEl = document.getElementById('kpi-avg-progress');
+    const avgProgSub = document.getElementById('kpi-avg-progress-sub');
+    const avgProgBar = document.getElementById('kpi-avg-progress-bar');
+    const avgProgLabel = document.getElementById('kpi-avg-progress-label');
+    if (avgProgEl) {
+      if (avgProgress === 0) {
+        avgProgEl.textContent = '—';
+        avgProgEl.className = 'text-2xl sm:text-3xl font-black text-stone-400 font-mono tabular-nums tracking-tight';
+        if (avgProgSub) avgProgSub.innerHTML = '<span class="text-stone-400">بانتظار بدء الرصد</span>';
+        if (avgProgBar) {
+          avgProgBar.style.width = '0%';
+          avgProgBar.className = 'h-full rounded-full transition-all duration-700 bg-stone-300';
+        }
+        if (avgProgLabel) avgProgLabel.textContent = 'لم تبدأ الدفعة بعد';
+      } else {
+        avgProgEl.textContent = `${avgProgress}%`;
+        if (avgProgBar) {
+          avgProgBar.style.width = `${avgProgress}%`;
+          if (avgProgress >= 75) {
+            avgProgBar.className = 'h-full rounded-full transition-all duration-700 bg-emerald-600';
+          } else if (avgProgress >= 50) {
+            avgProgBar.className = 'h-full rounded-full transition-all duration-700 bg-blue-600';
+          } else {
+            avgProgBar.className = 'h-full rounded-full transition-all duration-700 bg-amber-500';
+          }
+        }
+        if (avgProgress >= 75) {
+          avgProgEl.className = 'text-2xl sm:text-3xl font-black text-emerald-700 font-mono tabular-nums tracking-tight';
+          if (avgProgSub) avgProgSub.innerHTML = '<span class="text-emerald-700 font-bold">معدل متميز ومتقدم</span>';
+          if (avgProgLabel) avgProgLabel.innerHTML = `<span class="text-emerald-800 font-bold">${avgProgress}% منجز للدفعة</span>`;
+        } else if (avgProgress >= 50) {
+          avgProgEl.className = 'text-2xl sm:text-3xl font-black text-blue-900 font-mono tabular-nums tracking-tight';
+          if (avgProgSub) avgProgSub.innerHTML = '<span class="text-blue-900 font-bold">متوسط الإنجاز العام</span>';
+          if (avgProgLabel) avgProgLabel.innerHTML = `<span class="text-blue-900 font-bold">${avgProgress}% منجز للدفعة</span>`;
+        } else {
+          avgProgEl.className = 'text-2xl sm:text-3xl font-black text-amber-700 font-mono tabular-nums tracking-tight';
+          if (avgProgSub) avgProgSub.innerHTML = '<span class="text-amber-700 font-bold">بحاجة لمتابعة واستكمال</span>';
+          if (avgProgLabel) avgProgLabel.innerHTML = `<span class="text-amber-800 font-bold">${avgProgress}% منجز للدفعة</span>`;
+        }
+      }
+    }
+
+    // 3. Active assignments count (Operational Metric #3)
     const asgEl = document.getElementById('kpi-active-asg');
-    const asgSub = document.getElementById('kpi-active-asg-sub');
     if (asgEl) {
       asgEl.textContent = activeAsgCount;
       if (activeAsgCount === 0) {
-        asgEl.className = 'text-2xl font-bold text-amber-600 font-mono tabular-nums';
-        if (asgSub) asgSub.innerHTML = '<span class="text-amber-700 font-bold">جميع التكاليف معطلة!</span>';
+        asgEl.className = 'text-2xl sm:text-3xl font-black text-amber-600 font-mono tabular-nums tracking-tight';
       } else {
-        asgEl.className = 'text-2xl font-bold text-blue-900 font-mono tabular-nums';
-        if (asgSub) asgSub.innerHTML = `<span class="text-stone-500">${activeAsgCount} تكليفات نشطة</span>`;
+        asgEl.className = 'text-2xl sm:text-3xl font-black text-blue-950 font-mono tabular-nums tracking-tight';
       }
     }
 
@@ -1000,17 +1096,19 @@ export const SupervisorView = {
             return `
               <div class="student-modal-btn p-3.5 rounded-2xl bg-white border border-stone-200 shadow-2xs hover:border-blue-300 active:bg-blue-50/50 transition-all cursor-pointer space-y-2 select-none min-h-[64px]" data-student-id="${st.id}">
                 <!-- Line 1: Rank, Full Name, Mahad Capsule -->
-                <div class="flex items-center justify-between gap-2">
-                  <div class="flex items-center gap-2 min-w-0 flex-1">
-                    <span class="w-6 h-6 rounded-full bg-stone-100 text-stone-700 text-xs font-bold inline-flex items-center justify-center shrink-0 tabular-nums">
+                <div class="flex items-start justify-between gap-2.5">
+                  <div class="flex items-start gap-2.5 min-w-0 flex-1">
+                    <span class="w-6 h-6 rounded-full bg-stone-100 text-stone-700 text-xs font-bold inline-flex items-center justify-center shrink-0 tabular-nums mt-0.5">
                       ${rankBadge}
                     </span>
-                    <h4 class="text-sm font-bold text-slate-900 leading-snug break-words">
-                      ${Utils.escapeHtml(st.name || 'طالب')}
-                    </h4>
-                  </div>
-                  <div class="shrink-0">
-                    ${this.getMahadBadgeHtml(st.mahadId, st.mahadName)}
+                    <div class="space-y-1 min-w-0 flex-1">
+                      <h4 class="text-sm font-black text-slate-900 leading-snug break-normal whitespace-normal">
+                        ${Utils.escapeHtml(st.name || 'طالب')}
+                      </h4>
+                      <div class="inline-flex items-center">
+                        ${this.getMahadBadgeHtml(st.mahadId, st.mahadName)}
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -1189,9 +1287,9 @@ export const SupervisorView = {
       btn.addEventListener('click', clearFilterAction);
     });
 
-    // Hook Export PDF button
+    // Hook Export PDF button -> Open choice modal (Attendance or Assignments)
     content.querySelector('#btn-leaderboard-export-pdf')?.addEventListener('click', () => {
-      this.openLeaderboardPdfModal(items);
+      this.openExportChoiceModal(items);
     });
 
     // Hook add student button
@@ -1208,380 +1306,162 @@ export const SupervisorView = {
   },
 
   /**
-   * Generate Full Official Printable HTML Report for Leaderboard
+   * Open modal to choose which PDF report to export:
+   * 1. تقرير الحضور والغياب
+   * 2. تقرير إنجاز التكاليف
    */
-  generateLeaderboardReportHtml(items, isStandaloneDocument = false) {
-    const customLogo = Storage.getCustomLogo();
-    const today = new Date();
-    const dateFormatted = today.toLocaleDateString('ar-SA', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-
-    // Current filter name
-    let filterLabel = 'كافة المحاضن (الكل)';
-    if (this.selectedMahadFilter && this.selectedMahadFilter !== 'all') {
-      const m = (this.cachedMahaden || []).find(x => x.id === this.selectedMahadFilter);
-      if (m) filterLabel = `محضن: ${m.name}`;
+  openExportChoiceModal(items) {
+    const modal = document.getElementById('export-choice-modal');
+    const closeBtn = document.getElementById('export-choice-close');
+    const attBtn = document.getElementById('btn-choice-attendance-report');
+    const asgBtn = document.getElementById('btn-choice-assignments-report');
+    if (!modal) {
+      this.openLeaderboardPdfModal(items, 'attendance');
+      return;
     }
 
-    // Stats calculations with strict accuracy
-    const totalStudents = items.length;
-    const totalPoints = items.reduce((sum, it) => sum + (it.stats.totalEarnedPoints || 0), 0);
-    const hasCohortProgress = totalPoints > 0;
-    const avgPoints = (hasCohortProgress && totalStudents > 0) ? (totalPoints / totalStudents).toFixed(1) : 0;
-    
-    const totalPct = items.reduce((sum, it) => sum + (it.stats.overallPercentage || 0), 0);
-    const avgPct = (hasCohortProgress && totalStudents > 0) ? Math.round(totalPct / totalStudents) : 0;
-    
-    const totalPresent = items.reduce((sum, it) => sum + (it.attendance.presentCount || 0), 0);
-    const totalAbsent = items.reduce((sum, it) => sum + (it.attendance.absentCount || 0), 0);
-    const totalSessions = totalPresent + totalAbsent;
-    const hasCohortAttendance = totalSessions > 0;
-    const attRate = hasCohortAttendance ? Math.round((totalPresent / totalSessions) * 100) : null;
+    const closeModal = () => {
+      modal.classList.add('hidden');
+      modal.classList.remove('active');
+      modal.style.display = 'none';
+    };
 
-    // Count students with no activity recorded yet
-    const unstartedCount = items.filter(it => (it.stats.totalEarnedPoints || 0) === 0 && (it.attendance.presentCount || 0) === 0).length;
+    if (closeBtn) {
+      closeBtn.onclick = closeModal;
+    }
 
-    // Group items by Mahad when all mahaden are selected
-    const mahadGroups = new Map();
-    items.forEach(it => {
-      const mName = it.student.mahadName || 'غير محدد';
-      if (!mahadGroups.has(mName)) {
-        mahadGroups.set(mName, []);
+    modal.onclick = (e) => {
+      if (e.target === modal) {
+        closeModal();
       }
-      mahadGroups.get(mName).push(it);
-    });
+    };
 
-    // Logo markup
-    let logoHtml = '';
-    if (customLogo) {
-      logoHtml = `<img src="${customLogo}" alt="شعار مرحلة التأهيل" style="max-height: 64px; max-width: 150px; object-fit: contain; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.08));" />`;
-    } else {
-      logoHtml = `
-        <div style="width: 56px; height: 56px; border-radius: 14px; background: linear-gradient(135deg, #1e3a8a, #0f172a); color: #fbbf24; border: 2px solid #f59e0b; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-          <svg style="width: 26px; height: 26px; color: #fcd34d;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
-          </svg>
-          <span style="font-size: 7px; font-weight: 800; color: #fef3c7; margin-top: 1px;">مرحلة التأهيل</span>
-        </div>
-      `;
+    if (attBtn) {
+      attBtn.onclick = () => {
+        closeModal();
+        this.openLeaderboardPdfModal(items, 'attendance');
+      };
     }
 
-    const reportContentHtml = `
-      <div style="direction: rtl; font-family: 'Cairo', 'Amiri', system-ui, -apple-system, sans-serif; color: #0f172a; line-height: 1.5; padding: 10px;">
-        
-        <!-- Document Header (Hierarchical & Clean) -->
-        <div style="border-bottom: 2px solid #b45309; padding-bottom: 14px; margin-bottom: 18px;">
-          <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
-            <!-- Right: Program Emblem -->
-            <div style="text-align: right; line-height: 1.3;">
-              <div style="font-size: 15px; font-weight: 900; color: #1e3a8a;">مشروع مرحلة التأهيل</div>
-              <div style="font-size: 11px; font-weight: bold; color: #92400e; margin-top: 1px;">دفعة التأهيل 48</div>
-            </div>
-
-            <!-- Center: Logo -->
-            <div style="display: flex; align-items: center; justify-content: center;">
-              ${logoHtml}
-            </div>
-
-            <!-- Left: Metadata -->
-            <div style="text-align: left; line-height: 1.4; font-size: 11px;">
-              <div><span style="color: #64748b;">التاريخ:</span> <strong style="font-family: monospace; color: #0f172a;">${dateFormatted}</strong></div>
-              <div><span style="color: #64748b;">النطاق:</span> <strong style="color: #1e3a8a;">${filterLabel}</strong></div>
-            </div>
-          </div>
-
-          <!-- Document Main Title -->
-          <div style="text-align: center; margin-top: 12px;">
-            <h1 style="font-size: 19px; font-weight: 900; color: #0f172a; margin: 0; letter-spacing: -0.3px;">
-              كشف الترتيب العام لطلاب مرحلة التأهيل
-            </h1>
-            <div style="font-size: 11px; font-weight: 600; color: #475569; margin-top: 4px; display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap;">
-              <span>دفعة التأهيل 48</span>
-              <span>•</span>
-              <span>تاريخ التقرير: ${dateFormatted}</span>
-              <span>•</span>
-              <span>تصفية: ${filterLabel}</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Executive Metrics Summary Strip (Accurate & Contextual) -->
-        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; text-align: center;">
-          <!-- Card 1: Total Students -->
-          <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 10px; padding: 10px 6px;">
-            <div style="font-size: 10px; color: #64748b; font-weight: bold;">إجمالي الطلاب</div>
-            <div style="font-size: 17px; font-weight: 900; color: #0f172a; font-family: monospace; margin-top: 2px;">${totalStudents} طالب</div>
-            <div style="font-size: 9px; color: #94a3b8; margin-top: 2px;">مسجلين في الكشف</div>
-          </div>
-
-          <!-- Card 2: Average Points -->
-          <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 10px; padding: 10px 6px;">
-            <div style="font-size: 10px; color: #64748b; font-weight: bold;">متوسط النقاط</div>
-            <div style="font-size: 17px; font-weight: 900; color: ${hasCohortProgress ? '#1e3a8a' : '#64748b'}; font-family: monospace; margin-top: 2px;">
-              ${hasCohortProgress ? `${avgPoints} نقطة` : '—'}
-            </div>
-            <div style="font-size: 9px; color: #94a3b8; margin-top: 2px;">من 100 نقطة مقررة</div>
-          </div>
-
-          <!-- Card 3: Average Progress -->
-          <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 10px; padding: 10px 6px;">
-            <div style="font-size: 10px; color: #64748b; font-weight: bold;">متوسط نسبة الإنجاز</div>
-            <div style="font-size: 17px; font-weight: 900; color: ${hasCohortProgress ? '#0284c7' : '#64748b'}; font-family: monospace; margin-top: 2px;">
-              ${hasCohortProgress ? `${avgPct}%` : '—'}
-            </div>
-            <div style="font-size: 9px; color: #94a3b8; margin-top: 2px;">${hasCohortProgress ? 'المحقق للدفعة' : 'بانتظار بدء الرصد'}</div>
-          </div>
-
-          <!-- Card 4: Attendance Rate (Accurate logic: No false 100%) -->
-          <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 10px; padding: 10px 6px;">
-            <div style="font-size: 10px; color: #64748b; font-weight: bold;">نسبة الحضور العامة</div>
-            <div style="font-size: 17px; font-weight: 900; color: ${hasCohortAttendance ? (attRate >= 80 ? '#059669' : '#b45309') : '#64748b'}; font-family: monospace; margin-top: 2px;">
-              ${hasCohortAttendance ? `${attRate}%` : '—'}
-            </div>
-            <div style="font-size: 9px; color: #94a3b8; margin-top: 2px;">${hasCohortAttendance ? `من إجمالي ${totalSessions} جلسة` : 'لم تُرصد جلسات بعد'}</div>
-          </div>
-        </div>
-
-        <!-- Official Rankings Table -->
-        <table style="width: 100%; border-collapse: collapse; font-size: 10.5px; text-align: right; margin-bottom: 20px;">
-          <thead>
-            <tr style="background-color: #1e3a8a; color: #ffffff; font-weight: 800; font-size: 10.5px;">
-              <th style="padding: 7px 8px; border: 1px solid #1e3a8a; text-align: center; width: 34px;">#</th>
-              <th style="padding: 7px 10px; border: 1px solid #1e3a8a;">اسم الطالب</th>
-              <th style="padding: 7px 8px; border: 1px solid #1e3a8a;">المحضن</th>
-              <th style="padding: 7px 8px; border: 1px solid #1e3a8a; text-align: center;">النقاط (من 100)</th>
-              <th style="padding: 7px 8px; border: 1px solid #1e3a8a; text-align: center;">نسبة الإنجاز</th>
-              <th style="padding: 7px 6px; border: 1px solid #1e3a8a; text-align: center;">الحضور</th>
-              <th style="padding: 7px 6px; border: 1px solid #1e3a8a; text-align: center;">الغياب</th>
-              <th style="padding: 7px 6px; border: 1px solid #1e3a8a; text-align: center;">الاعتذار</th>
-              <th style="padding: 7px 8px; border: 1px solid #1e3a8a; text-align: center;">الحالة والتقدير</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${items.map((item, idx) => {
-              const st = item.student;
-              const s = item.stats;
-              const att = item.attendance;
-              const isEven = idx % 2 === 0;
-
-              // Medals only when actual points have been earned
-              let rankBadge = `<span style="font-family: monospace; font-weight: bold; color: #475569;">${idx + 1}</span>`;
-              if (hasCohortProgress && s.totalEarnedPoints > 0) {
-                if (idx === 0) rankBadge = `<span style="font-size: 13px;">🥇</span>`;
-                else if (idx === 1) rankBadge = `<span style="font-size: 13px;">🥈</span>`;
-                else if (idx === 2) rankBadge = `<span style="font-size: 13px;">🥉</span>`;
-              }
-
-              // Honest evaluation tag without alarming red when grading hasn't started
-              let evalText = 'بانتظار الرصد';
-              let evalBg = '#f1f5f9';
-              let evalColor = '#64748b';
-              let evalBorder = '#cbd5e1';
-
-              if (s.totalEarnedPoints > 0 || att.presentCount > 0) {
-                if (s.overallPercentage >= 85) {
-                  evalText = 'متميز (أ)';
-                  evalBg = '#ecfdf5';
-                  evalColor = '#065f46';
-                  evalBorder = '#a7f3d0';
-                } else if (s.overallPercentage >= 70) {
-                  evalText = 'جيد جداً (ب)';
-                  evalBg = '#f0fdf4';
-                  evalColor = '#15803d';
-                  evalBorder = '#bbf7d0';
-                } else if (s.overallPercentage >= 50) {
-                  evalText = 'متقدم (ج)';
-                  evalBg = '#eff6ff';
-                  evalColor = '#1d4ed8';
-                  evalBorder = '#bfdbfe';
-                } else {
-                  evalText = 'يحتاج متابعة';
-                  evalBg = '#fffbe2';
-                  evalColor = '#92400e';
-                  evalBorder = '#fde68a';
-                }
-              }
-
-              return `
-                <tr style="background-color: ${isEven ? '#ffffff' : '#f8fafc'}; border-bottom: 1px solid #e2e8f0;">
-                  <td style="padding: 6px 8px; border: 1px solid #e2e8f0; text-align: center;">${rankBadge}</td>
-                  <td style="padding: 6px 10px; border: 1px solid #e2e8f0; font-weight: 700; color: #0f172a;">${Utils.escapeHtml(st.name)}</td>
-                  <td style="padding: 6px 8px; border: 1px solid #e2e8f0; color: #475569; font-size: 10px;">${st.mahadName || '—'}</td>
-                  <td style="padding: 6px 8px; border: 1px solid #e2e8f0; text-align: center; font-family: monospace; font-weight: 800; color: ${s.totalEarnedPoints > 0 ? '#1e3a8a' : '#94a3b8'};">
-                    ${s.totalEarnedPoints > 0 ? `${s.totalEarnedPoints} نقطة` : '—'}
-                  </td>
-                  <td style="padding: 6px 8px; border: 1px solid #e2e8f0; text-align: center; font-family: monospace; font-weight: bold; color: ${s.overallPercentage > 0 ? '#0369a1' : '#94a3b8'};">
-                    ${s.overallPercentage > 0 ? `${s.overallPercentage}%` : '—'}
-                  </td>
-                  <td style="padding: 6px 6px; border: 1px solid #e2e8f0; text-align: center; font-family: monospace; color: ${att.presentCount > 0 ? '#059669' : '#94a3b8'}; font-weight: 700;">
-                    ${att.presentCount > 0 ? att.presentCount : '—'}
-                  </td>
-                  <td style="padding: 6px 6px; border: 1px solid #e2e8f0; text-align: center; font-family: monospace; color: ${att.absentCount > 0 ? '#b91c1c' : '#94a3b8'}; font-weight: 700;">
-                    ${att.absentCount > 0 ? att.absentCount : '—'}
-                  </td>
-                  <td style="padding: 6px 6px; border: 1px solid #e2e8f0; text-align: center; font-family: monospace; color: ${att.excusedCount > 0 ? '#b45309' : '#94a3b8'}; font-weight: 700;">
-                    ${att.excusedCount > 0 ? att.excusedCount : '—'}
-                  </td>
-                  <td style="padding: 6px 8px; border: 1px solid #e2e8f0; text-align: center;">
-                    <span style="display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: 700; background: ${evalBg}; color: ${evalColor}; border: 1px solid ${evalBorder};">
-                      ${evalText}
-                    </span>
-                  </td>
-                </tr>
-              `;
-            }).join('')}
-          </tbody>
-        </table>
-
-        <!-- Uncompleted Items Summary Section (قسم البنود الناقصة / غير المنجزة) -->
-        <div style="margin-top: 20px; padding: 14px; background-color: #f8fafc; border: 1px solid #cbd5e1; border-radius: 12px; page-break-inside: avoid;">
-          <div style="font-size: 12px; font-weight: 800; color: #1e3a8a; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
-            <span style="font-size: 14px;">📋</span>
-            <span>ملخص البنود الحالية التي بانتظار الاستكمال والتفعيل</span>
-          </div>
-
-          <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; font-size: 10.5px; color: #334155; margin-bottom: 8px;">
-            <div style="background: #ffffff; padding: 8px 10px; border-radius: 8px; border: 1px solid #e2e8f0;">
-              <span style="color: #64748b;">عدد الطلاب بدون بيانات مرصودة:</span>
-              <strong style="color: #0f172a; font-family: monospace; font-size: 11px;"> ${unstartedCount} من ${totalStudents} طالب</strong>
-            </div>
-            <div style="background: #ffffff; padding: 8px 10px; border-radius: 8px; border: 1px solid #e2e8f0;">
-              <span style="color: #64748b;">حالة جلسات التحضير:</span>
-              <strong style="color: #0f172a;"> ${hasCohortAttendance ? `${totalSessions} جلسة مرصودة` : 'لم تبدأ جلسات التحضير بعد'}</strong>
-            </div>
-          </div>
-
-          <div style="font-size: 10px; color: #475569; background: #ffffff; padding: 8px 10px; border-radius: 8px; border-right: 3px solid #0284c7; font-weight: 600;">
-            💡 <strong>توصية إجرائية:</strong> يُرجى استكمال رصد إنجاز التكاليف وتسجيل جلسات الحضور المتبقية قبل اعتماد هذا التقرير كنسخة نهائية رسمية.
-          </div>
-        </div>
-
-        <!-- Official Signatures & Footer Block -->
-        <div style="margin-top: 24px; pt-12; border-top: 1px solid #e2e8f0; page-break-inside: avoid;">
-          <div style="display: grid; grid-template-columns: repeat(3, 1fr); text-align: center; font-size: 10.5px; color: #334155; padding-top: 12px; margin-bottom: 12px;">
-            <div>
-              <div style="font-weight: 700; color: #0f172a;">إعداد وتدقيق</div>
-              <div style="color: #64748b; margin-top: 16px;">توقيع المشرف</div>
-            </div>
-            <div>
-              <div style="font-weight: 700; color: #0f172a;">اعتماد الإدارة</div>
-              <div style="color: #64748b; margin-top: 16px;">ختم برنامج التأهيل</div>
-            </div>
-            <div>
-              <div style="font-weight: 700; color: #0f172a;">تاريخ الاعتماد</div>
-              <div style="color: #64748b; margin-top: 16px; font-family: monospace;">${dateFormatted}</div>
-            </div>
-          </div>
-
-          <div style="text-align: center; font-size: 9.5px; color: #94a3b8; border-top: 1px dashed #e2e8f0; padding-top: 8px; font-style: italic;">
-            «إياك والتلون.. فإن دين الله واحد» — برنامج مرحلة التأهيل (الدفعة 48)
-          </div>
-        </div>
-
-      </div>
-    `;
-
-    if (!isStandaloneDocument) {
-      return reportContentHtml;
+    if (asgBtn) {
+      asgBtn.onclick = () => {
+        closeModal();
+        this.openLeaderboardPdfModal(items, 'assignments');
+      };
     }
 
-    // Return complete standalone printable HTML document for the iframe
-    return `<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-  <meta charset="UTF-8">
-  <title>كشف_الترتيب_العام_مرحلة_التأهيل_الدفعة_48</title>
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=Amiri:wght@700&display=swap');
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-    body {
-      background-color: #ffffff;
-      color: #0f172a;
-      direction: rtl;
-      font-family: 'Cairo', 'Amiri', system-ui, -apple-system, sans-serif;
-      padding: 12mm 10mm;
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
-    }
-    @page {
-      size: A4 portrait;
-      margin: 10mm;
-    }
-    thead {
-      display: table-header-group;
-    }
-    tr {
-      page-break-inside: avoid;
-    }
-    @media print {
-      body {
-        padding: 0;
-      }
-    }
-  </style>
-</head>
-<body>
-  ${reportContentHtml}
-</body>
-</html>`;
+    modal.classList.remove('hidden');
+    modal.classList.add('active');
+    modal.style.removeProperty('display');
+    modal.style.display = 'flex';
   },
 
   /**
-   * Open Modal to preview the official PDF document
+   * Open Modal to preview the official PDF document (Attendance or Assignments)
    */
-  openLeaderboardPdfModal(items) {
+  openLeaderboardPdfModal(items, reportType = 'attendance') {
     const modal = document.getElementById('leaderboard-pdf-modal');
     const paper = document.getElementById('leaderboard-pdf-paper');
     const closeBtn = document.getElementById('leaderboard-pdf-close');
     const printBtn = document.getElementById('btn-print-pdf-document');
+    const tabAtt = document.getElementById('pdf-tab-attendance');
+    const tabAsg = document.getElementById('pdf-tab-assignments');
+    const titleEl = document.getElementById('pdf-preview-title');
+    const subtitleEl = document.getElementById('pdf-preview-subtitle');
     if (!modal || !paper) return;
 
-    // Render official report preview
-    paper.innerHTML = this.generateLeaderboardReportHtml(items, false);
+    this.currentPdfItems = items;
+    this.currentPdfReportType = reportType;
+
+    const renderCurrentReport = () => {
+      const type = this.currentPdfReportType;
+      if (tabAtt && tabAsg) {
+        if (type === 'attendance') {
+          tabAtt.className = 'px-3 py-1.5 rounded-lg text-xs font-black bg-white text-emerald-950 shadow-2xs border border-emerald-300 transition-all cursor-pointer';
+          tabAsg.className = 'px-3 py-1.5 rounded-lg text-xs font-bold text-stone-600 hover:text-stone-900 hover:bg-stone-300/60 border border-transparent transition-all cursor-pointer';
+          if (titleEl) titleEl.textContent = 'معاينة كشف الحضور والغياب';
+          if (subtitleEl) subtitleEl.textContent = 'كشف معتمد بترتيب الطلاب وأيام الحضور والغياب مع ملخص الأكثر غياباً';
+          paper.innerHTML = this.generateAttendanceReportHtml(items, false);
+        } else {
+          tabAsg.className = 'px-3 py-1.5 rounded-lg text-xs font-black bg-white text-blue-950 shadow-2xs border border-blue-300 transition-all cursor-pointer';
+          tabAtt.className = 'px-3 py-1.5 rounded-lg text-xs font-bold text-stone-600 hover:text-stone-900 hover:bg-stone-300/60 border border-transparent transition-all cursor-pointer';
+          if (titleEl) titleEl.textContent = 'معاينة كشف إنجاز التكاليف';
+          if (subtitleEl) subtitleEl.textContent = 'كشف معتمد بالنقاط وحالة بنود التكاليف والبنود الناقصة لكل طالب';
+          paper.innerHTML = this.generateAssignmentsReportHtml(items, false);
+        }
+      }
+    };
+
+    if (tabAtt) {
+      tabAtt.onclick = () => {
+        this.currentPdfReportType = 'attendance';
+        renderCurrentReport();
+      };
+    }
+
+    if (tabAsg) {
+      tabAsg.onclick = () => {
+        this.currentPdfReportType = 'assignments';
+        renderCurrentReport();
+      };
+    }
+
+    // Initial render
+    renderCurrentReport();
 
     // Show modal
     modal.classList.remove('hidden');
+    modal.classList.add('active');
+    modal.style.removeProperty('display');
     modal.style.display = 'flex';
 
     // Hook print / export
     if (printBtn) {
       printBtn.onclick = () => {
-        this.printPdfDocument(items);
+        this.printPdfDocument(items, this.currentPdfReportType);
       };
     }
 
-    // Hook close
+    const closeModal = () => {
+      modal.classList.add('hidden');
+      modal.classList.remove('active');
+      modal.style.display = 'none';
+    };
+
     if (closeBtn) {
-      closeBtn.onclick = () => {
-        modal.classList.add('hidden');
-        modal.style.display = 'none';
-      };
+      closeBtn.onclick = closeModal;
     }
+
+    modal.onclick = (e) => {
+      if (e.target === modal) {
+        closeModal();
+      }
+    };
   },
 
   /**
    * Print / Save to PDF using high-resolution native print architecture
    */
-  printPdfDocument(items) {
+  printPdfDocument(items, reportType = 'attendance') {
     const modal = document.getElementById('leaderboard-pdf-modal');
     const paper = document.getElementById('leaderboard-pdf-paper');
     if (!modal || !paper) return;
 
+    const isAtt = (reportType === 'attendance');
+
     // Ensure content is fresh
-    paper.innerHTML = this.generateLeaderboardReportHtml(items, false);
+    paper.innerHTML = isAtt 
+      ? this.generateAttendanceReportHtml(items, false)
+      : this.generateAssignmentsReportHtml(items, false);
+
     modal.classList.remove('hidden');
     modal.style.display = 'flex';
 
     // Set document title so exported PDF default filename is accurate
     const origTitle = document.title;
-    document.title = 'كشف_الترتيب_العام_مرحلة_التأهيل_الدفعة_48';
+    document.title = isAtt
+      ? 'كشف_الحضور_والغياب_مرحلة_التأهيل_الدفعة_48'
+      : 'كشف_إنجاز_التكاليف_مرحلة_التأهيل_الدفعة_48';
 
     Utils.showToast('جاري فتح نافذة الطباعة والحفظ كـ PDF...', 'info');
 
@@ -1597,6 +1477,615 @@ export const SupervisorView = {
         }, 1500);
       }
     }, 200);
+  },
+
+  /**
+   * 1. Generate Official Printable HTML Report for ATTENDANCE & ABSENCE
+   * (كشف الحضور والغياب مع ملخص لأكثر الطلاب غياباً)
+   */
+  generateAttendanceReportHtml(items, isStandaloneDocument = false) {
+    const customLogo = Storage.getCustomLogo();
+    const today = new Date();
+    const dateFormatted = today.toLocaleDateString('ar-SA', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+
+    let filterLabel = 'كافة المحاضن (الكل)';
+    if (this.selectedMahadFilter && this.selectedMahadFilter !== 'all') {
+      const m = (this.cachedMahaden || []).find(x => x.id === this.selectedMahadFilter);
+      if (m) filterLabel = `محضن: ${m.name}`;
+    }
+
+    const totalStudents = items.length;
+    const totalPresent = items.reduce((sum, it) => sum + (it.attendance.presentCount || 0), 0);
+    const totalAbsent = items.reduce((sum, it) => sum + (it.attendance.absentCount || 0), 0);
+    const totalExcused = items.reduce((sum, it) => sum + (it.attendance.excusedCount || 0), 0);
+    const totalSessions = totalPresent + totalAbsent;
+    const hasCohortAttendance = totalSessions > 0;
+    const attRate = hasCohortAttendance ? Math.round((totalPresent / totalSessions) * 100) : null;
+
+    // Filter most absent students (absentCount > 0)
+    const absentStudents = items
+      .filter(it => (it.attendance.absentCount || 0) > 0)
+      .sort((a, b) => (b.attendance.absentCount || 0) - (a.attendance.absentCount || 0) || (b.attendance.excusedCount || 0) - (a.attendance.excusedCount || 0));
+
+    // Sort items for attendance ranking: presentCount desc, absentCount asc, alphabetical
+    const sortedItems = [...items].sort((a, b) => {
+      const presA = a.attendance.presentCount || 0;
+      const presB = b.attendance.presentCount || 0;
+      if (presB !== presA) return presB - presA;
+      const absA = a.attendance.absentCount || 0;
+      const absB = b.attendance.absentCount || 0;
+      if (absA !== absB) return absA - absB;
+      return String(a?.student?.name || '').localeCompare(String(b?.student?.name || ''), 'ar');
+    });
+
+    // Logo markup
+    let logoHtml = '';
+    if (customLogo) {
+      logoHtml = `<img src="${customLogo}" alt="شعار مرحلة التأهيل" style="max-height: 64px; max-width: 150px; object-fit: contain; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.08));" />`;
+    } else {
+      logoHtml = `
+        <div style="width: 54px; height: 54px; border-radius: 14px; background: linear-gradient(135deg, #065f46, #022c22); color: #fbbf24; border: 2px solid #34d399; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+          <svg style="width: 24px; height: 24px; color: #a7f3d0;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+          </svg>
+          <span style="font-size: 7px; font-weight: 800; color: #ecfdf5; margin-top: 1px;">حضور التأهيل</span>
+        </div>
+      `;
+    }
+
+    const reportContentHtml = `
+      <div style="direction: rtl; font-family: 'Cairo', 'Amiri', system-ui, -apple-system, sans-serif; color: #0f172a; line-height: 1.5; padding: 10px;">
+        
+        <!-- Document Header -->
+        <div style="border-bottom: 2px solid #059669; padding-bottom: 14px; margin-bottom: 16px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+            <div style="text-align: right; line-height: 1.3;">
+              <div style="font-size: 15px; font-weight: 900; color: #065f46;">مشروع مرحلة التأهيل</div>
+              <div style="font-size: 11px; font-weight: bold; color: #047857; margin-top: 1px;">دفعة التأهيل 48</div>
+            </div>
+
+            <div style="display: flex; align-items: center; justify-content: center;">
+              ${logoHtml}
+            </div>
+
+            <div style="text-align: left; line-height: 1.4; font-size: 11px;">
+              <div><span style="color: #64748b;">التاريخ:</span> <strong style="font-family: monospace; color: #0f172a;">${dateFormatted}</strong></div>
+              <div><span style="color: #64748b;">النطاق:</span> <strong style="color: #065f46;">${filterLabel}</strong></div>
+            </div>
+          </div>
+
+          <div style="text-align: center; margin-top: 12px;">
+            <h1 style="font-size: 19px; font-weight: 900; color: #0f172a; margin: 0; letter-spacing: -0.3px;">
+              كشف الحضور والغياب لطلاب مرحلة التأهيل
+            </h1>
+            <div style="font-size: 11px; font-weight: 600; color: #475569; margin-top: 4px; display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap;">
+              <span>دفعة التأهيل 48</span>
+              <span>•</span>
+              <span>جلسات يومي الأحد والثلاثاء</span>
+              <span>•</span>
+              <span>تاريخ التقرير: ${dateFormatted}</span>
+              <span>•</span>
+              <span>تصفية: ${filterLabel}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Executive Metrics Summary Strip -->
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 18px; text-align: center;">
+          <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 10px; padding: 10px 6px;">
+            <div style="font-size: 10px; color: #64748b; font-weight: bold;">إجمالي الطلاب</div>
+            <div style="font-size: 17px; font-weight: 900; color: #0f172a; font-family: monospace; margin-top: 2px;">${totalStudents} طالب</div>
+            <div style="font-size: 9px; color: #94a3b8; margin-top: 2px;">مسجلين في الكشف</div>
+          </div>
+
+          <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 10px; padding: 10px 6px;">
+            <div style="font-size: 10px; color: #64748b; font-weight: bold;">نسبة الحضور العامة</div>
+            <div style="font-size: 17px; font-weight: 900; color: ${hasCohortAttendance ? (attRate >= 80 ? '#059669' : '#b45309') : '#64748b'}; font-family: monospace; margin-top: 2px;">
+              ${hasCohortAttendance ? `${attRate}%` : '—'}
+            </div>
+            <div style="font-size: 9px; color: #94a3b8; margin-top: 2px;">${hasCohortAttendance ? `المحقق للدفعة` : 'بانتظار رصد الجلسات'}</div>
+          </div>
+
+          <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 10px; padding: 10px 6px;">
+            <div style="font-size: 10px; color: #64748b; font-weight: bold;">إجمالي الحضور</div>
+            <div style="font-size: 17px; font-weight: 900; color: #059669; font-family: monospace; margin-top: 2px;">${totalPresent} جلسة</div>
+            <div style="font-size: 9px; color: #94a3b8; margin-top: 2px;">حضور مسجل</div>
+          </div>
+
+          <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 10px; padding: 10px 6px;">
+            <div style="font-size: 10px; color: #64748b; font-weight: bold;">إجمالي الغياب والاعتذار</div>
+            <div style="font-size: 17px; font-weight: 900; color: ${totalAbsent > 0 ? '#b91c1c' : '#059669'}; font-family: monospace; margin-top: 2px;">
+              ${totalAbsent} غياب <span style="font-size: 11px; font-weight: normal; color: #b45309;">(${totalExcused} ع)</span>
+            </div>
+            <div style="font-size: 9px; color: #94a3b8; margin-top: 2px;">من الجلسات المقررة</div>
+          </div>
+        </div>
+
+        <!-- ملخص لأكثر الطلاب غياباً (Most Absent Students Summary Block) -->
+        ${absentStudents.length > 0 ? `
+          <div style="margin-bottom: 20px; padding: 14px 16px; background-color: #fff1f2; border: 1.5px solid #fecdd3; border-radius: 12px; page-break-inside: avoid;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; border-bottom: 1px solid #fecdd3; padding-bottom: 8px;">
+              <div style="font-size: 13px; font-weight: 900; color: #9f1239; display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 16px;">⚠️</span>
+                <span>ملخص الطلاب الأكثر غياباً (تنبيه المتابعة والتواصل الفوري)</span>
+              </div>
+              <span style="font-size: 11px; font-weight: bold; background: #ffe4e6; color: #9f1239; padding: 3px 8px; border-radius: 6px; border: 1px solid #fda4af;">
+                ${absentStudents.length} طلاب مسجل عليهم غياب
+              </span>
+            </div>
+            <p style="font-size: 10.5px; color: #881337; margin-bottom: 10px; line-height: 1.5;">
+              الطلاب التالية أسماؤهم سجلوا أعلى عدد أيام غياب في الجلسات المعتمدة، ويُوصى بالتواصل معهم ومع أولياء أمورهم لمعالجة أسباب الانقطاع وتثبيت الحضور:
+            </p>
+            <table style="width: 100%; border-collapse: collapse; font-size: 10px; text-align: right; background: #ffffff; border-radius: 8px; overflow: hidden; border: 1px solid #fda4af;">
+              <thead>
+                <tr style="background-color: #ffe4e6; color: #9f1239; font-weight: 800;">
+                  <th style="padding: 6px 8px; border: 1px solid #fecdd3; text-align: center; width: 30px;">#</th>
+                  <th style="padding: 6px 10px; border: 1px solid #fecdd3;">اسم الطالب</th>
+                  <th style="padding: 6px 8px; border: 1px solid #fecdd3;">المحضن</th>
+                  <th style="padding: 6px 8px; border: 1px solid #fecdd3; text-align: center;">أيام الغياب</th>
+                  <th style="padding: 6px 8px; border: 1px solid #fecdd3; text-align: center;">الاعتذار</th>
+                  <th style="padding: 6px 8px; border: 1px solid #fecdd3;">تواريخ الغياب المسجلة</th>
+                  <th style="padding: 6px 8px; border: 1px solid #fecdd3; text-align: center;">مستوى الإجراء</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${absentStudents.map((stItem, sIdx) => {
+                  const datesText = (stItem.attendance.absenceDates || []).map(d => Utils.formatDateArabic(d)).join('، ') || 'غياب مرصود بالجلسة';
+                  const isUrgent = (stItem.attendance.absentCount || 0) >= 2;
+                  return `
+                    <tr style="border-bottom: 1px solid #ffe4e6;">
+                      <td style="padding: 5px 8px; border: 1px solid #fecdd3; text-align: center; font-weight: bold; color: #9f1239;">${sIdx + 1}</td>
+                      <td style="padding: 5px 10px; border: 1px solid #fecdd3; font-weight: 800; color: #0f172a;">${Utils.escapeHtml(stItem.student.name)}</td>
+                      <td style="padding: 5px 8px; border: 1px solid #fecdd3; color: #475569;">${stItem.student.mahadName || '—'}</td>
+                      <td style="padding: 5px 8px; border: 1px solid #fecdd3; text-align: center; font-weight: 900; color: #b91c1c; font-family: monospace; font-size: 11px;">
+                        ${stItem.attendance.absentCount} ${stItem.attendance.absentCount === 1 ? 'يوم' : 'أيام'}
+                      </td>
+                      <td style="padding: 5px 8px; border: 1px solid #fecdd3; text-align: center; font-weight: bold; color: #b45309; font-family: monospace;">
+                        ${stItem.attendance.excusedCount || '0'}
+                      </td>
+                      <td style="padding: 5px 8px; border: 1px solid #fecdd3; font-size: 9px; color: #881337; line-height: 1.4;">
+                        ${datesText}
+                      </td>
+                      <td style="padding: 5px 8px; border: 1px solid #fecdd3; text-align: center;">
+                        <span style="display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 8.5px; font-weight: 800; background: ${isUrgent ? '#b91c1c' : '#d97706'}; color: #ffffff;">
+                          ${isUrgent ? 'متابعة عاجلة' : 'تنبيه أولي'}
+                        </span>
+                      </td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+        ` : `
+          <div style="margin-bottom: 20px; padding: 12px 16px; background-color: #ecfdf5; border: 1.5px solid #a7f3d0; border-radius: 12px; display: flex; align-items: center; gap: 10px; page-break-inside: avoid;">
+            <span style="font-size: 20px;">🌿</span>
+            <div>
+              <div style="font-size: 12px; font-weight: 800; color: #065f46;">سجل حضور نموذجي ومثالي (لا يوجد أي غياب مسجل)</div>
+              <div style="font-size: 10px; color: #047857; margin-top: 2px;">
+                جميع طلاب هذه القائمة ملتزمون بنسبة حضور تامة 100% دون تسجيل أي حالة غياب حتى تاريخ هذا الكشف المعتمد.
+              </div>
+            </div>
+          </div>
+        `}
+
+        <!-- جدول ترتيب الطلاب في الحضور والغياب -->
+        <table style="width: 100%; border-collapse: collapse; font-size: 10px; text-align: right; margin-bottom: 20px;">
+          <thead>
+            <tr style="background-color: #065f46; color: #ffffff; font-weight: 800; font-size: 10.5px;">
+              <th style="padding: 7px 8px; border: 1px solid #065f46; text-align: center; width: 34px;">#</th>
+              <th style="padding: 7px 10px; border: 1px solid #065f46;">اسم الطالب</th>
+              <th style="padding: 7px 8px; border: 1px solid #065f46;">المحضن</th>
+              <th style="padding: 7px 8px; border: 1px solid #065f46; text-align: center;">أيام الحضور</th>
+              <th style="padding: 7px 8px; border: 1px solid #065f46; text-align: center;">أيام الغياب</th>
+              <th style="padding: 7px 8px; border: 1px solid #065f46; text-align: center;">الاعتذارات</th>
+              <th style="padding: 7px 8px; border: 1px solid #065f46; text-align: center;">نسبة الالتزام</th>
+              <th style="padding: 7px 8px; border: 1px solid #065f46; text-align: center;">حالة الانتظام</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${sortedItems.map((item, idx) => {
+              const st = item.student;
+              const att = item.attendance;
+              const isEven = idx % 2 === 0;
+
+              const studentSessions = (att.presentCount || 0) + (att.absentCount || 0);
+              const studentRate = studentSessions > 0 ? Math.round((att.presentCount / studentSessions) * 100) : (att.presentCount > 0 ? 100 : null);
+
+              let statusText = 'بانتظار الرصد';
+              let statusBg = '#f1f5f9';
+              let statusColor = '#64748b';
+              let statusBorder = '#cbd5e1';
+
+              if (att.presentCount > 0 || att.absentCount > 0) {
+                if (att.absentCount === 0 && att.presentCount > 0) {
+                  statusText = 'ملتزم تام (100%)';
+                  statusBg = '#ecfdf5';
+                  statusColor = '#065f46';
+                  statusBorder = '#a7f3d0';
+                } else if (att.absentCount === 1) {
+                  statusText = 'منتظم (غياب 1)';
+                  statusBg = '#f0fdf4';
+                  statusColor = '#15803d';
+                  statusBorder = '#bbf7d0';
+                } else if (att.absentCount === 2) {
+                  statusText = 'يحتاج متابعة';
+                  statusBg = '#fffbe2';
+                  statusColor = '#92400e';
+                  statusBorder = '#fde68a';
+                } else {
+                  statusText = 'غياب متكرر / حرج';
+                  statusBg = '#fef2f2';
+                  statusColor = '#991b1b';
+                  statusBorder = '#fecaca';
+                }
+              }
+
+              return `
+                <tr style="background-color: ${isEven ? '#ffffff' : '#f8fafc'}; border-bottom: 1px solid #e2e8f0;">
+                  <td style="padding: 6px 8px; border: 1px solid #e2e8f0; text-align: center; font-family: monospace; font-weight: bold; color: #475569;">${idx + 1}</td>
+                  <td style="padding: 6px 10px; border: 1px solid #e2e8f0; font-weight: 700; color: #0f172a;">${Utils.escapeHtml(st.name)}</td>
+                  <td style="padding: 6px 8px; border: 1px solid #e2e8f0; color: #475569; font-size: 10px;">${st.mahadName || '—'}</td>
+                  <td style="padding: 6px 8px; border: 1px solid #e2e8f0; text-align: center; font-family: monospace; font-weight: 800; color: ${att.presentCount > 0 ? '#059669' : '#94a3b8'};">
+                    ${att.presentCount > 0 ? `${att.presentCount} يوم` : '—'}
+                  </td>
+                  <td style="padding: 6px 8px; border: 1px solid #e2e8f0; text-align: center; font-family: monospace; font-weight: 800; color: ${att.absentCount > 0 ? '#b91c1c' : '#94a3b8'};">
+                    ${att.absentCount > 0 ? `${att.absentCount} يوم` : '—'}
+                  </td>
+                  <td style="padding: 6px 8px; border: 1px solid #e2e8f0; text-align: center; font-family: monospace; font-weight: 700; color: ${att.excusedCount > 0 ? '#b45309' : '#94a3b8'};">
+                    ${att.excusedCount > 0 ? `${att.excusedCount} ع` : '—'}
+                  </td>
+                  <td style="padding: 6px 8px; border: 1px solid #e2e8f0; text-align: center; font-family: monospace; font-weight: bold; color: ${studentRate !== null ? (studentRate >= 80 ? '#059669' : '#b45309') : '#94a3b8'};">
+                    ${studentRate !== null ? `${studentRate}%` : '—'}
+                  </td>
+                  <td style="padding: 6px 8px; border: 1px solid #e2e8f0; text-align: center;">
+                    <span style="display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 8.5px; font-weight: 800; background: ${statusBg}; color: ${statusColor}; border: 1px solid ${statusBorder};">
+                      ${statusText}
+                    </span>
+                  </td>
+                </tr>
+              `;
+            }).join('')}
+          </tbody>
+        </table>
+
+        <!-- Official Signatures Block -->
+        <div style="margin-top: 24px; border-top: 1px solid #e2e8f0; page-break-inside: avoid; padding-top: 12px;">
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); text-align: center; font-size: 10px; color: #334155; margin-bottom: 12px;">
+            <div>
+              <div style="font-weight: 700; color: #0f172a;">مشرف رصد الحضور</div>
+              <div style="color: #64748b; margin-top: 16px;">التوقيع: ....................</div>
+            </div>
+            <div>
+              <div style="font-weight: 700; color: #0f172a;">اعتماد إدارة مرحلة التأهيل</div>
+              <div style="color: #64748b; margin-top: 16px;">الختم الرسمي</div>
+            </div>
+            <div>
+              <div style="font-weight: 700; color: #0f172a;">تاريخ الاعتماد الرسمي</div>
+              <div style="color: #64748b; margin-top: 16px; font-family: monospace;">${dateFormatted}</div>
+            </div>
+          </div>
+
+          <div style="text-align: center; font-size: 9px; color: #94a3b8; border-top: 1px dashed #e2e8f0; padding-top: 8px; font-style: italic;">
+            «إياك والتلون.. فإن دين الله واحد» — تقرير رسمي معتمد لمرحلة التأهيل (الدفعة 48)
+          </div>
+        </div>
+
+      </div>
+    `;
+
+    if (!isStandaloneDocument) {
+      return reportContentHtml;
+    }
+
+    return `<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <title>كشف_الحضور_والغياب_مرحلة_التأهيل_الدفعة_48</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=Amiri:wght@700&display=swap');
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background-color: #ffffff; color: #0f172a; direction: rtl; font-family: 'Cairo', 'Amiri', system-ui, sans-serif; padding: 12mm 10mm; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    @page { size: A4 portrait; margin: 10mm; }
+    thead { display: table-header-group; }
+    tr { page-break-inside: avoid; }
+    @media print { body { padding: 0; } }
+  </style>
+</head>
+<body>
+  ${reportContentHtml}
+</body>
+</html>`;
+  },
+
+  /**
+   * 2. Generate Official Printable HTML Report for ASSIGNMENTS & TASKS PROGRESS
+   * (كشف إنجاز التكاليف والمهام مع النقاط والبنود الناقصة والمكتملة بشكل مختصر)
+   */
+  generateAssignmentsReportHtml(items, isStandaloneDocument = false) {
+    const customLogo = Storage.getCustomLogo();
+    const today = new Date();
+    const dateFormatted = today.toLocaleDateString('ar-SA', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+
+    let filterLabel = 'كافة المحاضن (الكل)';
+    if (this.selectedMahadFilter && this.selectedMahadFilter !== 'all') {
+      const m = (this.cachedMahaden || []).find(x => x.id === this.selectedMahadFilter);
+      if (m) filterLabel = `محضن: ${m.name}`;
+    }
+
+    const totalStudents = items.length;
+    const totalPoints = items.reduce((sum, it) => sum + (it.stats.totalEarnedPoints || 0), 0);
+    const hasCohortProgress = totalPoints > 0;
+    const avgPoints = (hasCohortProgress && totalStudents > 0) ? Math.round(totalPoints / totalStudents) : 0;
+    
+    const totalPct = items.reduce((sum, it) => sum + (it.stats.overallPercentage || 0), 0);
+    const avgPct = (hasCohortProgress && totalStudents > 0) ? Math.round(totalPct / totalStudents) : 0;
+
+    const completedFullCount = items.filter(it => (it.stats.overallPercentage || 0) === 100).length;
+
+    // Sort items by points descending (100 to 0)
+    const sortedItems = [...items].sort((a, b) => {
+      const ptsA = Number(a?.stats?.totalEarnedPoints) || 0;
+      const ptsB = Number(b?.stats?.totalEarnedPoints) || 0;
+      if (ptsB !== ptsA) return ptsB - ptsA;
+      const pctA = Number(a?.stats?.overallPercentage) || 0;
+      const pctB = Number(b?.stats?.overallPercentage) || 0;
+      if (pctB !== pctA) return pctB - pctA;
+      return String(a?.student?.name || '').localeCompare(String(b?.student?.name || ''), 'ar');
+    });
+
+    // Extract all unique assignments across students
+    const assignmentMap = new Map();
+    items.forEach(it => {
+      (it.stats.assignmentDetails || []).forEach(d => {
+        if (d.assignment && !assignmentMap.has(d.assignment.id)) {
+          assignmentMap.set(d.assignment.id, d.assignment);
+        }
+      });
+    });
+    const allAssignments = Array.from(assignmentMap.values());
+
+    // Logo markup
+    let logoHtml = '';
+    if (customLogo) {
+      logoHtml = `<img src="${customLogo}" alt="شعار مرحلة التأهيل" style="max-height: 64px; max-width: 150px; object-fit: contain; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.08));" />`;
+    } else {
+      logoHtml = `
+        <div style="width: 54px; height: 54px; border-radius: 14px; background: linear-gradient(135deg, #1e3a8a, #0f172a); color: #fbbf24; border: 2px solid #f59e0b; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+          <svg style="width: 24px; height: 24px; color: #fcd34d;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          <span style="font-size: 7px; font-weight: 800; color: #fef3c7; margin-top: 1px;">مهام التأهيل</span>
+        </div>
+      `;
+    }
+
+    const reportContentHtml = `
+      <div style="direction: rtl; font-family: 'Cairo', 'Amiri', system-ui, -apple-system, sans-serif; color: #0f172a; line-height: 1.5; padding: 10px;">
+        
+        <!-- Document Header -->
+        <div style="border-bottom: 2px solid #b45309; padding-bottom: 14px; margin-bottom: 16px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+            <div style="text-align: right; line-height: 1.3;">
+              <div style="font-size: 15px; font-weight: 900; color: #1e3a8a;">مشروع مرحلة التأهيل</div>
+              <div style="font-size: 11px; font-weight: bold; color: #92400e; margin-top: 1px;">دفعة التأهيل 48</div>
+            </div>
+
+            <div style="display: flex; align-items: center; justify-content: center;">
+              ${logoHtml}
+            </div>
+
+            <div style="text-align: left; line-height: 1.4; font-size: 11px;">
+              <div><span style="color: #64748b;">التاريخ:</span> <strong style="font-family: monospace; color: #0f172a;">${dateFormatted}</strong></div>
+              <div><span style="color: #64748b;">النطاق:</span> <strong style="color: #1e3a8a;">${filterLabel}</strong></div>
+            </div>
+          </div>
+
+          <div style="text-align: center; margin-top: 12px;">
+            <h1 style="font-size: 19px; font-weight: 900; color: #0f172a; margin: 0; letter-spacing: -0.3px;">
+              كشف إنجاز التكاليف والمهام لطلاب مرحلة التأهيل
+            </h1>
+          </div>
+        </div>
+
+        <!-- Executive Metrics Summary Strip -->
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 18px; text-align: center;">
+          <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 10px; padding: 12px 6px;">
+            <div style="font-size: 11px; color: #64748b; font-weight: bold;">إجمالي الطلاب</div>
+            <div style="font-size: 18px; font-weight: 900; color: #0f172a; font-family: monospace; margin-top: 2px;">${totalStudents} طالب</div>
+          </div>
+
+          <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 10px; padding: 12px 6px;">
+            <div style="font-size: 11px; color: #64748b; font-weight: bold;">متوسط النقاط</div>
+            <div style="font-size: 18px; font-weight: 900; color: ${hasCohortProgress ? '#1e3a8a' : '#64748b'}; font-family: monospace; margin-top: 2px;">
+              ${hasCohortProgress ? `${avgPoints} من 100` : '—'}
+            </div>
+          </div>
+
+          <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 10px; padding: 12px 6px;">
+            <div style="font-size: 11px; color: #64748b; font-weight: bold;">متوسط نسبة الإنجاز</div>
+            <div style="font-size: 18px; font-weight: 900; color: ${hasCohortProgress ? '#0284c7' : '#64748b'}; font-family: monospace; margin-top: 2px;">
+              ${hasCohortProgress ? `${avgPct}%` : '—'}
+            </div>
+          </div>
+
+          <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 10px; padding: 12px 6px;">
+            <div style="font-size: 11px; color: #64748b; font-weight: bold;">الفوارس المتممون</div>
+            <div style="font-size: 18px; font-weight: 900; color: ${completedFullCount > 0 ? '#059669' : '#0f172a'}; font-family: monospace; margin-top: 2px;">
+              ${completedFullCount}/${totalStudents}
+            </div>
+          </div>
+        </div>
+
+        <!-- جدول ترتيب إنجاز التكاليف مع النقاط وحالة البنود المدمجة محاذى تماماً لليمين -->
+        <table dir="rtl" style="width: 100%; border-collapse: collapse; font-size: 10px; text-align: right; margin: 0 0 20px 0; table-layout: fixed; direction: rtl;">
+          <thead>
+            <tr style="background-color: #1e3a8a; color: #ffffff; font-weight: 800; font-size: 10.5px;">
+              <th style="padding: 8px 6px; border: 1px solid #1e3a8a; text-align: center; width: 6%;">#</th>
+              <th style="padding: 8px 10px; border: 1px solid #1e3a8a; text-align: right; width: 34%;">اسم الطالب</th>
+              <th style="padding: 8px 6px; border: 1px solid #1e3a8a; text-align: center; width: 12%;">ن/100</th>
+              <th style="padding: 8px 10px; border: 1px solid #1e3a8a; text-align: right; width: 48%;">وضع التكاليف</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${sortedItems.map((item, idx) => {
+              const st = item.student;
+              const s = item.stats;
+              const isEven = idx % 2 === 0;
+
+              // Medals for top 3
+              let rankBadge = `<span style="font-family: monospace; font-weight: bold; color: #475569;">${idx + 1}</span>`;
+              if (hasCohortProgress && s.totalEarnedPoints > 0) {
+                if (idx === 0) rankBadge = `🥇`;
+                else if (idx === 1) rankBadge = `🥈`;
+                else if (idx === 2) rankBadge = `🥉`;
+              }
+
+              // Single unified column for assignment progress (compact, clean, and no redundant column)
+              const asgDetails = s.assignmentDetails || [];
+              const allDone = asgDetails.length > 0 && asgDetails.every(d => d.stats.isCompleted);
+              const noneDone = asgDetails.length > 0 && asgDetails.every(d => d.stats.completedCount === 0 && d.stats.earnedPoints === 0);
+
+              let statusContentHtml = '';
+              if (allDone) {
+                statusContentHtml = `<span style="display: inline-flex; align-items: center; gap: 4px; color: #065f46; font-weight: 800; font-size: 9.5px; background: #ecfdf5; padding: 2px 8px; border-radius: 6px; border: 1px solid #a7f3d0;">🟢 أتم كافة التكاليف بنجاح (${asgDetails.length}/${asgDetails.length})</span>`;
+              } else if (noneDone) {
+                statusContentHtml = `<span style="display: inline-flex; align-items: center; gap: 4px; color: #991b1b; font-weight: 700; font-size: 9.5px; background: #fef2f2; padding: 2px 8px; border-radius: 6px; border: 1px solid #fecaca;">🔴 لم ينجز شيئًا</span>`;
+              } else {
+                statusContentHtml = `
+                  <div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap;">
+                    ${asgDetails.map(d => {
+                      const asgTitle = Utils.escapeHtml(d.assignment.title || 'تكليف');
+                      const stStats = d.stats;
+                      if (stStats.isCompleted) {
+                        return `<span style="display: inline-flex; align-items: center; gap: 3px; font-size: 9px; font-weight: 700; color: #065f46; background: #ecfdf5; padding: 1.5px 6px; border-radius: 4px; border: 1px solid #a7f3d0; white-space: nowrap;">🟢 ${asgTitle}: مكتمل</span>`;
+                      } else if (stStats.completedCount > 0 || stStats.earnedPoints > 0) {
+                        return `<span style="display: inline-flex; align-items: center; gap: 3px; font-size: 9px; font-weight: 700; color: #92400e; background: #fffbeb; padding: 1.5px 6px; border-radius: 4px; border: 1px solid #fde68a; white-space: nowrap;">🟡 ${asgTitle}: ${stStats.completedCount}/${stStats.totalSubtasks}</span>`;
+                      } else {
+                        return `<span style="display: inline-flex; align-items: center; gap: 3px; font-size: 9px; font-weight: 700; color: #991b1b; background: #fef2f2; padding: 1.5px 6px; border-radius: 4px; border: 1px solid #fecaca; white-space: nowrap;">🔴 ${asgTitle}: لم يُنجز</span>`;
+                      }
+                    }).join('')}
+                  </div>
+                `;
+              }
+
+              return `
+                <tr style="background-color: ${isEven ? '#ffffff' : '#f8fafc'}; border-bottom: 1px solid #e2e8f0;">
+                  <td style="padding: 7px 6px; border: 1px solid #e2e8f0; text-align: center;">${rankBadge}</td>
+                  <td style="padding: 7px 10px; border: 1px solid #e2e8f0; text-align: right; font-weight: 700; color: #0f172a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${Utils.escapeHtml(st.name)}</td>
+                  <td style="padding: 7px 6px; border: 1px solid #e2e8f0; text-align: center; font-family: monospace; font-weight: 800; color: ${s.totalEarnedPoints > 0 ? '#1e3a8a' : '#94a3b8'};">
+                    ${s.totalEarnedPoints > 0 ? `${s.totalEarnedPoints} ن` : '—'}
+                  </td>
+                  <td style="padding: 7px 10px; border: 1px solid #e2e8f0; text-align: right; vertical-align: middle;">
+                    ${statusContentHtml || '<span style="color: #94a3b8; font-size: 9px;">—</span>'}
+                  </td>
+                </tr>
+              `;
+            }).join('')}
+          </tbody>
+        </table>
+
+        <!-- ملخص استكمال التكاليف على مستوى الدفعة (بدون عمودي الوزن والمهام الفرعية) -->
+        ${allAssignments.length > 0 ? `
+          <div style="margin-top: 18px; padding: 12px 14px; background-color: #f8fafc; border: 1px solid #cbd5e1; border-radius: 12px; page-break-inside: avoid;">
+            <div style="font-size: 11.5px; font-weight: 800; color: #1e3a8a; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+              <span>📊</span>
+              <span>ملخص استكمال التكاليف والمهام المقررة على مستوى الدفعة:</span>
+            </div>
+            <table dir="rtl" style="width: 100%; border-collapse: collapse; font-size: 9.5px; text-align: right; background: #ffffff; border-radius: 8px; overflow: hidden; border: 1px solid #e2e8f0; table-layout: fixed; direction: rtl;">
+              <thead>
+                <tr style="background-color: #f1f5f9; color: #334155; font-weight: 800;">
+                  <th style="padding: 6px 8px; border: 1px solid #e2e8f0; text-align: right; width: 36%;">اسم التكليف المقرر</th>
+                  <th style="padding: 6px 8px; border: 1px solid #e2e8f0; text-align: center; width: 17%;">مكتمل بالكامل</th>
+                  <th style="padding: 6px 8px; border: 1px solid #e2e8f0; text-align: center; width: 17%;">إنجاز جزئي</th>
+                  <th style="padding: 6px 8px; border: 1px solid #e2e8f0; text-align: center; width: 15%;">لم يبدأ بعد</th>
+                  <th style="padding: 6px 8px; border: 1px solid #e2e8f0; text-align: center; width: 15%;">نسبة الاستكمال العامة</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${allAssignments.map(asg => {
+                  let compCount = 0;
+                  let partCount = 0;
+                  let notCount = 0;
+                  let totalPtsAchieved = 0;
+
+                  items.forEach(it => {
+                    const d = (it.stats.assignmentDetails || []).find(x => x.assignment.id === asg.id);
+                    if (d) {
+                      totalPtsAchieved += (d.stats.earnedPoints || 0);
+                      if (d.stats.isCompleted) compCount++;
+                      else if (d.stats.completedCount > 0 || d.stats.earnedPoints > 0) partCount++;
+                      else notCount++;
+                    } else {
+                      notCount++;
+                    }
+                  });
+
+                  const maxPossible = totalStudents * (Number(asg.points) || 0);
+                  const completionRate = maxPossible > 0 ? Math.round((totalPtsAchieved / maxPossible) * 100) : 0;
+
+                  return `
+                    <tr style="border-bottom: 1px solid #e2e8f0;">
+                      <td style="padding: 6px 8px; border: 1px solid #e2e8f0; font-weight: 700; color: #0f172a; text-align: right;">${Utils.escapeHtml(asg.title)}</td>
+                      <td style="padding: 6px 8px; border: 1px solid #e2e8f0; text-align: center; font-weight: bold; color: #059669; font-family: monospace;">${compCount} طلاب</td>
+                      <td style="padding: 6px 8px; border: 1px solid #e2e8f0; text-align: center; font-weight: bold; color: #b45309; font-family: monospace;">${partCount} طلاب</td>
+                      <td style="padding: 6px 8px; border: 1px solid #e2e8f0; text-align: center; color: #94a3b8; font-family: monospace;">${notCount} طلاب</td>
+                      <td style="padding: 6px 8px; border: 1px solid #e2e8f0; text-align: center; font-family: monospace; font-weight: 800; color: ${completionRate >= 50 ? '#059669' : '#b45309'};">
+                        ${completionRate}%
+                      </td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+        ` : ''}
+
+      </div>
+    `;
+
+    if (!isStandaloneDocument) {
+      return reportContentHtml;
+    }
+
+    return `<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <title>كشف_إنجاز_التكاليف_مرحلة_التأهيل_الدفعة_48</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=Amiri:wght@700&display=swap');
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background-color: #ffffff; color: #0f172a; direction: rtl; font-family: 'Cairo', 'Amiri', system-ui, sans-serif; padding: 12mm 10mm; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    @page { size: A4 portrait; margin: 10mm; }
+    thead { display: table-header-group; }
+    tr { page-break-inside: avoid; }
+    @media print { body { padding: 0; } }
+  </style>
+</head>
+<body>
+  ${reportContentHtml}
+</body>
+</html>`;
+  },
+
+  /**
+   * Compatibility wrapper for general report
+   */
+  generateLeaderboardReportHtml(items, isStandaloneDocument = false) {
+    if (this.currentPdfReportType === 'attendance') {
+      return this.generateAttendanceReportHtml(items, isStandaloneDocument);
+    }
+    return this.generateAssignmentsReportHtml(items, isStandaloneDocument);
   },
 
   /**
@@ -2202,8 +2691,7 @@ export const SupervisorView = {
 
       // Wire Cancel button
       body.querySelector('#modal-dist-cancel-btn')?.addEventListener('click', () => {
-        modal.classList.add('hidden');
-        modal.style.display = 'none';
+        closeModal();
       });
 
       // Wire Save button
@@ -2217,8 +2705,7 @@ export const SupervisorView = {
         try {
           await AssignmentService.applyCustomPointsDistribution(items.map(it => ({ id: it.id, points: it.points })));
           Utils.showToast('تم اعتماد وتحديث توزيع الـ 100 نقطة بنجاح، وتوزيع نقاط المهام الفرعية بالتطابق', 'success');
-          modal.classList.add('hidden');
-          modal.style.display = 'none';
+          closeModal();
           await this.loadAll();
         } catch (err) {
           Utils.showToast(err.message, 'error');
@@ -2229,14 +2716,25 @@ export const SupervisorView = {
     render();
 
     modal.classList.remove('hidden');
+    modal.classList.add('active');
+    modal.style.removeProperty('display');
     modal.style.display = 'flex';
 
+    const closeModal = () => {
+      modal.classList.add('hidden');
+      modal.classList.remove('active');
+      modal.style.display = 'none';
+    };
+
     if (closeBtn) {
-      closeBtn.onclick = () => {
-        modal.classList.add('hidden');
-        modal.style.display = 'none';
-      };
+      closeBtn.onclick = closeModal;
     }
+
+    modal.onclick = (e) => {
+      if (e.target === modal) {
+        closeModal();
+      }
+    };
   },
 
   /**
@@ -2249,6 +2747,51 @@ export const SupervisorView = {
     const stats = await ProgressService.getStudentOverallStats(studentId);
     const att = await AttendanceService.getStudentSummary(studentId);
 
+    // 1. Process and categorize all assignments
+    const allItems = (stats.assignmentDetails || []).map(item => {
+      const asg = item.assignment;
+      const s = item.stats;
+      const completed = item.completedSubtaskIds || [];
+      const totalSubtasks = (asg.subtasks || []).length;
+      const completedCount = completed.length;
+
+      let status = 'not_started';
+      let priority = 1;
+      let statusText = 'لم يُنجز';
+      let badgeClass = 'bg-rose-50 text-rose-800 border-rose-200';
+      let note = ''; // No repetitive note for unstarted items
+
+      if (completedCount === totalSubtasks && totalSubtasks > 0 && s.percentage === 100) {
+        status = 'completed';
+        priority = 3;
+        statusText = 'مكتمل';
+        badgeClass = 'bg-emerald-50 text-emerald-800 border-emerald-200';
+        note = ''; // Badge and points are fully sufficient
+      } else if (completedCount > 0 || s.earnedPoints > 0) {
+        status = 'partial';
+        priority = 2;
+        statusText = 'إنجاز جزئي';
+        badgeClass = 'bg-amber-50 text-amber-800 border-amber-200';
+        note = `أنجز ${completedCount} من أصل ${totalSubtasks} مهام`;
+      }
+
+      return {
+        assignment: asg,
+        stats: s,
+        completedSubtaskIds: completed,
+        status,
+        priority,
+        statusText,
+        badgeClass,
+        note
+      };
+    });
+
+    // 4. Sort by priority: لم يُنجز (1) -> إنجاز جزئي (2) -> منجز (3)
+    allItems.sort((a, b) => a.priority - b.priority);
+
+    const incompleteCount = allItems.filter(it => it.priority < 3).length;
+
     const modal = document.getElementById('student-detail-modal');
     const modalContent = document.getElementById('student-detail-content');
     if (!modal || !modalContent) return;
@@ -2256,37 +2799,39 @@ export const SupervisorView = {
     modalContent.innerHTML = `
       <div class="space-y-5">
         <!-- Student Header -->
-        <div class="flex items-center justify-between pb-3 border-b border-slate-200">
-          <div>
-            <div class="flex items-center gap-2">
-              <h3 class="text-lg font-bold text-slate-900">${Utils.escapeHtml(student.name)}</h3>
-              <span class="text-xs font-semibold px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 border border-amber-200">
-                ${student.mahadName || 'مرحلة التأهيل'}
-              </span>
+        <div class="flex items-start justify-between gap-3 pb-3.5 border-b border-slate-200">
+          <div class="flex flex-col items-start gap-1.5 min-w-0 flex-1">
+            <h3 class="text-base sm:text-lg font-black text-slate-900 leading-snug whitespace-normal break-normal">
+              ${Utils.escapeHtml(student.name)}
+            </h3>
+            <div class="inline-flex items-center">
+              ${this.getMahadBadgeHtml(student.mahadId, student.mahadName)}
             </div>
-            <div class="text-xs text-slate-500">${Utils.escapeHtml(student.email)}</div>
           </div>
-          <div class="text-left">
-            <div class="text-xs text-slate-500">إجمالي النقاط</div>
-            <div class="text-xl font-bold font-mono text-emerald-800 tabular-nums">${stats.totalEarnedPoints} / ${stats.totalMaxPoints}</div>
+          <div class="text-left shrink-0">
+            <div class="text-[11px] font-medium text-slate-500">إجمالي النقاط</div>
+            <div class="text-lg sm:text-xl font-bold font-mono text-emerald-800 tabular-nums">${stats.totalEarnedPoints} / ${stats.totalMaxPoints}</div>
           </div>
         </div>
 
-        <!-- Attendance Record Section -->
+        <!-- 1. Attendance Record Section (Neutral gray on 0, red/amber only on >0) -->
         <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
           <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider">سجل الحضور والغياب (الأحد والثلاثاء)</h4>
           <div class="grid grid-cols-3 gap-2 text-center text-xs">
-            <div class="p-2 rounded-lg bg-emerald-100/60 text-emerald-900">
-              <div class="text-[11px]">حضور</div>
-              <div class="text-base font-bold font-mono">${att.presentCount}</div>
+            <!-- Present: Green always -->
+            <div class="p-2.5 rounded-xl bg-emerald-100/70 text-emerald-900 border border-emerald-200/60">
+              <div class="text-[11px] font-semibold text-emerald-950">حضور</div>
+              <div class="text-base font-bold font-mono mt-0.5">${att.presentCount}</div>
             </div>
-            <div class="p-2 rounded-lg bg-amber-100/60 text-amber-900">
-              <div class="text-[11px]">اعتذار</div>
-              <div class="text-base font-bold font-mono">${att.excusedCount}</div>
+            <!-- Excused: Neutral gray on 0, amber if >0 -->
+            <div class="p-2.5 rounded-xl ${att.excusedCount > 0 ? 'bg-amber-100/70 text-amber-950 border border-amber-300/60' : 'bg-stone-100 text-stone-500 border border-stone-200/60'}">
+              <div class="text-[11px] font-semibold">اعتذار</div>
+              <div class="text-base font-bold font-mono mt-0.5">${att.excusedCount}</div>
             </div>
-            <div class="p-2 rounded-lg bg-red-100/60 text-red-900">
-              <div class="text-[11px]">غياب</div>
-              <div class="text-base font-bold font-mono">${att.absentCount}</div>
+            <!-- Absent: Neutral gray on 0, red if >0 -->
+            <div class="p-2.5 rounded-xl ${att.absentCount > 0 ? 'bg-rose-100/70 text-rose-950 border border-rose-300/60' : 'bg-stone-100 text-stone-500 border border-stone-200/60'}">
+              <div class="text-[11px] font-semibold">غياب</div>
+              <div class="text-base font-bold font-mono mt-0.5">${att.absentCount}</div>
             </div>
           </div>
 
@@ -2307,35 +2852,73 @@ export const SupervisorView = {
           </div>
         </div>
 
-        <!-- Assignments Breakdown -->
-        <div class="space-y-3">
-          <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider">تفاصيل إنجاز التكاليف (${stats.assignmentDetails.length})</h4>
-          <div class="space-y-3 max-h-[360px] overflow-y-auto pr-1">
-            ${stats.assignmentDetails.map(item => {
+        <!-- 2, 3, 4, 5. Unified Assignments Section with Accordion, Arabized Heading Badge, and Priority Order -->
+        <div class="space-y-3 pt-1">
+          <!-- Section Title with inline Badge directly adjacent in RTL flow -->
+          <div class="flex items-center justify-between gap-2.5 pb-2 border-b border-stone-200">
+            <div class="flex items-center gap-2.5 flex-wrap">
+              <h4 class="text-xs sm:text-sm font-bold text-slate-800 tracking-tight flex items-center gap-1.5">
+                <svg class="w-4 h-4 text-blue-900 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+                <span>متابعة تفاصيل التكاليف والمهام</span>
+              </h4>
+              <span class="text-[11px] font-bold px-2.5 py-0.5 rounded-lg border shadow-2xs ${incompleteCount === 0 ? 'bg-emerald-50 text-emerald-800 border-emerald-300' : 'bg-amber-50 text-amber-900 border-amber-300'}">
+                ${incompleteCount === 0 ? 'مكتمل 100%' : `${incompleteCount} بنود تتطلب إنجاز`}
+              </span>
+            </div>
+            <span class="text-[11px] text-stone-400 font-medium hidden sm:inline">اضغط على التكليف للطي أو التوسيع</span>
+          </div>
+
+          <!-- Accordion Items List (Sorted by priority: لم يُنجز → إنجاز جزئي → منجز) -->
+          <div class="space-y-2.5 max-h-[380px] overflow-y-auto pr-1">
+            ${allItems.map((item, idx) => {
               const asg = item.assignment;
               const s = item.stats;
               const completed = item.completedSubtaskIds;
+              const subtasks = asg.subtasks || [];
+              const isInitiallyOpen = false;
 
               return `
-                <div class="p-3.5 rounded-xl border border-slate-200 bg-white">
-                  <div class="flex items-center justify-between text-xs mb-1.5">
-                    <span class="font-bold text-slate-900">${Utils.escapeHtml(asg.title)}</span>
-                    <span class="font-mono tabular-nums font-semibold ${s.percentage === 100 ? 'text-teal-700' : 'text-slate-700'}">
-                      ${s.earnedPoints} / ${s.totalPoints} نقطة (${s.percentage}%)
-                    </span>
-                  </div>
+                <div class="student-asg-accordion rounded-xl border border-stone-200 bg-white overflow-hidden transition-all shadow-2xs hover:border-blue-300">
+                  <!-- Accordion Header Button (Clickable) with generous left padding for chevron -->
+                  <button type="button" class="accordion-toggle-btn w-full text-right p-3 sm:p-4 pl-4 sm:pl-5 flex items-center justify-between gap-3 sm:gap-4 cursor-pointer hover:bg-stone-50/80 transition-colors select-none" data-target="asg-body-${idx}">
+                    <div class="min-w-0 flex-1">
+                      <div class="flex items-center gap-2 flex-wrap">
+                        <h5 class="text-xs sm:text-sm font-bold text-slate-900 leading-normal break-normal whitespace-normal">
+                          ${Utils.escapeHtml(asg.title)}
+                        </h5>
+                        <span class="text-[11px] font-bold px-2 py-0.5 rounded-md border shrink-0 ${item.badgeClass}">
+                          ${item.statusText}
+                        </span>
+                      </div>
+                      ${item.note ? `<p class="text-[11px] text-stone-500 mt-1 leading-normal break-normal">${Utils.escapeHtml(item.note)}</p>` : ''}
+                    </div>
 
-                  <!-- Subtasks mini checklist -->
-                  <div class="space-y-1 pt-1.5 border-t border-slate-100">
-                    ${(asg.subtasks || []).map(sub => {
+                    <div class="flex items-center gap-2.5 sm:gap-3.5 shrink-0 pl-1">
+                      <div class="text-left">
+                        <span class="font-mono tabular-nums font-bold text-xs sm:text-sm ${item.priority === 3 ? 'text-emerald-700' : 'text-slate-800'}">
+                          ${s.earnedPoints} / ${s.totalPoints} نقطة
+                        </span>
+                      </div>
+                      <div class="w-7 h-7 rounded-lg bg-stone-100/90 hover:bg-stone-200/90 flex items-center justify-center shrink-0 text-stone-500 transition-colors">
+                        <svg class="accordion-chevron w-3.5 h-3.5 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                        </svg>
+                      </div>
+                    </div>
+                  </button>
+
+                  <!-- Accordion Collapsible Body (Subtasks Checklist) -->
+                  <div id="asg-body-${idx}" class="accordion-body hidden px-3.5 pb-3.5 pt-1 border-t border-stone-100 bg-stone-50/50 space-y-1.5">
+                    <div class="text-[11px] font-semibold text-stone-500 mb-1">تفاصيل المهام الفرعية:</div>
+                    ${subtasks.map(sub => {
                       const isDone = completed.includes(sub.id);
                       return `
-                        <div class="flex items-center justify-between text-xs py-0.5">
-                          <span class="flex items-center gap-1.5 ${isDone ? 'text-slate-800' : 'text-slate-400'}">
-                            <span>${isDone ? '✓' : '○'}</span>
-                            <span class="${isDone ? 'font-medium' : ''}">${Utils.escapeHtml(sub.title)}</span>
+                        <div class="flex items-center justify-between text-xs py-1.5 px-3 rounded-lg ${isDone ? 'bg-emerald-50/80 text-emerald-950 border border-emerald-200/50' : 'bg-white text-stone-600 border border-stone-200/60'}">
+                          <span class="flex items-center gap-2 min-w-0 flex-1">
+                            <span class="text-sm font-bold shrink-0 ${isDone ? 'text-emerald-700' : 'text-stone-300'}">${isDone ? '✓' : '○'}</span>
+                            <span class="${isDone ? 'font-medium' : ''} break-normal whitespace-normal leading-relaxed">${Utils.escapeHtml(sub.title)}</span>
                           </span>
-                          <span class="font-mono text-[11px] ${isDone ? 'text-emerald-700 font-semibold' : 'text-slate-400'}">
+                          <span class="font-mono text-[11px] shrink-0 mr-2 ${isDone ? 'text-emerald-700 font-bold' : 'text-stone-400'}">
                             ${sub.points} نقطة
                           </span>
                         </div>
@@ -2350,16 +2933,46 @@ export const SupervisorView = {
       </div>
     `;
 
+    // Hook Accordion Toggles
+    modalContent.querySelectorAll('.accordion-toggle-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const targetId = btn.dataset.target;
+        const targetBody = modalContent.querySelector(`#${targetId}`);
+        const chevron = btn.querySelector('.accordion-chevron');
+        if (targetBody) {
+          const isHidden = targetBody.classList.contains('hidden');
+          if (isHidden) {
+            targetBody.classList.remove('hidden');
+            chevron?.classList.add('rotate-180', 'text-blue-900');
+          } else {
+            targetBody.classList.add('hidden');
+            chevron?.classList.remove('rotate-180', 'text-blue-900');
+          }
+        }
+      });
+    });
+
     modal.classList.remove('hidden');
+    modal.classList.add('active');
+    modal.style.removeProperty('display');
     modal.style.display = 'flex';
+
+    const closeModal = () => {
+      modal.classList.add('hidden');
+      modal.classList.remove('active');
+      modal.style.display = 'none';
+    };
 
     const closeBtn = document.getElementById('student-detail-close');
     if (closeBtn) {
-      closeBtn.onclick = () => {
-        modal.classList.add('hidden');
-        modal.style.display = 'none';
-      };
+      closeBtn.onclick = closeModal;
     }
+
+    modal.onclick = (e) => {
+      if (e.target === modal) {
+        closeModal();
+      }
+    };
   },
 
   /**
@@ -2399,15 +3012,26 @@ export const SupervisorView = {
     this.currentFormData = asg;
     this.renderAssignmentModalForm();
     modal.classList.remove('hidden');
+    modal.classList.add('active');
+    modal.style.removeProperty('display');
     modal.style.display = 'flex';
+
+    const closeModal = () => {
+      modal.classList.add('hidden');
+      modal.classList.remove('active');
+      modal.style.display = 'none';
+    };
 
     const closeBtn = document.getElementById('asg-form-close');
     if (closeBtn) {
-      closeBtn.onclick = () => {
-        modal.classList.add('hidden');
-        modal.style.display = 'none';
-      };
+      closeBtn.onclick = closeModal;
     }
+
+    modal.onclick = (e) => {
+      if (e.target === modal) {
+        closeModal();
+      }
+    };
   },
 
   /**
@@ -2420,7 +3044,7 @@ export const SupervisorView = {
     const asg = this.currentFormData;
 
     body.innerHTML = `
-      <form id="asg-editor-form" class="space-y-4">
+      <form id="asg-editor-form" class="space-y-4" novalidate>
         <div>
           <label class="block text-xs font-semibold text-slate-700 mb-1">اسم التكليف *</label>
           <input type="text" id="asg-input-title" required value="${Utils.escapeHtml(asg.title)}" class="w-full text-xs sm:text-sm p-2.5 rounded-xl border border-slate-300 focus:ring-emerald-500 focus:outline-hidden" placeholder="مثال: مختصر الأسماء والصفات">
@@ -2436,7 +3060,7 @@ export const SupervisorView = {
             <span>رابط المصدر</span>
             <span class="text-[11px] text-slate-500 font-normal">اختياري</span>
           </label>
-          <input type="url" id="asg-input-source-url" value="${Utils.escapeHtml(asg.sourceUrl || '')}" class="w-full text-xs sm:text-sm p-2.5 rounded-xl border border-slate-300 focus:ring-blue-900 focus:border-blue-900 focus:outline-hidden" placeholder="https://... (رابط المادة، Drive، أو يوتيوب)">
+          <input type="text" id="asg-input-source-url" value="${Utils.escapeHtml(asg.sourceUrl || '')}" class="w-full text-xs sm:text-sm p-2.5 rounded-xl border border-slate-300 focus:ring-blue-900 focus:border-blue-900 focus:outline-hidden" placeholder="https://... (رابط المادة، Drive، أو يوتيوب)">
         </div>
 
         <!-- Hidden unified date fields to preserve data without display -->
@@ -2503,15 +3127,25 @@ export const SupervisorView = {
           </div>
         ` : ''}
 
-        <!-- Submit Button -->
+        <!-- Action Buttons -->
         <div class="flex items-center justify-end gap-2 pt-4 border-t border-slate-200">
-          <button type="button" id="asg-form-cancel-btn" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl cursor-pointer">إلغاء</button>
-          <button type="submit" class="px-5 py-2 text-xs sm:text-sm font-semibold text-white bg-blue-900 hover:bg-blue-800 rounded-xl shadow-xs cursor-pointer">حفظ التكليف</button>
+          <button type="button" id="asg-form-cancel-btn" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl cursor-pointer transition-colors">إلغاء</button>
+          <button type="submit" id="asg-form-save-btn" class="px-5 py-2 text-xs sm:text-sm font-semibold text-white bg-blue-900 hover:bg-blue-800 rounded-xl shadow-xs cursor-pointer transition-colors">حفظ التكليف</button>
         </div>
       </form>
     `;
 
     this.renderSubtaskRows();
+
+    // Helper to reliably close the assignment modal
+    const closeAssignmentModal = () => {
+      const modal = document.getElementById('asg-form-modal');
+      if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('active');
+        modal.style.display = 'none';
+      }
+    };
 
     // Attach active toggle switch description update
     const activeToggle = body.querySelector('#asg-input-active');
@@ -2524,19 +3158,28 @@ export const SupervisorView = {
       });
     }
 
-    // Attach events
+    // Attach input event to total points field to re-evaluate subtask sum
+    const totalPointsInput = body.querySelector('#asg-input-points');
+    if (totalPointsInput) {
+      totalPointsInput.addEventListener('input', () => {
+        this.renderSubtaskRows();
+      });
+    }
+
+    // Attach Cancel button click handler
     const cancelBtn = body.querySelector('#asg-form-cancel-btn');
     if (cancelBtn) {
-      cancelBtn.addEventListener('click', () => {
-        const modal = document.getElementById('asg-form-modal');
-        modal.classList.add('hidden');
-        modal.style.display = 'none';
+      cancelBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        closeAssignmentModal();
       });
     }
 
     const addSubtaskBtn = body.querySelector('#btn-add-subtask');
     if (addSubtaskBtn) {
       addSubtaskBtn.addEventListener('click', () => {
+        // First sync existing values
+        this.syncSubtasksFromInputs();
         const count = this.currentFormData.subtasks.length + 1;
         this.currentFormData.subtasks.push({
           id: `sub_${Date.now()}_${count}`,
@@ -2550,7 +3193,7 @@ export const SupervisorView = {
     const autoDistributeBtn = body.querySelector('#btn-auto-distribute');
     if (autoDistributeBtn) {
       autoDistributeBtn.addEventListener('click', () => {
-        const total = Number(document.getElementById('asg-input-points').value) || 20;
+        const total = Number(document.getElementById('asg-input-points')?.value) || 20;
         const count = this.currentFormData.subtasks.length;
         if (count === 0) return;
 
@@ -2565,60 +3208,114 @@ export const SupervisorView = {
       });
     }
 
-    // Form submit
+    // Form submit & Save button
     const form = body.querySelector('#asg-editor-form');
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      try {
-        const title = document.getElementById('asg-input-title').value.trim();
-        const description = document.getElementById('asg-input-desc').value.trim();
-        const sourceUrl = (document.getElementById('asg-input-source-url')?.value || '').trim();
-        const sourceType = sourceUrl ? 'link' : 'none';
-        const startDate = document.getElementById('asg-input-start')?.value || this.currentFormData.startDate || '2026-09-01';
-        const endDate = document.getElementById('asg-input-end')?.value || this.currentFormData.endDate || '2026-09-30';
-        const points = Number(document.getElementById('asg-input-points').value);
-        const active = document.getElementById('asg-input-active').checked;
+    if (form) {
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        try {
+          const titleInput = document.getElementById('asg-input-title');
+          const title = (titleInput?.value || '').trim();
+          if (!title) {
+            Utils.showToast('يرجى إدخال اسم التكليف أولاً', 'warning');
+            titleInput?.focus();
+            return;
+          }
 
-        if (this.currentFormData.subtasks.length === 0) {
-          throw new Error('يجب إضافة مهمة فرعية واحدة على الأقل للتكليف.');
+          const description = (document.getElementById('asg-input-desc')?.value || '').trim();
+          let sourceUrl = (document.getElementById('asg-input-source-url')?.value || '').trim();
+          if (sourceUrl && !sourceUrl.startsWith('http://') && !sourceUrl.startsWith('https://')) {
+            sourceUrl = 'https://' + sourceUrl;
+          }
+          const sourceType = sourceUrl ? 'link' : 'none';
+          const startDate = document.getElementById('asg-input-start')?.value || this.currentFormData.startDate || '2026-09-01';
+          const endDate = document.getElementById('asg-input-end')?.value || this.currentFormData.endDate || '2026-09-30';
+          const pointsInput = document.getElementById('asg-input-points');
+          const points = Number(pointsInput?.value) || 0;
+
+          if (points <= 0 || points > 100) {
+            Utils.showToast('يرجى تحديد إجمالي نقاط التكليف (بين 1 و 100)', 'warning');
+            pointsInput?.focus();
+            return;
+          }
+
+          const active = Boolean(document.getElementById('asg-input-active')?.checked);
+
+          // Synchronize subtasks from DOM inputs
+          this.syncSubtasksFromInputs();
+
+          if (this.currentFormData.subtasks.length === 0) {
+            Utils.showToast('يجب إضافة مهمة فرعية واحدة على الأقل للتكليف.', 'warning');
+            return;
+          }
+
+          let sumSubtaskPoints = this.currentFormData.subtasks.reduce((sum, s) => sum + Number(s.points || 0), 0);
+          if (sumSubtaskPoints !== points) {
+            if (this.currentFormData.subtasks.length === 1) {
+              this.currentFormData.subtasks[0].points = points;
+              sumSubtaskPoints = points;
+            } else {
+              // Auto-balance if points don't match
+              const count = this.currentFormData.subtasks.length;
+              const base = Math.floor(points / count);
+              const remainder = points % count;
+              this.currentFormData.subtasks.forEach((st, idx) => {
+                st.points = base + (idx < remainder ? 1 : 0);
+              });
+              this.renderSubtaskRows();
+              Utils.showToast(`تم تعديل توزيع نقاط المهام تلقائياً لتطابق إجمالي التكليف (${points} نقطة)`, 'info');
+            }
+          }
+
+          const payload = {
+            title,
+            description,
+            sourceType,
+            sourceUrl,
+            startDate,
+            endDate,
+            points,
+            active,
+            subtasks: this.currentFormData.subtasks
+          };
+
+          if (this.editingAssignmentId) {
+            await AssignmentService.updateAssignment(this.editingAssignmentId, payload);
+            Utils.showToast('تم حفظ وتحديث التكليف بنجاح', 'success');
+          } else {
+            const autoDistribute = document.getElementById('asg-input-auto-distribute')?.checked ?? true;
+            await AssignmentService.createAssignment(payload, autoDistribute);
+            Utils.showToast(autoDistribute 
+              ? 'تمت إضافة التكليف وتوزيع الـ 100 نقطة بالتساوي تلقائياً' 
+              : 'تمت إضافة التكليف بنجاح', 'success');
+          }
+
+          closeAssignmentModal();
+          await this.loadAll();
+        } catch (err) {
+          console.error('Assignment save error:', err);
+          Utils.showToast(err.message || 'حدث خطأ أثناء حفظ التكليف', 'error');
         }
+      });
+    }
+  },
 
-        const sumSubtaskPoints = this.currentFormData.subtasks.reduce((sum, s) => sum + Number(s.points || 0), 0);
-        if (sumSubtaskPoints !== points) {
-          throw new Error(`مجموع نقاط المهام (${sumSubtaskPoints}) لا يتطابق مع إجمالي نقاط التكليف (${points}). اضغط "توزيع النقاط بالتساوي" أو عدلها يدويًا.`);
-        }
+  /**
+   * Helper to sync subtasks array from live DOM inputs
+   */
+  syncSubtasksFromInputs() {
+    const container = document.getElementById('subtasks-list-container');
+    if (!container || !this.currentFormData?.subtasks) return;
 
-        const payload = {
-          title,
-          description,
-          sourceType,
-          sourceUrl,
-          startDate,
-          endDate,
-          points,
-          active,
-          subtasks: this.currentFormData.subtasks
-        };
+    container.querySelectorAll('.subtask-title-input').forEach((inp, idx) => {
+      if (this.currentFormData.subtasks[idx]) {
+        this.currentFormData.subtasks[idx].title = (inp.value || '').trim() || `المهمة ${idx + 1}`;
+      }
+    });
 
-        if (this.editingAssignmentId) {
-          await AssignmentService.updateAssignment(this.editingAssignmentId, payload);
-          Utils.showToast('تم تحديث التكليف بنجاح', 'success');
-        } else {
-          const autoDistribute = document.getElementById('asg-input-auto-distribute')?.checked ?? true;
-          await AssignmentService.createAssignment(payload, autoDistribute);
-          Utils.showToast(autoDistribute 
-            ? 'تمت إضافة التكليف وتوزيع الـ 100 نقطة بالتساوي تلقائياً' 
-            : 'تمت إضافة التكليف بنجاح', 'success');
-        }
-
-        const formModal = document.getElementById('asg-form-modal');
-        if (formModal) {
-          formModal.classList.add('hidden');
-          formModal.style.display = 'none';
-        }
-        await this.loadAll();
-      } catch (err) {
-        Utils.showToast(err.message, 'error');
+    container.querySelectorAll('.subtask-points-input').forEach((inp, idx) => {
+      if (this.currentFormData.subtasks[idx]) {
+        this.currentFormData.subtasks[idx].points = Math.max(0, Number(inp.value) || 0);
       }
     });
   },

@@ -23,7 +23,6 @@ export const INITIAL_DATA = {
       name: 'الشيخ محمد الشواحي',
       email: 'admin@taaheel.sa',
       role: 'supervisor',
-      avatar: 'الشيخ محمد',
       createdAt: '2026-09-01T08:00:00Z'
     },
     // 2. مسؤول التحضير
@@ -32,7 +31,6 @@ export const INITIAL_DATA = {
       name: 'مسؤول التحضير',
       email: 'attendance@taaheeltaskforce.com',
       role: 'attendance',
-      avatar: 'التحضير',
       createdAt: '2026-09-01T08:00:00Z'
     },
 
@@ -46,7 +44,6 @@ export const INITIAL_DATA = {
       name: 'غسان اسماعيل ابراهيم شبير',
       email: '6F5JWlh28OeUdZTHT0JQXlNryll2@taaheeltaskforce.com',
       role: 'student',
-      avatar: 'غسان',
       mahadId: 'mahd_takween_ajawid',
       mahadName: 'تكوين الأجاويد',
       createdAt: '2026-09-01T08:00:00Z'
@@ -56,7 +53,6 @@ export const INITIAL_DATA = {
       name: 'وجدي عبدالله محمد معوضه',
       email: 'X5Dc0d05f4WHZm6m4xLzJapGP352@taaheeltaskforce.com',
       role: 'student',
-      avatar: 'وجدي',
       mahadId: 'mahd_takween_ajawid',
       mahadName: 'تكوين الأجاويد',
       createdAt: '2026-09-01T08:00:00Z'
@@ -66,7 +62,6 @@ export const INITIAL_DATA = {
       name: 'علي برناوي',
       email: '8IW99lJS8wSuClb24QS2tJgrHrp2@taaheeltaskforce.com',
       role: 'student',
-      avatar: 'علي',
       mahadId: 'mahd_takween_ajawid',
       mahadName: 'تكوين الأجاويد',
       createdAt: '2026-09-01T08:00:00Z'
@@ -76,7 +71,6 @@ export const INITIAL_DATA = {
       name: 'حسن محمد الأشرم',
       email: 'PHHhuh7tTLcQ6HdwbriDfvZ6jW63@taaheeltaskforce.com',
       role: 'student',
-      avatar: 'حسن',
       mahadId: 'mahd_takween_ajawid',
       mahadName: 'تكوين الأجاويد',
       createdAt: '2026-09-01T08:00:00Z'
@@ -86,7 +80,6 @@ export const INITIAL_DATA = {
       name: 'حسين خضر',
       email: 'snpnOpFc9lXiYk8unz2I96RSn283@taaheeltaskforce.com',
       role: 'student',
-      avatar: 'حسين',
       mahadId: 'mahd_takween_ajawid',
       mahadName: 'تكوين الأجاويد',
       createdAt: '2026-09-01T08:00:00Z'
@@ -96,7 +89,6 @@ export const INITIAL_DATA = {
       name: 'أبو بكر موسى عيسى مالا',
       email: 'sFtURW5zOSPu68halRL3u6IoZB03@taaheeltaskforce.com',
       role: 'student',
-      avatar: 'أبو بكر',
       mahadId: 'mahd_takween_ajawid',
       mahadName: 'تكوين الأجاويد',
       createdAt: '2026-09-01T08:00:00Z'
@@ -106,7 +98,6 @@ export const INITIAL_DATA = {
       name: 'أحمد إبراهيم عبدالله القرني',
       email: 'EbnDIOf5POhT0E3f6DwSDISNerA2@taaheeltaskforce.com',
       role: 'student',
-      avatar: 'أحمد',
       mahadId: 'mahd_takween_ajawid',
       mahadName: 'تكوين الأجاويد',
       createdAt: '2026-09-01T08:00:00Z'
@@ -116,7 +107,6 @@ export const INITIAL_DATA = {
       name: 'يوسف البسيسي',
       email: 'sdz7zvE4ftf3H8R3Xlm4SBPwwNE2@taaheeltaskforce.com',
       role: 'student',
-      avatar: 'يوسف',
       mahadId: 'mahd_takween_ajawid',
       mahadName: 'تكوين الأجاويد',
       createdAt: '2026-09-01T08:00:00Z'
@@ -126,7 +116,6 @@ export const INITIAL_DATA = {
       name: 'علي أبوبكر أبوبكر تيجاني',
       email: 'odhZaV2Uq9VxqHQbbxAq2ZS94Ls1@taaheeltaskforce.com',
       role: 'student',
-      avatar: 'علي',
       mahadId: 'mahd_takween_ajawid',
       mahadName: 'تكوين الأجاويد',
       createdAt: '2026-09-01T08:00:00Z'
@@ -138,7 +127,6 @@ export const INITIAL_DATA = {
       name: 'أحمد عادل باعارمة',
       email: '8AsSUAb3UlaMWAWJaU5v1n3nuDH2@taaheeltaskforce.com',
       role: 'student',
-      avatar: 'أحمد',
       mahadId: 'mahd_tasees_tayseer',
       mahadName: 'تأسيس التيسير',
       createdAt: '2026-09-01T08:00:00Z'
@@ -148,7 +136,6 @@ export const INITIAL_DATA = {
       name: 'خالد مبروك المولد',
       email: 'QlGTx5Z37LNow03hoBtdKunYXrs2@taaheeltaskforce.com',
       role: 'student',
-      avatar: 'خالد',
       mahadId: 'mahd_tasees_tayseer',
       mahadName: 'تأسيس التيسير',
       createdAt: '2026-09-01T08:00:00Z'
@@ -158,7 +145,6 @@ export const INITIAL_DATA = {
       name: 'فارس النهاري',
       email: 'tNeebiHbNdPMJ1ORsZb2sdxurLI2@taaheeltaskforce.com',
       role: 'student',
-      avatar: 'فارس',
       mahadId: 'mahd_tasees_tayseer',
       mahadName: 'تأسيس التيسير',
       createdAt: '2026-09-01T08:00:00Z'
@@ -168,7 +154,6 @@ export const INITIAL_DATA = {
       name: 'نواف محمد مجدلي',
       email: 'FVbwoQRRx5VVjF0Dc2tFrOdaLiA2@taaheeltaskforce.com',
       role: 'student',
-      avatar: 'نواف',
       mahadId: 'mahd_tasees_tayseer',
       mahadName: 'تأسيس التيسير',
       createdAt: '2026-09-01T08:00:00Z'
@@ -178,7 +163,6 @@ export const INITIAL_DATA = {
       name: 'ثامر محمد مجدلي',
       email: 'Ssw0cYU7oLSgJrGL2vZynm4r1rm2@taaheeltaskforce.com',
       role: 'student',
-      avatar: 'ثامر',
       mahadId: 'mahd_tasees_tayseer',
       mahadName: 'تأسيس التيسير',
       createdAt: '2026-09-01T08:00:00Z'
@@ -188,7 +172,6 @@ export const INITIAL_DATA = {
       name: 'عبدالرحمن أحمد علي الزبيدي',
       email: 'IkK9v65WAhMEesrDmgBfFgucQcW2@taaheeltaskforce.com',
       role: 'student',
-      avatar: 'عبدالرحمن',
       mahadId: 'mahd_tasees_tayseer',
       mahadName: 'تأسيس التيسير',
       createdAt: '2026-09-01T08:00:00Z'
@@ -200,7 +183,6 @@ export const INITIAL_DATA = {
       name: 'سالم عبدالرحمن السباحي',
       email: '67f8IU8ag0QL6I7ZtgJ0JIy4v2M2@taaheeltaskforce.com',
       role: 'student',
-      avatar: 'سالم',
       mahadId: 'mahd_takween_tayseer',
       mahadName: 'تكوين التيسير',
       createdAt: '2026-09-01T08:00:00Z'
@@ -210,7 +192,6 @@ export const INITIAL_DATA = {
       name: 'عمر عبد العزيز علي',
       email: 'BxdmnHxCmTb93SrShyiUfKIL3ji2@taaheeltaskforce.com',
       role: 'student',
-      avatar: 'عمر',
       mahadId: 'mahd_takween_tayseer',
       mahadName: 'تكوين التيسير',
       createdAt: '2026-09-01T08:00:00Z'
@@ -220,7 +201,6 @@ export const INITIAL_DATA = {
       name: 'نايف سعيد باكوبن',
       email: 'wI0Aquza3LRwqtYPrgVKXg1npmU2@taaheeltaskforce.com',
       role: 'student',
-      avatar: 'نايف',
       mahadId: 'mahd_takween_tayseer',
       mahadName: 'تكوين التيسير',
       createdAt: '2026-09-01T08:00:00Z'
@@ -232,7 +212,6 @@ export const INITIAL_DATA = {
       name: 'جبرين محمد حسن',
       email: 'FD8dmiCpgmRI75dMB3tPi7uMqfi2@taaheeltaskforce.com',
       role: 'student',
-      avatar: 'جبرين',
       mahadId: 'mahd_tasees_raghama',
       mahadName: 'تأسيس الرغامة',
       createdAt: '2026-09-01T08:00:00Z'
@@ -242,7 +221,6 @@ export const INITIAL_DATA = {
       name: 'نواف لطفي شماع',
       email: '2H9UAgvW1iaTIi6ODp6Pz9skDZb2@taaheeltaskforce.com',
       role: 'student',
-      avatar: 'نواف',
       mahadId: 'mahd_tasees_raghama',
       mahadName: 'تأسيس الرغامة',
       createdAt: '2026-09-01T08:00:00Z'
@@ -252,7 +230,6 @@ export const INITIAL_DATA = {
       name: 'جبريل محمد عثمان',
       email: 'EtuqpKp0cPMwgPOtmHqRsnnSqZy1@taaheeltaskforce.com',
       role: 'student',
-      avatar: 'جبريل',
       mahadId: 'mahd_tasees_raghama',
       mahadName: 'تأسيس الرغامة',
       createdAt: '2026-09-01T08:00:00Z'
@@ -262,7 +239,6 @@ export const INITIAL_DATA = {
       name: 'مهند أحمد الراجحي',
       email: 'm61ksX1NpWcvaSysVY1zQU3dvdh2@taaheeltaskforce.com',
       role: 'student',
-      avatar: 'مهند',
       mahadId: 'mahd_tasees_raghama',
       mahadName: 'تأسيس الرغامة',
       createdAt: '2026-09-01T08:00:00Z'
@@ -272,7 +248,6 @@ export const INITIAL_DATA = {
       name: 'إياد محمد الحربي',
       email: 'wDriDENRMuZb0nTi6ubPn0n97Dt1@taaheeltaskforce.com',
       role: 'student',
-      avatar: 'إياد',
       mahadId: 'mahd_tasees_raghama',
       mahadName: 'تأسيس الرغامة',
       createdAt: '2026-09-01T08:00:00Z'
@@ -282,7 +257,6 @@ export const INITIAL_DATA = {
       name: 'موسى عبدالرحمن',
       email: 'bUW5DNBNtGe9oScxpNGXJtHJw9j1@taaheeltaskforce.com',
       role: 'student',
-      avatar: 'موسى',
       mahadId: 'mahd_tasees_raghama',
       mahadName: 'تأسيس الرغامة',
       createdAt: '2026-09-01T08:00:00Z'
@@ -292,7 +266,6 @@ export const INITIAL_DATA = {
       name: 'نواف جعفر باطهف',
       email: 'FtAhbeIIwAPIiR9DJsYdF2wAy1z1@taaheeltaskforce.com',
       role: 'student',
-      avatar: 'نواف',
       mahadId: 'mahd_tasees_raghama',
       mahadName: 'تأسيس الرغامة',
       createdAt: '2026-09-01T08:00:00Z'
@@ -302,7 +275,6 @@ export const INITIAL_DATA = {
       name: 'أنس محمد زنبع',
       email: 'QM3d0cTA00ert2pP7KwuOFfRlxx1@taaheeltaskforce.com',
       role: 'student',
-      avatar: 'أنس',
       mahadId: 'mahd_tasees_raghama',
       mahadName: 'تأسيس الرغامة',
       createdAt: '2026-09-01T08:00:00Z'
@@ -312,7 +284,6 @@ export const INITIAL_DATA = {
       name: 'فارس سكندر علي',
       email: 'udizbwik0xSCjX34BeqYJSXHGyc2@taaheeltaskforce.com',
       role: 'student',
-      avatar: 'فارس',
       mahadId: 'mahd_tasees_raghama',
       mahadName: 'تأسيس الرغامة',
       createdAt: '2026-09-01T08:00:00Z'
@@ -322,7 +293,6 @@ export const INITIAL_DATA = {
       name: 'خليل إبراهيم جابر',
       email: '91yuoylr8nX2bOkwGkgRkjctfFl2@taaheeltaskforce.com',
       role: 'student',
-      avatar: 'خليل',
       mahadId: 'mahd_tasees_raghama',
       mahadName: 'تأسيس الرغامة',
       createdAt: '2026-09-01T08:00:00Z'
@@ -334,7 +304,6 @@ export const INITIAL_DATA = {
       name: 'الوليد خالد الزهراني',
       email: 'ttiFfyTsBEVCcoUVHbLcOgbTxvn1@taaheeltaskforce.com',
       role: 'student',
-      avatar: 'الوليد',
       mahadId: 'mahd_takween_raghama',
       mahadName: 'تكوين الرغامة',
       createdAt: '2026-09-01T08:00:00Z'
@@ -344,7 +313,6 @@ export const INITIAL_DATA = {
       name: 'عبداللطيف محمد',
       email: 'ymLAqCZxlURErFyUBiYspVNKFQO2@taaheeltaskforce.com',
       role: 'student',
-      avatar: 'عبداللطيف',
       mahadId: 'mahd_takween_raghama',
       mahadName: 'تكوين الرغامة',
       createdAt: '2026-09-01T08:00:00Z'
@@ -354,7 +322,6 @@ export const INITIAL_DATA = {
       name: 'بلال غزوان زهراوي',
       email: 'OpMXwc9eLeb6lGffGWAgeAONpYF2@taaheeltaskforce.com',
       role: 'student',
-      avatar: 'بلال',
       mahadId: 'mahd_takween_raghama',
       mahadName: 'تكوين الرغامة',
       createdAt: '2026-09-01T08:00:00Z'
@@ -364,7 +331,6 @@ export const INITIAL_DATA = {
       name: 'صالح محمد صالح بامهدي',
       email: 'MVvrW7lYVacAosUYkbDEucimIUj1@taaheeltaskforce.com',
       role: 'student',
-      avatar: 'صالح',
       mahadId: 'mahd_takween_raghama',
       mahadName: 'تكوين الرغامة',
       createdAt: '2026-09-01T08:00:00Z'
@@ -374,7 +340,6 @@ export const INITIAL_DATA = {
       name: 'أمجد محمد رباح الحربي',
       email: 'aSMgCPhtbYTiEICssPwIXgkCAy23@taaheeltaskforce.com',
       role: 'student',
-      avatar: 'أمجد',
       mahadId: 'mahd_takween_raghama',
       mahadName: 'تكوين الرغامة',
       createdAt: '2026-09-01T08:00:00Z'
@@ -384,7 +349,6 @@ export const INITIAL_DATA = {
       name: 'شريف مصطفى هارون',
       email: 'azp08zbe2eZvspsdrIryseDxV4y1@taaheeltaskforce.com',
       role: 'student',
-      avatar: 'شريف',
       mahadId: 'mahd_takween_raghama',
       mahadName: 'تكوين الرغامة',
       createdAt: '2026-09-01T08:00:00Z'
@@ -394,7 +358,6 @@ export const INITIAL_DATA = {
       name: 'عبد الرحمن الزهراني',
       email: 'OaLDTZMgHZa3Q6qj7L0U44OUV1v1@taaheeltaskforce.com',
       role: 'student',
-      avatar: 'عبد الرحمن',
       mahadId: 'mahd_takween_raghama',
       mahadName: 'تكوين الرغامة',
       createdAt: '2026-09-01T08:00:00Z'
@@ -404,7 +367,6 @@ export const INITIAL_DATA = {
       name: 'محمد بن هادي دردري',
       email: 'ITMPyv2Qr7aUh3epkXD0zb7VDOH2@taaheeltaskforce.com',
       role: 'student',
-      avatar: 'محمد',
       mahadId: 'mahd_takween_raghama',
       mahadName: 'تكوين الرغامة',
       createdAt: '2026-09-01T08:00:00Z'
@@ -416,7 +378,6 @@ export const INITIAL_DATA = {
       name: 'فيصل عطية الذبياني',
       email: 'MWFmakMHrfYTR2FyDpHQujhMsge2@taaheeltaskforce.com',
       role: 'student',
-      avatar: 'فيصل',
       mahadId: 'mahd_tasees_naseem',
       mahadName: 'تأسيس النسيم',
       createdAt: '2026-09-01T08:00:00Z'
@@ -426,7 +387,6 @@ export const INITIAL_DATA = {
       name: 'إبراهيم أنس فالته',
       email: 'lNvo1cqasUZA4oct1q3BMgR0B4I3@taaheeltaskforce.com',
       role: 'student',
-      avatar: 'إبراهيم',
       mahadId: 'mahd_tasees_naseem',
       mahadName: 'تأسيس النسيم',
       createdAt: '2026-09-01T08:00:00Z'
@@ -436,7 +396,6 @@ export const INITIAL_DATA = {
       name: 'سعيد باعطيه',
       email: 'wibSrTyllLhUGR5KFv5Ct9YFANN2@taaheeltaskforce.com',
       role: 'student',
-      avatar: 'سعيد',
       mahadId: 'mahd_tasees_naseem',
       mahadName: 'تأسيس النسيم',
       createdAt: '2026-09-01T08:00:00Z'
@@ -446,7 +405,6 @@ export const INITIAL_DATA = {
       name: 'أمجد محمد باعباد',
       email: '9lV2DtkzTxguTjRsNOGZuhWXxsN2@taaheeltaskforce.com',
       role: 'student',
-      avatar: 'أمجد',
       mahadId: 'mahd_tasees_naseem',
       mahadName: 'تأسيس النسيم',
       createdAt: '2026-09-01T08:00:00Z'
@@ -456,7 +414,6 @@ export const INITIAL_DATA = {
       name: 'أحمد فؤاد عبدالله',
       email: '954ciAdPgIZC9hHf9K3jYxJ0m2H2@taaheeltaskforce.com',
       role: 'student',
-      avatar: 'أحمد',
       mahadId: 'mahd_tasees_naseem',
       mahadName: 'تأسيس النسيم',
       createdAt: '2026-09-01T08:00:00Z'
@@ -466,7 +423,6 @@ export const INITIAL_DATA = {
       name: 'عبدالغني محمود الحربي',
       email: 'S0Lqc4MmuHMd5gSProK715WCIlK2@taaheeltaskforce.com',
       role: 'student',
-      avatar: 'عبدالغني',
       mahadId: 'mahd_tasees_naseem',
       mahadName: 'تأسيس النسيم',
       createdAt: '2026-09-01T08:00:00Z'
@@ -476,7 +432,6 @@ export const INITIAL_DATA = {
       name: 'محمد عبدالله سالم بن محفوظ',
       email: 'kbXFvAu8lqU7Dyx1RnFtpBktVmq1@taaheeltaskforce.com',
       role: 'student',
-      avatar: 'محمد',
       mahadId: 'mahd_tasees_naseem',
       mahadName: 'تأسيس النسيم',
       createdAt: '2026-09-01T08:00:00Z'
@@ -486,7 +441,6 @@ export const INITIAL_DATA = {
       name: 'محمدعبدالفتاح نوح',
       email: 'P7C4KPVTwtV16PBoflzvjhpBDks2@taaheeltaskforce.com',
       role: 'student',
-      avatar: 'محمد',
       mahadId: 'mahd_tasees_naseem',
       mahadName: 'تأسيس النسيم',
       createdAt: '2026-09-01T08:00:00Z'
@@ -496,7 +450,6 @@ export const INITIAL_DATA = {
       name: 'عبدالله الصبياني',
       email: 'S6RfYhnG2ATsQ27gVgkGPH4oWg83@taaheeltaskforce.com',
       role: 'student',
-      avatar: 'عبدالله',
       mahadId: 'mahd_tasees_naseem',
       mahadName: 'تأسيس النسيم',
       createdAt: '2026-09-01T08:00:00Z'
@@ -508,7 +461,6 @@ export const INITIAL_DATA = {
       name: 'صالح محمد عثمان',
       email: 'nOAP6PV4qEZ3YA3lcKfvJhviXrA2@taaheeltaskforce.com',
       role: 'student',
-      avatar: 'صالح',
       mahadId: 'mahd_takween_naseem',
       mahadName: 'تكوين النسيم',
       createdAt: '2026-09-01T08:00:00Z'
@@ -518,7 +470,6 @@ export const INITIAL_DATA = {
       name: 'أمجد محمد يحيى حارثي',
       email: '0zQHyDYbsVYs2pssQVXlnSvsPqE2@taaheeltaskforce.com',
       role: 'student',
-      avatar: 'أمجد',
       mahadId: 'mahd_takween_naseem',
       mahadName: 'تكوين النسيم',
       createdAt: '2026-09-01T08:00:00Z'
@@ -528,7 +479,6 @@ export const INITIAL_DATA = {
       name: 'سياد عبدالكريم سياد',
       email: 'sUT40NeyyyWHwJzuJNY5ubDbv7i1@taaheeltaskforce.com',
       role: 'student',
-      avatar: 'سياد',
       mahadId: 'mahd_takween_naseem',
       mahadName: 'تكوين النسيم',
       createdAt: '2026-09-01T08:00:00Z'
@@ -538,7 +488,6 @@ export const INITIAL_DATA = {
       name: 'أحمد خالد باكيلي',
       email: 'StOwdFf48idvoduZET5ZUbkbMul2@taaheeltaskforce.com',
       role: 'student',
-      avatar: 'أحمد',
       mahadId: 'mahd_takween_naseem',
       mahadName: 'تكوين النسيم',
       createdAt: '2026-09-01T08:00:00Z'
@@ -549,7 +498,6 @@ export const INITIAL_DATA = {
       email: 'tpNwAC13RsZs3RB7hfBRefwzedH2@taaheeltaskforce.com',
       aliases: ['bbrys005@gmail.com', 'bbrys005', 'basil', 'bassil'],
       role: 'student',
-      avatar: 'بسيل',
       mahadId: 'mahd_takween_naseem',
       mahadName: 'تكوين النسيم',
       createdAt: '2026-09-01T08:00:00Z'
@@ -559,7 +507,6 @@ export const INITIAL_DATA = {
       name: 'نزار حسان عزالدين',
       email: 'I96AqlQanVUeZP45xb6bHXGjFZi2@taaheeltaskforce.com',
       role: 'student',
-      avatar: 'نزار',
       mahadId: 'mahd_takween_naseem',
       mahadName: 'تكوين النسيم',
       createdAt: '2026-09-01T08:00:00Z'
@@ -569,7 +516,6 @@ export const INITIAL_DATA = {
       name: 'عبدالرحمن باوزير',
       email: '2il7BvfDzhebZOUxUG1og0pxlS53@taaheeltaskforce.com',
       role: 'student',
-      avatar: 'عبدالرحمن',
       mahadId: 'mahd_takween_naseem',
       mahadName: 'تكوين النسيم',
       createdAt: '2026-09-01T08:00:00Z'
@@ -579,7 +525,6 @@ export const INITIAL_DATA = {
       name: 'مالك أنس الحاج',
       email: 'LysyjhmEqVN1Q10ZLpEkUzfWXDQ2@taaheeltaskforce.com',
       role: 'student',
-      avatar: 'مالك',
       mahadId: 'mahd_takween_naseem',
       mahadName: 'تكوين النسيم',
       createdAt: '2026-09-01T08:00:00Z'
@@ -589,7 +534,6 @@ export const INITIAL_DATA = {
       name: 'محمد كمال محمد بارشيد',
       email: 'FkdJUvNYKGWkSI7kjYfR0iz7wTo1@taaheeltaskforce.com',
       role: 'student',
-      avatar: 'محمد',
       mahadId: 'mahd_takween_naseem',
       mahadName: 'تكوين النسيم',
       createdAt: '2026-09-01T08:00:00Z'

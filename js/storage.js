@@ -12,7 +12,7 @@ const STORAGE_KEYS = {
   USERS: 'taheel_users_v6',
   ASSIGNMENTS: 'taheel_assignments_v6',
   PROGRESS: 'taheel_progress_v6',
-  ATTENDANCE: 'taheel_attendance_v6',
+  ATTENDANCE: 'taheel_attendance_v7',
   CURRENT_USER_ID: 'taheel_session_user_v6',
   CUSTOM_LOGO: 'taheel_custom_logo_v3'
 };
@@ -28,7 +28,7 @@ export const Storage = {
       for (let i = 0; i < localStorage.length; i++) {
         const k = localStorage.key(i);
         if (k && k.startsWith('taheel_') && k !== STORAGE_KEYS.CUSTOM_LOGO && k !== 'taheel_custom_logo_v3') {
-          if (!k.endsWith('_v6')) {
+          if (!k.endsWith('_v6') && !k.endsWith('_v7')) {
             keysToRemove.push(k);
           }
         }
@@ -36,10 +36,24 @@ export const Storage = {
       keysToRemove.forEach(k => {
         try { localStorage.removeItem(k); } catch (_) {}
       });
-      // Explicitly purge v5 and older attendance and progress
-      ['taheel_attendance_v5', 'taheel_progress_v5', 'taheel_attendance_v4', 'taheel_progress_v4', 'taheel_attendance_v3', 'taheel_progress_v3', 'taheel_attendance', 'taheel_progress'].forEach(k => {
+      // Explicitly purge v6 and older attendance to ensure clean sync with live Firestore
+      ['taheel_attendance_v6', 'taheel_attendance_v5', 'taheel_progress_v5', 'taheel_attendance_v4', 'taheel_progress_v4', 'taheel_attendance_v3', 'taheel_progress_v3', 'taheel_attendance', 'taheel_progress'].forEach(k => {
         try { localStorage.removeItem(k); } catch (_) {}
       });
+
+      // Strip obsolete avatar field from cached local users
+      const usersRaw = localStorage.getItem(STORAGE_KEYS.USERS);
+      if (usersRaw) {
+        const users = JSON.parse(usersRaw);
+        let changed = false;
+        users.forEach(u => {
+          if (u.avatar !== undefined) {
+            delete u.avatar;
+            changed = true;
+          }
+        });
+        if (changed) localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+      }
     } catch (_) {}
 
     if (!localStorage.getItem(STORAGE_KEYS.USERS)) {

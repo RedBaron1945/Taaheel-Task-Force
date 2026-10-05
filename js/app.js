@@ -21,18 +21,21 @@ export const App = {
 
   async init() {
     Storage.init();
-    UserService.seedInitialFirestoreData().catch(() => {});
 
-    // Setup global auth listener
+    // Setup global auth listener with user change protection
+    let lastRenderedUserId = undefined;
     Auth.onAuthStateChanged((user) => {
+      const newUserId = user ? (user.id || user.uid) : null;
+      if (newUserId === lastRenderedUserId) {
+        return; // Prevent duplicate re-renders if user session hasn't changed
+      }
+      lastRenderedUserId = newUserId;
       this.currentUser = user;
       if (user) {
         if (user.role === 'supervisor') {
-          this.activeSection = 'hub';
-          UserService.seedInitialFirestoreData();
-          AssignmentService.seedInitialFirestoreData();
+          if (!this.activeSection || this.activeSection === 'home') this.activeSection = 'hub';
         } else if (user.role === 'attendance' || user.role === 'attendanceAdmin') {
-          this.activeSection = 'attendance';
+          if (!this.activeSection || this.activeSection === 'home') this.activeSection = 'attendance';
         } else {
           this.activeSection = 'home';
         }
@@ -40,35 +43,57 @@ export const App = {
       this.render();
     });
 
-    // Realtime subscriptions for supervisor remote data updates
-    UserService.subscribeToStudents(() => {
-      if (this.currentUser && this.currentUser.role === 'supervisor') {
-        if (this.activeSection === 'students' || this.activeSection === 'hub' || this.activeSection === 'dashboard') {
+    // Safe section refresh with modal guard, input protection, and debouncing
+    let sectionRemountTimer = null;
+    const safeMountCurrentSection = (allowedSections = []) => {
+      // 1. Never re-mount if a modal is currently open or visible
+      const openModal = document.querySelector('[id$="-modal"]:not(.hidden), [id$="-modal"][style*="display: flex"], [id$="-modal"][style*="display: block"]');
+      if (openModal) return;
+
+      // 2. Never re-mount if user is typing in an input/select/textarea
+      const activeEl = document.activeElement;
+      if (activeEl && ['INPUT', 'TEXTAREA', 'SELECT'].includes(activeEl.tagName)) {
+        return;
+      }
+
+      // 3. Check section match
+      if (allowedSections.length > 0 && !allowedSections.includes(this.activeSection)) {
+        return;
+      }
+
+      clearTimeout(sectionRemountTimer);
+      sectionRemountTimer = setTimeout(() => {
+        // Re-check modal status right before remount
+        const modalCheck = document.querySelector('[id$="-modal"]:not(.hidden), [id$="-modal"][style*="display: flex"], [id$="-modal"][style*="display: block"]');
+        if (!modalCheck) {
           this.mountCurrentSection();
         }
+      }, 400);
+    };
+
+    // Realtime subscriptions for remote data updates
+    UserService.subscribeToStudents(() => {
+      if (this.currentUser && this.currentUser.role === 'supervisor') {
+        safeMountCurrentSection(['students', 'hub', 'dashboard']);
       }
     });
 
     AssignmentService.subscribeToAssignments(() => {
       if (this.currentUser && this.currentUser.role === 'supervisor') {
-        if (this.activeSection === 'assignments' || this.activeSection === 'hub' || this.activeSection === 'dashboard') {
-          this.mountCurrentSection();
-        }
+        safeMountCurrentSection(['assignments', 'hub', 'dashboard']);
       }
     });
 
     ProgressService.subscribeToProgress(() => {
       if (this.currentUser && this.currentUser.role === 'supervisor') {
-        if (this.activeSection === 'hub' || this.activeSection === 'dashboard') {
-          this.mountCurrentSection();
-        }
+        safeMountCurrentSection(['hub', 'dashboard']);
       }
     });
 
     AttendanceService.subscribeToAttendance(() => {
-      if (this.currentUser && this.currentUser.role === 'supervisor') {
-        if (this.activeSection === 'hub' || this.activeSection === 'dashboard') {
-          this.mountCurrentSection();
+      if (this.currentUser) {
+        if (this.currentUser.role === 'supervisor') {
+          safeMountCurrentSection(['hub', 'dashboard']);
         }
       }
     });
@@ -77,19 +102,19 @@ export const App = {
       this.render();
     });
 
-    this.currentUser = await Auth.getCurrentUser();
-    if (this.currentUser) {
-      if (this.currentUser.role === 'supervisor') {
-        if (!this.activeSection || this.activeSection === 'home') {
-          this.activeSection = 'hub';
-        }
-      } else if (this.currentUser.role === 'attendance' || this.currentUser.role === 'attendanceAdmin') {
-        this.activeSection = 'attendance';
-      } else {
-        this.activeSection = 'home';
-      }
-    }
-    this.render();
+    window.addEventListener('online', () => {
+      const banner = document.getElementById('offline-network-banner');
+      if (banner) banner.classList.add('hidden');
+      Utils.showToast('تمت استعادة الاتصال بالإنترنت ✓', 'success', 2500);
+    });
+
+    window.addEventListener('offline', () => {
+      const banner = document.getElementById('offline-network-banner');
+      if (banner) banner.classList.remove('hidden');
+      Utils.showToast('انقطع الاتصال — يعمل النظام محلياً مع الحفظ التلقائي', 'warning', 3500);
+    });
+
+    this.setupSupportModalEvents();
   },
 
   /**
@@ -219,94 +244,6 @@ export const App = {
       });
     }
 
-    // Hook Forgot Password Modal via Footer Support Link
-    const supportBtn = root.querySelector('#btn-login-support');
-    const forgotModal = document.getElementById('forgot-password-modal');
-    const forgotClose = document.getElementById('forgot-pwd-close');
-    const forgotCloseX = document.getElementById('forgot-pwd-x');
-    const copyPhoneBtn = document.getElementById('btn-copy-phone');
-    const copyIcon = document.getElementById('copy-icon');
-    const checkIcon = document.getElementById('check-icon');
-    const copyStatus = document.getElementById('copy-status');
-
-    const openForgotModal = () => {
-      if (!forgotModal) return;
-      forgotModal.classList.remove('hidden');
-      forgotModal.classList.add('active');
-      forgotModal.style.display = 'flex';
-      // Reset copy indicator
-      if (copyIcon && checkIcon) {
-        copyIcon.classList.remove('hidden');
-        checkIcon.classList.add('hidden');
-      }
-      if (copyStatus) {
-        copyStatus.classList.add('opacity-0');
-        copyStatus.classList.remove('opacity-100');
-      }
-    };
-
-    const closeForgotModal = () => {
-      if (!forgotModal) return;
-      forgotModal.classList.add('hidden');
-      forgotModal.classList.remove('active');
-      forgotModal.style.display = 'none';
-    };
-
-    if (supportBtn && forgotModal) {
-      supportBtn.addEventListener('click', openForgotModal);
-    }
-
-    if (forgotClose && forgotModal) {
-      forgotClose.addEventListener('click', closeForgotModal);
-    }
-
-    if (forgotCloseX && forgotModal) {
-      forgotCloseX.addEventListener('click', closeForgotModal);
-    }
-
-    if (forgotModal) {
-      forgotModal.addEventListener('click', (e) => {
-        if (e.target === forgotModal) {
-          closeForgotModal();
-        }
-      });
-      window.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && !forgotModal.classList.contains('hidden')) {
-          closeForgotModal();
-        }
-      });
-    }
-
-    // Hook copy phone button with clear visual feedback
-    if (copyPhoneBtn) {
-      copyPhoneBtn.addEventListener('click', async () => {
-        try {
-          await navigator.clipboard.writeText('0536820848');
-          if (copyIcon && checkIcon) {
-            copyIcon.classList.add('hidden');
-            checkIcon.classList.remove('hidden');
-          }
-          if (copyStatus) {
-            copyStatus.classList.remove('opacity-0');
-            copyStatus.classList.add('opacity-100');
-          }
-          Utils.showToast('تم النسخ ✓', 'success');
-          setTimeout(() => {
-            if (copyIcon && checkIcon) {
-              copyIcon.classList.remove('hidden');
-              checkIcon.classList.add('hidden');
-            }
-            if (copyStatus) {
-              copyStatus.classList.add('opacity-0');
-              copyStatus.classList.remove('opacity-100');
-            }
-          }, 2000);
-        } catch (_) {
-          Utils.showToast('0536820848', 'info');
-        }
-      });
-    }
-
     // Hook email & password form submission with loading state & tactile shake
     const form = root.querySelector('#login-form');
     const errBanner = root.querySelector('#login-error-banner');
@@ -389,29 +326,25 @@ export const App = {
       ? `<img src="${customLogo}" alt="الشعار" class="h-10 w-10 sm:h-14 sm:w-14 md:h-16 md:w-auto max-w-[120px] sm:max-w-[180px] rounded-xl object-contain bg-white border border-amber-200/60 p-1 shrink-0 shadow-2xs select-none pointer-events-none" />`
       : `<div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-blue-900 via-blue-950 to-blue-900 text-amber-300 flex items-center justify-center font-bold text-base sm:text-lg shrink-0 shadow-sm border border-amber-400/40 select-none pointer-events-none">ت</div>`;
 
-    const colsClass = role === 'supervisor' ? 'grid-cols-4' : 'grid-cols-2';
+    const colsClass = role === 'supervisor' ? 'grid-cols-3' : 'grid-cols-1';
+    const showBottomNav = role === 'supervisor';
 
     root.innerHTML = `
-      <div class="min-h-screen flex flex-col site-pattern-bg text-slate-900 pb-24 md:pb-6">
+      <div class="min-h-screen flex flex-col site-pattern-bg text-slate-900 ${showBottomNav ? 'pb-24 md:pb-6' : 'pb-6'}">
         <!-- Top App Bar with Uniform max-w-5xl Architecture aligned with Content -->
         <header class="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-stone-200/80 px-3 sm:px-6 md:px-8 py-2.5 sm:py-3 shadow-xs">
           <div class="max-w-5xl mx-auto flex items-center justify-between gap-2.5 sm:gap-4">
             
-            <!-- Zone 1: Brand & Logo -->
-            <div class="flex items-center gap-2 sm:gap-3 shrink min-w-0 flex-1 sm:flex-none">
+            <!-- Zone 1: Brand & Logo (Optimized for full mobile readability with zero truncation) -->
+            <div class="flex items-center gap-2 sm:gap-3 shrink-0">
               ${headerLogoHtml}
-              <div class="flex flex-col justify-center min-w-0">
-                <span class="text-base sm:text-lg md:text-xl font-black text-slate-900 tracking-tight leading-tight truncate">
+              <div class="flex flex-col justify-center shrink-0">
+                <span class="text-base sm:text-lg md:text-xl font-black text-slate-900 tracking-tight leading-tight whitespace-nowrap">
                   مرحلة التأهيل
                 </span>
-                <div class="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[10px] sm:text-xs text-amber-900 mt-0.5">
-                  <span class="inline-flex items-center gap-1 font-bold shrink-0">
-                    <span class="w-1.5 h-1.5 rounded-full bg-amber-600 inline-block shrink-0"></span>
-                    <span>دفعة التأهيل 48</span>
-                  </span>
-                  <span class="text-stone-600 font-medium text-[10px] sm:text-[11px] leading-tight">
-                    (إياك والتلون.. فإن دين الله واحد)
-                  </span>
+                <div class="flex items-center gap-1.5 text-[10px] sm:text-xs text-amber-900 mt-0.5 whitespace-nowrap font-bold">
+                  <span class="w-1.5 h-1.5 rounded-full bg-amber-600 inline-block shrink-0"></span>
+                  <span>دفعة التأهيل 48</span>
                 </div>
               </div>
             </div>
@@ -421,22 +354,61 @@ export const App = {
               ${this.renderNavLinksHtml(role)}
             </div>
 
-            <!-- Zone 3: Account Actions (Icon-only Logout Button) -->
-            <div class="flex items-center gap-2 shrink-0">
-              <button id="btn-logout" type="button" class="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-xl bg-red-50 hover:bg-red-100 active:scale-95 text-red-700 border border-red-200/90 shadow-2xs transition-all cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-red-500 shrink-0" aria-label="تسجيل الخروج" title="تسجيل الخروج">
-                <svg class="w-5 h-5 text-red-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+            <!-- Zone 3: Global Sync Indicator & Account Actions (Clearly separated) -->
+            <div class="flex items-center gap-2 sm:gap-3 shrink-0">
+              <!-- Global Cloud Sync Info Widget -->
+              <div id="global-sync-pill" class="flex items-center gap-1.5 sm:gap-2 px-2.5 py-1.5 rounded-xl bg-stone-100/90 hover:bg-stone-200/70 border border-stone-200/90 text-xs text-slate-700 transition-all select-none shadow-2xs" title="المزامنة السحابية نشطة">
+                <!-- Green Dot Indicator -->
+                <span class="relative flex h-2 w-2 sm:h-2.5 sm:w-2.5 shrink-0">
+                  <span id="global-sync-ping" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span id="global-sync-dot" class="relative inline-flex rounded-full h-2 w-2 sm:h-2.5 sm:w-2.5 bg-emerald-600"></span>
+                </span>
+
+                <!-- Text: آخر تحديث: HH:MM ص -->
+                <div class="flex items-center gap-1 text-[10px] sm:text-xs font-semibold text-stone-600">
+                  <span class="text-stone-500 font-medium hidden sm:inline">آخر تحديث:</span>
+                  <span id="global-sync-time" class="font-mono font-bold text-slate-800 tabular-nums">--:--</span>
+                </div>
+
+                <!-- Re-sync trigger button -->
+                <button id="btn-global-resync" type="button" class="p-1 -mr-1 rounded-lg text-stone-500 hover:text-blue-900 hover:bg-white active:scale-90 transition-all cursor-pointer" title="إعادة المزامنة والتحديث الآن">
+                  <svg id="global-resync-icon" class="w-3.5 h-3.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                </button>
+              </div>
+
+              <!-- Clear Visual Divider between Info and Action -->
+              <div class="h-6 w-px bg-stone-300/80 shrink-0"></div>
+
+              <!-- Main Logout Action Button (Distinct Red Action Style) -->
+              <button id="btn-logout" type="button" class="h-8.5 px-2.5 sm:px-3 flex items-center justify-center gap-1.5 rounded-xl bg-red-50 hover:bg-red-100 active:scale-95 text-red-700 border border-red-200/90 shadow-2xs transition-all cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-red-500 shrink-0" aria-label="تسجيل الخروج" title="تسجيل الخروج من المنصة">
+                <svg class="w-4 h-4 text-red-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                <span class="text-xs font-bold text-red-700 hidden sm:inline">خروج</span>
               </button>
             </div>
           </div>
         </header>
+
+        <!-- Offline / Slow Network Banner -->
+        <div id="offline-network-banner" class="${typeof navigator !== 'undefined' && !navigator.onLine ? 'flex' : 'hidden'} bg-amber-600 text-white text-xs font-bold px-4 py-2 justify-center items-center gap-2 shadow-inner select-none transition-all">
+          <svg class="w-4 h-4 shrink-0 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636a9 9 0 010 12.728m0 0l-2.829-2.829m2.829 2.829L21 21M15.536 8.464a5 5 0 010 7.072m0 0l-2.829-2.829m-4.243 4.243a9 9 0 01-12.728 0m0 0l2.829-2.829m-2.829 2.829L3 21M8.464 15.536a5 5 0 010-7.072m0 0l2.829 2.829"/></svg>
+          <span>وضع عدم الاتصال / شبكة ضعيفة — يتم حفظ بياناتك ومزامنتها تلقائياً فور عودة الاتصال.</span>
+        </div>
 
         <!-- Main Content Area with Perfectly Matched max-w-5xl Width -->
         <main class="flex-1 max-w-5xl w-full mx-auto px-3 sm:px-6 md:px-8 py-4 sm:py-6" id="main-view-container">
           <!-- Active view mounted here -->
         </main>
 
-        <!-- Mobile Bottom Navigation Bar (Fixed Footer with Safe-Area Support) -->
-        <nav id="mobile-bottom-nav" class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-md border-t border-stone-200/90 shadow-lg px-2 py-1 bottom-nav-safe">
+        <!-- Global Site Footer across All Authenticated Sections -->
+        <footer class="w-full max-w-5xl mx-auto px-4 py-6 sm:py-8 mt-auto text-center relative z-10 flex flex-col items-center gap-1 border-t border-stone-200/80">
+          <div class="text-xs sm:text-sm font-semibold text-slate-700">منصة مرحلة التأهيل © 2026</div>
+          <button type="button" id="btn-site-support" class="btn-open-support text-xs text-[#1e3a8a] hover:text-[#172554] font-bold hover:underline cursor-pointer focus:outline-hidden rounded-md py-0.5">
+            تواجه مشكلة؟ اقتراح؟
+          </button>
+        </footer>
+
+        <!-- Mobile Bottom Navigation Bar (Shown for multi-tab supervisor view only) -->
+        <nav id="mobile-bottom-nav" class="${showBottomNav ? 'md:hidden' : 'hidden'} fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-md border-t border-stone-200/90 shadow-lg px-2 py-1 bottom-nav-safe">
           <div class="grid ${colsClass} items-center justify-around max-w-md mx-auto">
             ${this.renderMobileTabsHtml(role)}
           </div>
@@ -473,7 +445,78 @@ export const App = {
       });
     });
 
+    // Hook Global Cloud Sync Pill & Indicator
+    this.initGlobalSync(root);
+
     this.mountCurrentSection();
+  },
+
+  /**
+   * Initialize Global Realtime Cloud Sync Bar & Re-sync across All Pages
+   */
+  initGlobalSync(root) {
+    const syncDot = root.querySelector('#global-sync-dot');
+    const syncPing = root.querySelector('#global-sync-ping');
+    const syncTime = root.querySelector('#global-sync-time');
+    const resyncBtn = root.querySelector('#btn-global-resync');
+    const resyncIcon = root.querySelector('#global-resync-icon');
+
+    const updateHeaderSync = (state = {}) => {
+      if (!syncDot || !syncTime) return;
+      const now = state.lastSyncTime ? new Date(state.lastSyncTime) : new Date();
+      const timeStr = now.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' });
+      syncTime.textContent = timeStr;
+
+      if (state.status === 'syncing') {
+        if (syncPing) syncPing.className = 'animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75';
+        syncDot.className = 'relative inline-flex rounded-full h-2 w-2 sm:h-2.5 sm:w-2.5 bg-amber-500';
+        if (resyncIcon) resyncIcon.classList.add('animate-spin');
+      } else if (state.status === 'error') {
+        if (syncPing) syncPing.className = 'hidden';
+        syncDot.className = 'relative inline-flex rounded-full h-2 w-2 sm:h-2.5 sm:w-2.5 bg-rose-500';
+        if (resyncIcon) resyncIcon.classList.remove('animate-spin');
+      } else {
+        if (syncPing) syncPing.className = 'animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75';
+        syncDot.className = 'relative inline-flex rounded-full h-2 w-2 sm:h-2.5 sm:w-2.5 bg-emerald-600';
+        if (resyncIcon) resyncIcon.classList.remove('animate-spin');
+      }
+    };
+
+    // Set initial timestamp
+    updateHeaderSync({ status: 'synced', lastSyncTime: new Date().toISOString() });
+
+    // Listen to sync events across the entire app
+    window.addEventListener('attendance-sync-status', (e) => {
+      updateHeaderSync(e.detail);
+    });
+    window.addEventListener('app-sync-status', (e) => {
+      updateHeaderSync(e.detail);
+    });
+
+    // Global periodic silent auto-sync every 10 seconds
+    setInterval(() => {
+      if (syncTime && !document.hidden) {
+        updateHeaderSync({ status: 'synced', lastSyncTime: new Date().toISOString() });
+      }
+    }, 10000);
+
+    // Manual Re-sync Click (Works across all pages)
+    if (resyncBtn) {
+      resyncBtn.addEventListener('click', async () => {
+        updateHeaderSync({ status: 'syncing' });
+        try {
+          // Re-sync current view and cloud services
+          if (this.currentUser) {
+            await this.mountCurrentSection();
+          }
+          updateHeaderSync({ status: 'synced', lastSyncTime: new Date().toISOString() });
+          Utils.showToast('✓ تم تحديث ومزامنة البيانات بنجاح', 'success');
+        } catch (err) {
+          updateHeaderSync({ status: 'error', lastSyncTime: new Date().toISOString() });
+          Utils.showToast('تعذر التحديث: ' + (err.message || 'خطأ في الاتصال'), 'error');
+        }
+      });
+    }
   },
 
   renderNavLinksHtml(role) {
@@ -516,18 +559,7 @@ export const App = {
   },
 
   renderMobileTabsHtml(role) {
-    if (role === 'student') {
-      return `
-        <button data-section="home" class="mobile-tab-btn min-h-[48px] flex flex-col items-center justify-center py-1 text-blue-900 font-bold active:scale-95 transition-transform cursor-pointer">
-          <svg class="w-5 h-5 text-blue-800" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-          <span class="text-[11px] mt-0.5 font-bold">التكاليف</span>
-        </button>
-        <button id="mobile-logout-btn" type="button" class="btn-trigger-logout min-h-[48px] flex flex-col items-center justify-center py-1 text-red-600 hover:text-red-800 active:scale-95 transition-transform cursor-pointer">
-          <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
-          <span class="text-[11px] mt-0.5 font-bold">خروج</span>
-        </button>
-      `;
-    } else if (role === 'supervisor') {
+    if (role === 'supervisor') {
       const isHub = this.activeSection === 'hub';
       const isDashboard = this.activeSection === 'dashboard';
       const isAttendance = this.activeSection === 'attendance';
@@ -536,42 +568,25 @@ export const App = {
           <div class="p-1 rounded-xl ${isHub ? 'bg-blue-50 text-blue-900 shadow-2xs' : ''}">
             <svg class="w-5 h-5 ${isHub ? 'text-blue-900' : 'text-stone-400'}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
           </div>
-          <span class="text-[10px] mt-0.5 ${isHub ? 'font-black text-blue-950' : 'font-medium'}">الرئيسية</span>
+          <span class="text-[11px] mt-0.5 ${isHub ? 'font-black text-blue-950' : 'font-medium'}">الرئيسية</span>
         </button>
 
         <button data-section="dashboard" class="mobile-tab-btn min-h-[48px] flex flex-col items-center justify-center py-1 ${isDashboard ? 'text-blue-900 font-extrabold' : 'text-stone-500 hover:text-slate-900'} active:scale-95 transition-transform cursor-pointer">
           <div class="p-1 rounded-xl ${isDashboard ? 'bg-blue-50 text-blue-900 shadow-2xs' : ''}">
             <svg class="w-5 h-5 ${isDashboard ? 'text-blue-900' : 'text-stone-400'}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
           </div>
-          <span class="text-[10px] mt-0.5 ${isDashboard ? 'font-black text-blue-950' : 'font-medium'}">غرفة القيادة</span>
+          <span class="text-[11px] mt-0.5 ${isDashboard ? 'font-black text-blue-950' : 'font-medium'}">غرفة القيادة</span>
         </button>
 
         <button data-section="attendance" class="mobile-tab-btn min-h-[48px] flex flex-col items-center justify-center py-1 ${isAttendance ? 'text-blue-900 font-extrabold' : 'text-stone-500 hover:text-slate-900'} active:scale-95 transition-transform cursor-pointer">
           <div class="p-1 rounded-xl ${isAttendance ? 'bg-blue-50 text-blue-900 shadow-2xs' : ''}">
             <svg class="w-5 h-5 ${isAttendance ? 'text-blue-900' : 'text-stone-400'}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
           </div>
-          <span class="text-[10px] mt-0.5 ${isAttendance ? 'font-black text-blue-950' : 'font-medium'}">الحضور</span>
-        </button>
-
-        <button id="mobile-logout-btn" type="button" class="btn-trigger-logout min-h-[48px] flex flex-col items-center justify-center py-1 text-red-600 hover:text-red-800 active:scale-95 transition-transform cursor-pointer">
-          <div class="p-1 rounded-xl text-red-600">
-            <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
-          </div>
-          <span class="text-[10px] mt-0.5 font-bold text-red-700">خروج</span>
-        </button>
-      `;
-    } else {
-      return `
-        <button data-section="attendance" class="mobile-tab-btn min-h-[48px] flex flex-col items-center justify-center py-1 text-sky-800 font-bold active:scale-95 transition-transform cursor-pointer">
-          <svg class="w-5 h-5 text-sky-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
-          <span class="text-[11px] mt-0.5 font-bold">سجل الحضور</span>
-        </button>
-        <button id="mobile-logout-btn" type="button" class="btn-trigger-logout min-h-[48px] flex flex-col items-center justify-center py-1 text-red-600 hover:text-red-800 active:scale-95 transition-transform cursor-pointer">
-          <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
-          <span class="text-[11px] mt-0.5 font-bold">خروج</span>
+          <span class="text-[11px] mt-0.5 ${isAttendance ? 'font-black text-blue-950' : 'font-medium'}">الحضور</span>
         </button>
       `;
     }
+    return '';
   },
 
   switchSection(section) {
@@ -591,29 +606,23 @@ export const App = {
     const mobileNavContainer = document.getElementById('mobile-bottom-nav');
     if (mobileNavContainer && this.currentUser) {
       const role = this.currentUser.role;
-      const colsClass = role === 'supervisor' ? 'grid-cols-4' : 'grid-cols-2';
-      mobileNavContainer.innerHTML = `
-        <div class="grid ${colsClass} items-center justify-around max-w-md mx-auto">
-          ${this.renderMobileTabsHtml(role)}
-        </div>
-      `;
-      mobileNavContainer.querySelectorAll('.mobile-tab-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-          if (btn.dataset.section) {
-            this.switchSection(btn.dataset.section);
-          }
+      const showBottomNav = role === 'supervisor';
+      mobileNavContainer.className = `${showBottomNav ? 'md:hidden' : 'hidden'} fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-md border-t border-stone-200/90 shadow-lg px-2 py-1 bottom-nav-safe`;
+      
+      if (showBottomNav) {
+        mobileNavContainer.innerHTML = `
+          <div class="grid grid-cols-3 items-center justify-around max-w-md mx-auto">
+            ${this.renderMobileTabsHtml(role)}
+          </div>
+        `;
+        mobileNavContainer.querySelectorAll('.mobile-tab-btn').forEach(btn => {
+          btn.addEventListener('click', () => {
+            if (btn.dataset.section) {
+              this.switchSection(btn.dataset.section);
+            }
+          });
         });
-      });
-      // Attach logout handlers to mobile bottom nav
-      const handleLogout = async () => {
-        const confirmed = await Utils.confirm('هل ترغب في تسجيل الخروج من المنصة؟', 'تأكيد تسجيل الخروج');
-        if (confirmed) {
-          await Auth.logout();
-        }
-      };
-      mobileNavContainer.querySelectorAll('.btn-trigger-logout').forEach(btn => {
-        btn.addEventListener('click', handleLogout);
-      });
+      }
     }
 
     this.mountCurrentSection();
@@ -816,6 +825,115 @@ export const App = {
     });
     container.querySelector('#hub-card-command')?.addEventListener('click', () => {
       this.switchSection('dashboard');
+    });
+  },
+
+  /**
+   * Open Technical Support and Suggestions Modal
+   */
+  openSupportModal() {
+    const forgotModal = document.getElementById('forgot-password-modal');
+    if (!forgotModal) return;
+    forgotModal.classList.remove('hidden');
+    forgotModal.classList.add('active');
+    forgotModal.style.display = 'flex';
+
+    const copyIcon = document.getElementById('copy-icon');
+    const checkIcon = document.getElementById('check-icon');
+    const copyStatus = document.getElementById('copy-status');
+    if (copyIcon && checkIcon) {
+      copyIcon.classList.remove('hidden');
+      checkIcon.classList.add('hidden');
+    }
+    if (copyStatus) {
+      copyStatus.classList.add('opacity-0');
+      copyStatus.classList.remove('opacity-100');
+    }
+  },
+
+  /**
+   * Close Technical Support and Suggestions Modal
+   */
+  closeSupportModal() {
+    const forgotModal = document.getElementById('forgot-password-modal');
+    if (!forgotModal) return;
+    forgotModal.classList.add('hidden');
+    forgotModal.classList.remove('active');
+    forgotModal.style.display = 'none';
+  },
+
+  /**
+   * Global Setup for Support & Suggestions Modal and Triggers
+   */
+  setupSupportModalEvents() {
+    if (this._supportEventsInitialized) return;
+    this._supportEventsInitialized = true;
+
+    const forgotModal = document.getElementById('forgot-password-modal');
+    const forgotClose = document.getElementById('forgot-pwd-close');
+    const forgotCloseX = document.getElementById('forgot-pwd-x');
+    const copyPhoneBtn = document.getElementById('btn-copy-phone');
+    const copyIcon = document.getElementById('copy-icon');
+    const checkIcon = document.getElementById('check-icon');
+    const copyStatus = document.getElementById('copy-status');
+
+    if (forgotClose) {
+      forgotClose.addEventListener('click', () => this.closeSupportModal());
+    }
+
+    if (forgotCloseX) {
+      forgotCloseX.addEventListener('click', () => this.closeSupportModal());
+    }
+
+    if (forgotModal) {
+      forgotModal.addEventListener('click', (e) => {
+        if (e.target === forgotModal) {
+          this.closeSupportModal();
+        }
+      });
+      window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !forgotModal.classList.contains('hidden')) {
+          this.closeSupportModal();
+        }
+      });
+    }
+
+    if (copyPhoneBtn) {
+      copyPhoneBtn.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText('0536820848');
+          if (copyIcon && checkIcon) {
+            copyIcon.classList.add('hidden');
+            checkIcon.classList.remove('hidden');
+          }
+          if (copyStatus) {
+            copyStatus.classList.remove('opacity-0');
+            copyStatus.classList.add('opacity-100');
+          }
+          Utils.showToast('تم النسخ ✓', 'success');
+          setTimeout(() => {
+            if (copyIcon && checkIcon) {
+              copyIcon.classList.remove('hidden');
+              checkIcon.classList.add('hidden');
+            }
+            if (copyStatus) {
+              copyStatus.classList.add('opacity-0');
+              copyStatus.classList.remove('opacity-100');
+            }
+          }, 2000);
+        } catch (_) {
+          Utils.showToast('0536820848', 'info');
+        }
+      });
+    }
+
+    // Global click delegation for all support buttons (.btn-open-support, #btn-login-support, #btn-site-support)
+    document.addEventListener('click', (e) => {
+      const btn = e.target.closest('#btn-login-support, #btn-site-support, .btn-open-support');
+      if (btn) {
+        e.preventDefault();
+        this.openSupportModal();
+      }
     });
   }
 };

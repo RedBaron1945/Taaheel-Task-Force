@@ -79,49 +79,47 @@ export const AttendanceView = {
 
     container.innerHTML = `
       <div class="space-y-5">
-        <!-- Attendance Header Banner with Islamic Royal Blue & Gold Trim -->
-        <section class="card bg-gradient-to-l from-slate-950 via-blue-950 to-sky-950 text-white p-5 sm:p-6 rounded-2xl shadow-md border border-amber-500/30 relative overflow-hidden">
-          <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-            <div>
-              <h2 class="text-xl sm:text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-                <span>رصد الحضور والتقويم الأسبوعي</span>
+        <!-- Attendance Header Banner with Islamic Royal Blue & Gold Trim (Compact) -->
+        <section class="card bg-gradient-to-l from-slate-950 via-blue-950 to-sky-950 text-white p-3.5 sm:p-5 rounded-2xl shadow-sm border border-amber-500/30 relative">
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
+            <!-- Compact Title with Optional Info Tooltip (ⓘ) -->
+            <div class="flex items-center gap-2">
+              <h2 class="text-base sm:text-lg font-bold tracking-tight text-white flex items-center gap-1.5">
+                <span>رصد الحضور</span>
               </h2>
-              <p class="text-xs text-blue-200/90 mt-1">
-                رصد حضور الجلسات المقررة يومي الأحد والثلاثاء لمرحلة التأهيل.
-              </p>
-            </div>
-
-            <!-- Date Selector Trigger & Quick Navigation -->
-            <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 bg-white/10 backdrop-blur-sm p-2.5 rounded-2xl border border-amber-400/30 shrink-0">
-              <!-- Calendar Date Button Trigger -->
-              <div class="space-y-1">
-                <div class="text-[11px] font-semibold text-amber-200">يوم الجلسة:</div>
-                <div class="flex items-center gap-1.5">
-                  <button id="att-prev-day-btn" type="button" title="الجلسة السابقة" class="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/15 transition-colors cursor-pointer">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-                  </button>
-                  
-                  <button id="att-open-calendar-btn" type="button" class="flex-1 sm:flex-none flex items-center justify-between gap-2.5 px-3 py-2 rounded-xl bg-white text-slate-900 font-bold text-xs sm:text-sm shadow-xs hover:bg-amber-50 hover:border-amber-300 border border-transparent transition-all cursor-pointer">
-                    <div class="flex items-center gap-2">
-                      <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                      <span id="att-selected-date-display">${this.getFormattedSelectedDate()}</span>
-                    </div>
-                    <div class="flex items-center gap-1.5">
-                      <span id="att-date-status-indicator"></span>
-                      <span class="text-[10px] text-amber-900 bg-amber-100 font-semibold px-2 py-0.5 rounded-md">التقويم ▾</span>
-                    </div>
-                  </button>
-
-                  <button id="att-next-day-btn" type="button" title="الجلسة التالية" class="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/15 transition-colors cursor-pointer">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
-                  </button>
+              <!-- Info Tooltip (ⓘ) -->
+              <div class="relative group/info">
+                <button type="button" class="w-5 h-5 rounded-full bg-white/10 hover:bg-white/20 text-amber-300 flex items-center justify-center text-xs font-bold transition-colors cursor-pointer" title="معلومات الجلسات">
+                  ⓘ
+                </button>
+                <div class="absolute right-0 top-full mt-1.5 hidden group-hover/info:block z-30 w-64 p-2.5 rounded-xl bg-slate-900 text-white text-[11px] leading-relaxed shadow-xl border border-white/10 pointer-events-none">
+                  رصد حضور الجلسات المقررة يومي الأحد والثلاثاء لمرحلة التأهيل.
                 </div>
               </div>
+            </div>
 
-              <!-- Mahad Filter Selector -->
-              <div class="space-y-1 sm:border-r sm:border-white/20 sm:pr-2.5">
-                <label for="att-mahad-picker" class="block text-[11px] font-semibold text-amber-200">تصفية المحضن:</label>
-                <select id="att-mahad-picker" class="w-full text-xs sm:text-sm font-semibold text-slate-900 bg-white rounded-xl px-3 py-2 border border-amber-300 focus:outline-hidden cursor-pointer shadow-xs">
+            <!-- Compact Date Selector & Mahad Filter Controls -->
+            <div class="flex flex-wrap items-center gap-2 bg-white/10 backdrop-blur-xs p-1.5 sm:p-2 rounded-xl border border-amber-400/20">
+              <!-- Calendar Date Navigator -->
+              <div class="flex items-center gap-1">
+                <button id="att-prev-day-btn" type="button" title="الجلسة السابقة" class="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white border border-white/15 transition-colors cursor-pointer">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                </button>
+                
+                <button id="att-open-calendar-btn" type="button" class="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-white text-slate-900 font-bold text-xs shadow-2xs hover:bg-amber-50 border border-transparent transition-all cursor-pointer">
+                  <svg class="w-3.5 h-3.5 text-amber-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                  <span id="att-selected-date-display">${this.getFormattedSelectedDate()}</span>
+                  <span class="text-[9px] text-amber-900 bg-amber-100 font-bold px-1.5 py-0.5 rounded">التقويم ▾</span>
+                </button>
+
+                <button id="att-next-day-btn" type="button" title="الجلسة التالية" class="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white border border-white/15 transition-colors cursor-pointer">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                </button>
+              </div>
+
+              <!-- Compact Mahad Selector -->
+              <div class="flex items-center gap-1 sm:border-r sm:border-white/20 sm:pr-2">
+                <select id="att-mahad-picker" class="text-xs font-bold text-slate-900 bg-white rounded-lg px-2.5 py-1.5 border border-amber-300 focus:outline-hidden cursor-pointer shadow-2xs">
                   <option value="all" ${this.selectedMahad === 'all' ? 'selected' : ''}>جميع المحاضن (7)</option>
                   ${mahaden.map(m => `
                     <option value="${m.id}" ${this.selectedMahad === m.id ? 'selected' : ''}>${m.name}</option>
@@ -234,13 +232,13 @@ export const AttendanceView = {
           </div>
 
           <!-- Floating Bottom Bulk Actions Bar (Elevated above mobile nav bar with z-50) -->
-          <div id="att-bulk-actions-bar" class="${this.selectedStudentIds.size > 0 ? 'flex' : 'hidden'} fixed bottom-20 sm:bottom-6 left-1/2 -translate-x-1/2 z-50 max-w-sm w-[calc(100%-1.5rem)] items-center justify-between gap-2 px-3.5 py-2.5 rounded-2xl bg-white/95 backdrop-blur-md border border-stone-300 shadow-xl shadow-slate-900/20 transition-all animate-in fade-in slide-in-from-bottom-2 duration-150">
+          <div id="att-bulk-actions-bar" class="${this.selectedStudentIds.size > 0 ? 'flex' : 'hidden'} fixed bottom-20 sm:bottom-6 left-1/2 -translate-x-1/2 z-50 max-w-md w-[calc(100%-1.5rem)] items-center justify-between gap-2 px-3.5 py-2.5 rounded-2xl bg-white/95 backdrop-blur-md border border-stone-300 shadow-xl shadow-slate-900/20 transition-all animate-in fade-in slide-in-from-bottom-2 duration-150">
             <div class="flex items-center gap-1.5 shrink-0">
               <span class="w-5 h-5 rounded-md bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-900 font-bold text-[11px] tabular-nums" id="att-bulk-count">${this.selectedStudentIds.size}</span>
               <span class="text-[11px] font-bold text-slate-700">تطبيق:</span>
             </div>
 
-            <div class="flex items-center gap-1.5">
+            <div class="flex items-center gap-1.5 flex-wrap justify-end">
               <button id="bulk-btn-present" type="button" class="px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-50 hover:bg-emerald-600 text-emerald-800 hover:text-white border border-emerald-200 transition-all flex items-center gap-1 cursor-pointer active:scale-95">
                 <span>✓ حاضر</span>
               </button>
@@ -249,6 +247,9 @@ export const AttendanceView = {
               </button>
               <button id="bulk-btn-absent" type="button" class="px-2.5 py-1 rounded-lg text-xs font-bold bg-rose-50 hover:bg-rose-600 text-rose-800 hover:text-white border border-rose-200 transition-all flex items-center gap-1 cursor-pointer active:scale-95">
                 <span>✕ غائب</span>
+              </button>
+              <button id="bulk-btn-clear" type="button" class="px-2 py-1 rounded-lg text-xs font-bold bg-stone-100 hover:bg-stone-700 text-stone-700 hover:text-white border border-stone-300 transition-all flex items-center gap-1 cursor-pointer active:scale-95" title="إلغاء رصد الطلاب المحددين وحذف تسجيلهم">
+                <span>⊘ إلغاء الرصد</span>
               </button>
             </div>
           </div>
@@ -296,24 +297,31 @@ export const AttendanceView = {
             </div>
           </div>
 
-          <div class="p-3 bg-stone-50 border-t border-stone-200 flex items-center justify-between text-[11px] text-stone-600">
-            <div class="flex items-center gap-3">
+          <div class="p-3 bg-stone-50 border-t border-stone-200 flex items-center justify-between text-[11px] text-stone-600 flex-wrap gap-2">
+            <div class="flex items-center gap-2.5 flex-wrap">
               <span class="flex items-center gap-1">
-                <span class="w-3 h-3 rounded-md bg-blue-900 inline-block"></span>
-                <span>اليوم المحدد</span>
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span>
+                <span class="font-bold text-emerald-800">مكتمل</span>
               </span>
               <span class="flex items-center gap-1">
-                <span class="w-3 h-3 rounded-md bg-emerald-50 border border-emerald-300 inline-block"></span>
-                <span>جلسة معتمدة</span>
+                <span class="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block"></span>
+                <span class="font-bold text-amber-800">ناقص</span>
+              </span>
+              <span class="flex items-center gap-1">
+                <span class="w-2.5 h-2.5 rounded-full bg-blue-900 inline-block"></span>
+                <span>المحدد</span>
               </span>
             </div>
-            <button id="cal-cancel-btn" type="button" class="px-3 py-1 rounded-lg bg-stone-200 hover:bg-stone-300 font-semibold text-slate-800 transition-colors cursor-pointer">
+            <button id="cal-cancel-btn" type="button" class="px-3 py-1 rounded-lg bg-stone-200 hover:bg-stone-300 font-semibold text-slate-800 transition-colors cursor-pointer text-xs">
               إغلاق
             </button>
           </div>
         </div>
       </div>
     `;
+
+    // Ensure background cloud auto sync is active
+    AttendanceService.startAutoSync(10000);
 
     // Hook KPI card click: Toggle 'المتبقي'
     const cardRemaining = container.querySelector('#att-card-remaining');
@@ -394,14 +402,17 @@ export const AttendanceView = {
           ids.forEach(sid => {
             this.applyOptimisticStudentStatus(sid, status);
           });
-          Utils.showToast(`تم رصد ${ids.length} طالب بحالة: ${label}`, 'success', 1500);
           this.selectedStudentIds.clear();
           this.updateSelectionUI();
 
           // 2. Persist in background
           try {
             for (const sid of ids) {
-              await AttendanceService.recordAttendance(sid, this.selectedDate, status);
+              if (status === null) {
+                await AttendanceService.removeAttendance(sid, this.selectedDate);
+              } else {
+                await AttendanceService.recordAttendance(sid, this.selectedDate, status);
+              }
             }
           } catch (err) {
             Utils.showToast(err.message, 'error');
@@ -414,6 +425,7 @@ export const AttendanceView = {
     bindBulkBtn('#bulk-btn-present', 'present', 'حاضر');
     bindBulkBtn('#bulk-btn-excused', 'excused', 'معتذر');
     bindBulkBtn('#bulk-btn-absent', 'absent', 'غائب');
+    bindBulkBtn('#bulk-btn-clear', null, 'إلغاء');
 
     await this.renderQueue();
   },
@@ -602,8 +614,19 @@ export const AttendanceView = {
     monthLabel.textContent = Utils.getArabicMonthName(month);
     yearLabel.textContent = year;
 
-    const allAttendance = await AttendanceService.getAllAttendance();
-    const recordedDatesSet = new Set(allAttendance.map(a => a.date));
+    const [allAttendance, students] = await Promise.all([
+      AttendanceService.getAllAttendance(),
+      UserService.getStudents()
+    ]);
+    const totalCohortCount = students.length || 54;
+
+    // Count recorded students per date
+    const dateRecordCountMap = new Map();
+    for (const record of allAttendance) {
+      if (record.date) {
+        dateRecordCountMap.set(record.date, (dateRecordCountMap.get(record.date) || 0) + 1);
+      }
+    }
 
     // Calendar Calculations
     const firstDayIndex = new Date(year, month, 1).getDay(); // 0 = Sun
@@ -632,6 +655,7 @@ export const AttendanceView = {
     const todayY = today.getFullYear();
     const todayM = today.getMonth();
     const todayD = today.getDate();
+    const todayIso = `${todayY}-${String(todayM + 1).padStart(2, '0')}-${String(todayD).padStart(2, '0')}`;
 
     for (let dayNum = 1; dayNum <= totalDays; dayNum++) {
       const dateIso = `${year}-${String(month + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
@@ -639,9 +663,37 @@ export const AttendanceView = {
       const isOfficialSession = (dayOfWeek === 0 || dayOfWeek === 2);
       const isSelected = this.selectedDate === dateIso;
       const isToday = (year === todayY && month === todayM && dayNum === todayD);
-      const hasRecords = recordedDatesSet.has(dateIso);
+
+      const recordedCount = dateRecordCountMap.get(dateIso) || 0;
+      const isCompleted100 = totalCohortCount > 0 && recordedCount >= totalCohortCount;
+      const isPartial = recordedCount > 0 && recordedCount < totalCohortCount;
+      const isPastSession = dateIso < todayIso;
 
       if (isOfficialSession) {
+        let badgeHtml = '';
+        if (isCompleted100) {
+          // مكتمل 100%
+          badgeHtml = `
+            <span class="text-[9px] font-bold px-1.5 py-0.5 rounded ${isSelected ? 'bg-emerald-400 text-slate-950 font-black' : 'bg-emerald-100 text-emerald-800 border border-emerald-300'}" title="مكتمل 100% (${recordedCount}/${totalCohortCount})">
+              مكتمل
+            </span>
+          `;
+        } else if (isPartial || (isPastSession && recordedCount === 0)) {
+          // ناقص (سواء رُصد جزئياً أو جلسة ماضية لم يكتمل رصدها)
+          badgeHtml = `
+            <span class="text-[9px] font-bold px-1.5 py-0.5 rounded ${isSelected ? 'bg-amber-300 text-slate-950 font-black' : 'bg-amber-100 text-amber-800 border border-amber-300'}" title="ناقص (${recordedCount}/${totalCohortCount})">
+              ناقص
+            </span>
+          `;
+        } else {
+          // جلسة حالية أو قادمة لم يبدأ رصدها بعد
+          badgeHtml = `
+            <span class="text-[9px] font-semibold px-1 py-0.5 rounded ${isSelected ? 'text-blue-200' : 'text-stone-500'}">
+              جلسة
+            </span>
+          `;
+        }
+
         html += `
           <button type="button" 
                   data-date="${dateIso}"
@@ -653,15 +705,7 @@ export const AttendanceView = {
             </div>
 
             <div class="flex items-center gap-1 w-full justify-center">
-              ${hasRecords ? `
-                <span class="text-[9px] font-bold px-1.5 rounded ${isSelected ? 'bg-white/20 text-white' : 'bg-emerald-200/90 text-emerald-900'}">
-                  مكتمل ✓
-                </span>
-              ` : `
-                <span class="text-[9px] font-semibold px-1 rounded ${isSelected ? 'text-blue-200' : 'text-stone-500'}">
-                  جلسة
-                </span>
-              `}
+              ${badgeHtml}
             </div>
           </button>
         `;
@@ -820,6 +864,34 @@ export const AttendanceView = {
     if (countPresent) countPresent.textContent = presentCount;
     if (countExcused) countExcused.textContent = excusedCount;
     if (countAbsent) countAbsent.textContent = absentCount;
+  },
+
+  /**
+   * Silently synchronize status of all rendered rows in-place without DOM flicker or input reset
+   */
+  async refreshDataSilently() {
+    try {
+      const records = await AttendanceService.getAttendanceForDate(this.selectedDate);
+      const recordsMap = new Map();
+      records.forEach(r => recordsMap.set(r.studentId, r.status));
+
+      const cards = document.querySelectorAll('.rollcall-card');
+      if (cards.length === 0) return;
+
+      cards.forEach(card => {
+        const sid = card.dataset.studentId;
+        const cloudStatus = recordsMap.get(sid) || null;
+        const currentStatus = this.currentRecordsCache.get(sid) || null;
+
+        if (cloudStatus !== currentStatus) {
+          this.applyOptimisticStudentStatus(sid, cloudStatus);
+        }
+      });
+
+      this.recalculateKPICounters();
+    } catch (_) {
+      // Handled silently
+    }
   },
 
   /**
@@ -1105,16 +1177,6 @@ export const AttendanceView = {
 
         // 1. INSTANT 0ms OPTIMISTIC FEEDBACK
         this.applyOptimisticStudentStatus(studentId, targetStatus);
-
-        let arabicStatus = 'حاضر';
-        if (clickedStatus === 'excused') arabicStatus = 'معتذر';
-        if (clickedStatus === 'absent') arabicStatus = 'غائب';
-
-        if (isCancel) {
-          Utils.showToast('تم إلغاء الرصد', 'info', 1000);
-        } else {
-          Utils.showToast(`${arabicStatus} ✓`, 'success', 1000);
-        }
 
         // 2. ASYNC BACKGROUND PERSISTENCE
         try {

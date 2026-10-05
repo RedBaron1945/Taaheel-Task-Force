@@ -231,25 +231,26 @@ header.sticky {
 }
 
 /* النوافذ المنبثقة (Modals) */
-.modal-overlay.hidden,
-.modal-overlay[hidden] {
-  display: none !important;
-}
-
 .modal-overlay {
   position: fixed;
   inset: 0;
   z-index: 1000;
   background-color: rgba(15, 23, 42, 0.6);
   backdrop-filter: blur(5px);
-  display: flex;
+  display: none;
   align-items: center;
   justify-content: center;
   padding: 1.25rem;
 }
 
-.modal-overlay.active {
+.modal-overlay.active:not(.hidden) {
   display: flex !important;
+}
+
+.modal-overlay.hidden,
+.modal-overlay[hidden],
+.modal-overlay.hidden.active {
+  display: none !important;
 }
 
 .modal-dialog {

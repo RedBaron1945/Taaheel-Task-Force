@@ -10,12 +10,12 @@ import { db, auth, collection, doc, setDoc, getDocs, onSnapshot } from './fireba
 export const ProgressService = {
   /**
    * Get all progress mappings: { [studentId]: { [assignmentId]: [subtaskId, ...] } }
+   * Employs Fast-Timeout Race for slow internet: returns local cache in <= 1200ms
    */
   async getAllProgress() {
-    if (!auth.currentUser) {
-      return Storage.getProgress() || {};
-    }
-    try {
+    const local = Storage.getProgress() || {};
+
+    const fetchRemote = async () => {
       const snapshot = await getDocs(collection(db, 'progress'));
       const remoteProgress = {};
       snapshot.forEach(docSnap => {
@@ -27,8 +27,14 @@ export const ProgressService = {
       });
       Storage.saveProgress(remoteProgress);
       return remoteProgress;
+    };
+
+    const timeout = new Promise((resolve) => setTimeout(() => resolve(local), 1200));
+
+    try {
+      return await Promise.race([fetchRemote(), timeout]);
     } catch (_) {
-      return Storage.getProgress() || {};
+      return local;
     }
   },
 
@@ -88,22 +94,20 @@ export const ProgressService = {
     }
 
     Storage.saveProgress(all);
-
-    // Save directly to Firestore
-    try {
-      const progressDocId = `${studentId}_${assignmentId}`;
-      await setDoc(doc(db, 'progress', progressDocId), {
-        id: progressDocId,
-        studentId,
-        assignmentId,
-        completedSubtaskIds: list,
-        updatedAt: new Date().toISOString()
-      });
-    } catch (err) {
-      console.warn('Firestore progress write notice:', err);
-    }
-
     window.dispatchEvent(new CustomEvent('progress-updated', { detail: { studentId, assignmentId, list } }));
+
+    // Queue write to Firestore in background (non-blocking for slow networks)
+    const progressDocId = `${studentId}_${assignmentId}`;
+    setDoc(doc(db, 'progress', progressDocId), {
+      id: progressDocId,
+      studentId,
+      assignmentId,
+      completedSubtaskIds: list,
+      updatedAt: new Date().toISOString()
+    }).catch(err => {
+      console.warn('Firestore progress write background notice:', err);
+    });
+
     return list;
   },
 
@@ -112,31 +116,39 @@ export const ProgressService = {
    */
   subscribeToProgress(callback) {
     let unsubscribe = null;
-    if (auth.currentUser) {
-      try {
-        unsubscribe = onSnapshot(collection(db, 'progress'), (snapshot) => {
-          const remoteProgress = {};
-          snapshot.forEach(docSnap => {
-            const data = docSnap.data();
-            if (data.studentId && data.assignmentId) {
-              if (!remoteProgress[data.studentId]) remoteProgress[data.studentId] = {};
-              remoteProgress[data.studentId][data.assignmentId] = data.completedSubtaskIds || [];
-            }
-          });
+    let lastProgressHash = '';
+
+    try {
+      unsubscribe = onSnapshot(collection(db, 'progress'), (snapshot) => {
+        const remoteProgress = {};
+        snapshot.forEach(docSnap => {
+          const data = docSnap.data();
+          if (data.studentId && data.assignmentId) {
+            if (!remoteProgress[data.studentId]) remoteProgress[data.studentId] = {};
+            remoteProgress[data.studentId][data.assignmentId] = data.completedSubtaskIds || [];
+          }
+        });
+
+        const newHash = JSON.stringify(remoteProgress);
+        if (newHash !== lastProgressHash) {
+          lastProgressHash = newHash;
           Storage.saveProgress(remoteProgress);
           if (callback) callback(remoteProgress);
-        }, () => {
-          // Handled silently
-        });
-      } catch (_) {
+        }
+      }, () => {
         // Handled silently
-      }
+      });
+    } catch (_) {
+      // Handled silently
     }
 
     const handleLocalUpdate = () => {
-      this.getAllProgress().then(progress => {
+      const progress = Storage.getProgress() || {};
+      const newHash = JSON.stringify(progress);
+      if (newHash !== lastProgressHash) {
+        lastProgressHash = newHash;
         if (callback) callback(progress);
-      });
+      }
     };
     window.addEventListener('progress-updated', handleLocalUpdate);
 

@@ -16,7 +16,9 @@ import {
   where, 
   onSnapshot, 
   handleFirestoreError, 
-  OperationType 
+  OperationType,
+  writeBatch,
+  deleteField 
 } from './firebase.js';
 import { INITIAL_DATA } from './data.js';
 
@@ -127,7 +129,6 @@ export const UserService = {
       mahadId: studentData.mahadId,
       mahadName: studentData.mahadName || '',
       email: studentData.email ? studentData.email.trim() : `${studentData.id || 'student'}@taaheeltaskforce.com`,
-      avatar: studentData.name.trim().substring(0, 2),
       createdAt: new Date().toISOString()
     };
 
@@ -157,6 +158,8 @@ export const UserService = {
       studentUnsubscribe = null;
     }
 
+    let lastStudentsHash = '';
+
     if (auth.currentUser) {
       try {
         const q = query(collection(db, 'users'), where('role', '==', 'student'));
@@ -176,8 +179,14 @@ export const UserService = {
             students.forEach(st => userMap.set(st.id, { ...userMap.get(st.id), ...st }));
 
             const merged = Array.from(userMap.values());
-            Storage.saveUsers(merged);
-            if (callback) callback(merged.filter(u => u.role === 'student'));
+            const studentList = merged.filter(u => u.role === 'student');
+            const newHash = JSON.stringify(studentList.map(s => `${s.id}:${s.name}:${s.mahadId}`));
+
+            if (newHash !== lastStudentsHash) {
+              lastStudentsHash = newHash;
+              Storage.saveUsers(merged);
+              if (callback) callback(studentList);
+            }
           }
         }, () => {
           // Handled silently
@@ -189,9 +198,13 @@ export const UserService = {
 
     // Also listen to internal window events
     const handleLocalUpdate = () => {
-      this.getStudents().then(st => {
-        if (callback) callback(st);
-      });
+      const allUsers = Storage.getUsers();
+      const studentList = allUsers.filter(u => u.role === 'student');
+      const newHash = JSON.stringify(studentList.map(s => `${s.id}:${s.name}:${s.mahadId}`));
+      if (newHash !== lastStudentsHash) {
+        lastStudentsHash = newHash;
+        if (callback) callback(studentList);
+      }
     };
     window.addEventListener('students-updated', handleLocalUpdate);
 
@@ -343,6 +356,29 @@ export const UserService = {
   },
 
   /**
+   * Purge obsolete avatar field from all user documents in Firestore
+   */
+  async purgeAvatarFromFirestore() {
+    try {
+      const snap = await getDocs(collection(db, 'users'));
+      if (snap.empty) return;
+      const batch = writeBatch(db);
+      let count = 0;
+      snap.forEach(d => {
+        if (d.data().avatar !== undefined) {
+          batch.update(doc(db, 'users', d.id), { avatar: deleteField() });
+          count++;
+        }
+      });
+      if (count > 0) {
+        await batch.commit();
+      }
+    } catch (_) {
+      // Handled silently
+    }
+  },
+
+  /**
    * Seed Initial System Users into Firestore
    */
   async seedInitialFirestoreData() {
@@ -352,6 +388,7 @@ export const UserService = {
         return setDoc(ref, u, { merge: true });
       });
       await Promise.all(promises);
+      await this.purgeAvatarFromFirestore();
     } catch (_) {
       // Handled silently
     }
