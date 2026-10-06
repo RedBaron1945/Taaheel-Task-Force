@@ -6,6 +6,8 @@
 
 import { ProgressService } from './progressService.js';
 import { Utils } from './utils.js';
+import { Storage } from './storage.js';
+import { UserService } from './userService.js';
 
 /**
  * Curated motivational sayings, slogans, and poetic verses for students
@@ -302,6 +304,9 @@ export const StudentView = {
 
     // Render assignments list
     this.renderAssignments(student, stats);
+
+    // Check first-time student welcome pledge modal
+    this.checkFirstTimeWelcomeModal(student);
   },
 
   /**
@@ -1033,5 +1038,125 @@ export const StudentView = {
     const total = MOTIVATIONAL_QUOTES.length;
     const prevIdx = (this._currentQuoteIndex - 1 + total) % total;
     this.goToQuote(prevIdx);
+  },
+
+  /**
+   * Check and display first-time welcome pledge modal for students
+   */
+  checkFirstTimeWelcomeModal(student) {
+    if (!student || student.role !== 'student') return;
+
+    const storageKey = 'taheel_welcome_ack_' + student.id;
+    const isAcknowledged = localStorage.getItem(storageKey) === 'true' || student.hasAcknowledgedWelcomeNotice === true;
+
+    if (isAcknowledged) return;
+
+    // Avoid duplicate modals
+    if (document.getElementById('student-first-welcome-modal')) return;
+
+    const customLogo = Storage.getCustomLogo();
+
+    const modal = document.createElement('div');
+    modal.id = 'student-first-welcome-modal';
+    modal.className = 'fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 overflow-y-auto';
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-labelledby', 'student-welcome-title');
+
+    modal.innerHTML = `
+      <div class="relative w-full max-w-lg max-h-[92vh] overflow-y-auto bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-stone-200/90 text-center my-auto transition-all">
+        <!-- Logo -->
+        <div class="flex justify-center mb-4 select-none pointer-events-none">
+          <img src="${customLogo}" alt="شعار مرحلة التأهيل" class="w-20 h-20 sm:w-24 sm:h-24 object-contain drop-shadow-sm" />
+        </div>
+
+        <!-- Title -->
+        <h2 id="student-welcome-title" class="text-xl sm:text-2xl font-black text-slate-900 tracking-tight leading-snug mb-5">
+          حيّاك الله، أنرتنا و شرفتنا!
+        </h2>
+
+        <!-- Main Text (Centered with prominent red notice) -->
+        <div class="space-y-3.5 text-center text-xs sm:text-sm text-slate-800 leading-relaxed font-medium bg-stone-50/90 p-4 sm:p-5 rounded-2xl border border-stone-200/80 mb-5">
+          <p class="text-slate-900 font-semibold leading-relaxed">
+            اتّقِ الله حق تقاته في تسجيل تقدّمك، واعلم أن مدخلاتك ستعرض على الشيخ، وسيُبنى عليها تقييمك في نهاية الفترة.
+          </p>
+          <p class="text-slate-900 font-bold leading-relaxed">
+            فالهدف الصدق والدقة، بلا تورية أو تحايل.
+          </p>
+          <p class="text-rose-700 font-bold text-[11px] sm:text-xs pt-2 flex items-center justify-center gap-1.5 border-t border-stone-200/70 whitespace-nowrap">
+            <span class="inline-block w-1.5 h-1.5 rounded-full bg-rose-600 shrink-0"></span>
+            <span>لأي مشكلة أو اقتراح، زر التواصل في ذيل الموقع.</span>
+          </p>
+        </div>
+
+        <!-- Checkbox: أتفهم و موافق -->
+        <div class="mb-5 flex justify-center">
+          <label for="student-welcome-checkbox" class="flex items-center justify-center gap-3 w-full p-3.5 rounded-2xl border border-stone-300 bg-white hover:bg-stone-50 cursor-pointer select-none transition-all shadow-2xs">
+            <input type="checkbox" id="student-welcome-checkbox" class="w-5 h-5 rounded-md text-blue-900 border-stone-300 focus:ring-blue-600 focus:ring-offset-0 cursor-pointer shrink-0" />
+            <span class="text-xs sm:text-sm font-bold text-slate-900">أتفهم و موافق</span>
+          </label>
+        </div>
+
+        <!-- Action Button: بسم الله نبدا -->
+        <button type="button" id="btn-student-welcome-confirm" disabled class="w-full min-h-[48px] py-3.5 px-6 rounded-2xl font-black text-sm text-slate-400 bg-stone-200 cursor-not-allowed transition-all shadow-2xs flex items-center justify-center gap-2">
+          <span>بسم الله نبدا</span>
+        </button>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    const checkbox = modal.querySelector('#student-welcome-checkbox');
+    const confirmBtn = modal.querySelector('#btn-student-welcome-confirm');
+
+    const updateBtnState = () => {
+      if (checkbox.checked) {
+        confirmBtn.disabled = false;
+        confirmBtn.className = 'w-full min-h-[48px] py-3.5 px-6 rounded-2xl font-black text-sm text-white bg-blue-900 hover:bg-blue-950 active:scale-[0.99] cursor-pointer transition-all shadow-md shadow-blue-950/20 flex items-center justify-center gap-2';
+      } else {
+        confirmBtn.disabled = true;
+        confirmBtn.className = 'w-full min-h-[48px] py-3.5 px-6 rounded-2xl font-black text-sm text-slate-400 bg-stone-200 cursor-not-allowed transition-all shadow-2xs flex items-center justify-center gap-2';
+      }
+    };
+
+    checkbox.addEventListener('change', updateBtnState);
+
+    // Clicking confirm button (when enabled)
+    confirmBtn.addEventListener('click', () => {
+      if (!checkbox.checked) return;
+
+      localStorage.setItem(storageKey, 'true');
+      student.hasAcknowledgedWelcomeNotice = true;
+      UserService.markWelcomeAcknowledged(student.id);
+
+      modal.style.transition = 'opacity 0.2s ease, transform 0.2s ease';
+      modal.style.opacity = '0';
+      modal.style.transform = 'scale(0.98)';
+      setTimeout(() => {
+        modal.remove();
+      }, 200);
+    });
+
+    // Guard: Prevent clicking backdrop from closing the modal
+    modal.addEventListener('click', (e) => {
+      e.stopPropagation();
+    });
+
+    // Guard: Prevent closing via Escape key
+    const handleKeydown = (e) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+    window.addEventListener('keydown', handleKeydown, true);
+
+    const observer = new MutationObserver(() => {
+      if (!document.body.contains(modal)) {
+        window.removeEventListener('keydown', handleKeydown, true);
+        observer.disconnect();
+      }
+    });
+    observer.observe(document.body, { childList: true });
   }
 };

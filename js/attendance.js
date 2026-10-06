@@ -93,7 +93,7 @@ export const AttendanceView = {
                   ⓘ
                 </button>
                 <div class="absolute right-0 top-full mt-1.5 hidden group-hover/info:block z-30 w-64 p-2.5 rounded-xl bg-slate-900 text-white text-[11px] leading-relaxed shadow-xl border border-white/10 pointer-events-none">
-                  رصد حضور الجلسات المقررة يومي الأحد والثلاثاء لمرحلة التأهيل.
+                  رصد حضور جلسات الأحد والثلاثاء، بالإضافة إلى جلسة «الخميسية» بمنتصف كل شهر لمرحلة التأهيل.
                 </div>
               </div>
             </div>
@@ -308,6 +308,10 @@ export const AttendanceView = {
                 <span class="font-bold text-amber-800">ناقص</span>
               </span>
               <span class="flex items-center gap-1">
+                <span class="w-2.5 h-2.5 rounded-full bg-amber-600 inline-block"></span>
+                <span class="font-bold text-amber-900">الخميسية</span>
+              </span>
+              <span class="flex items-center gap-1">
                 <span class="w-2.5 h-2.5 rounded-full bg-blue-900 inline-block"></span>
                 <span>المحدد</span>
               </span>
@@ -492,7 +496,10 @@ export const AttendanceView = {
     const [y, m, d] = this.selectedDate.split('-').map(Number);
     const date = new Date(y, m - 1, d);
     const day = date.getDay();
-    const dayName = day === 0 ? 'الأحد' : (day === 2 ? 'الثلاثاء' : 'يوم');
+    let dayName = 'يوم';
+    if (day === 0) dayName = 'الأحد';
+    else if (day === 2) dayName = 'الثلاثاء';
+    else if (day === 4) dayName = 'الخميس (الخميسية)';
     const monthName = Utils.getArabicMonthName(m - 1);
     return `${dayName}، ${d} ${monthName} ${y}`;
   },
@@ -574,14 +581,14 @@ export const AttendanceView = {
     const [y, m, d] = this.selectedDate.split('-').map(Number);
     const cursor = new Date(y, m - 1, d);
     
-    for (let step = 0; step < 7; step++) {
+    for (let step = 0; step < 14; step++) {
       cursor.setDate(cursor.getDate() + direction);
-      const day = cursor.getDay();
-      if (day === 0 || day === 2) {
-        const nextY = cursor.getFullYear();
-        const nextM = String(cursor.getMonth() + 1).padStart(2, '0');
-        const nextD = String(cursor.getDate()).padStart(2, '0');
-        this.selectDate(`${nextY}-${nextM}-${nextD}`);
+      const nextY = cursor.getFullYear();
+      const nextM = String(cursor.getMonth() + 1).padStart(2, '0');
+      const nextD = String(cursor.getDate()).padStart(2, '0');
+      const iso = `${nextY}-${nextM}-${nextD}`;
+      if (Utils.isValidAttendanceDay(iso)) {
+        this.selectDate(iso);
         break;
       }
     }
@@ -638,7 +645,7 @@ export const AttendanceView = {
         <span class="py-1">إثنين</span>
         <span class="text-blue-900 bg-blue-50/70 py-1 rounded">ثلاثاء</span>
         <span class="py-1">أربعاء</span>
-        <span class="py-1">خميس</span>
+        <span class="text-amber-800 bg-amber-50/80 py-1 rounded font-bold" title="جلسة الخميسية (مرة واحدة منتصف الشهر)">خميس</span>
         <span class="py-1 text-stone-400">جمعة</span>
         <span class="py-1 text-stone-400">سبت</span>
       </div>
@@ -657,10 +664,16 @@ export const AttendanceView = {
     const todayD = today.getDate();
     const todayIso = `${todayY}-${String(todayM + 1).padStart(2, '0')}-${String(todayD).padStart(2, '0')}`;
 
+    // Single designated Thursday in the middle of the month ("الخميسية")
+    const midMonthKhamisDay = Utils.getMonthlyKhamisDay(year, month);
+
     for (let dayNum = 1; dayNum <= totalDays; dayNum++) {
       const dateIso = `${year}-${String(month + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
       const dayOfWeek = new Date(year, month, dayNum).getDay();
-      const isOfficialSession = (dayOfWeek === 0 || dayOfWeek === 2);
+      const isSundayOrTuesday = (dayOfWeek === 0 || dayOfWeek === 2);
+      const isKhamisiya = (dayOfWeek === 4 && dayNum === midMonthKhamisDay);
+      const isOfficialSession = isSundayOrTuesday || isKhamisiya;
+
       const isSelected = this.selectedDate === dateIso;
       const isToday = (year === todayY && month === todayM && dayNum === todayD);
 
@@ -687,20 +700,28 @@ export const AttendanceView = {
           `;
         } else {
           // جلسة حالية أو قادمة لم يبدأ رصدها بعد
-          badgeHtml = `
-            <span class="text-[9px] font-semibold px-1 py-0.5 rounded ${isSelected ? 'text-blue-200' : 'text-stone-500'}">
-              جلسة
-            </span>
-          `;
+          if (isKhamisiya) {
+            badgeHtml = `
+              <span class="text-[8.5px] font-black px-1.5 py-0.5 rounded ${isSelected ? 'text-amber-200 bg-white/10' : 'text-amber-900 bg-amber-100 border border-amber-300'}">
+                الخميسية
+              </span>
+            `;
+          } else {
+            badgeHtml = `
+              <span class="text-[9px] font-semibold px-1 py-0.5 rounded ${isSelected ? 'text-blue-200' : 'text-stone-500'}">
+                جلسة
+              </span>
+            `;
+          }
         }
 
         html += `
           <button type="button" 
                   data-date="${dateIso}"
-                  class="cal-day-btn p-1.5 sm:p-2 min-h-[48px] rounded-xl flex flex-col items-center justify-between transition-all cursor-pointer border ${isSelected ? 'bg-blue-900 text-white font-bold ring-2 ring-amber-400 border-transparent shadow-md' : 'bg-white hover:bg-amber-50 text-slate-900 border-amber-200/80 shadow-2xs'}" 
-                  title="${isOfficialSession ? 'جلسة معتمدة' : ''}">
+                  class="cal-day-btn p-1.5 sm:p-2 min-h-[48px] rounded-xl flex flex-col items-center justify-between transition-all cursor-pointer border ${isSelected ? 'bg-blue-900 text-white font-bold ring-2 ring-amber-400 border-transparent shadow-md' : (isKhamisiya ? 'bg-amber-50/70 hover:bg-amber-100 text-slate-900 border-amber-300/90 shadow-2xs' : 'bg-white hover:bg-amber-50 text-slate-900 border-amber-200/80 shadow-2xs')}" 
+                  title="${isKhamisiya ? 'جلسة الخميسية (منتصف الشهر)' : 'جلسة معتمدة'}">
             <div class="flex items-center justify-between w-full">
-              <span class="text-xs font-bold ${isSelected ? 'text-amber-300' : 'text-blue-950'}">${dayNum}</span>
+              <span class="text-xs font-bold ${isSelected ? 'text-amber-300' : (isKhamisiya ? 'text-amber-950 font-black' : 'text-blue-950')}">${dayNum}</span>
               ${isToday ? `<span class="w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-amber-300' : 'bg-red-500'}" title="اليوم"></span>` : '<span></span>'}
             </div>
 

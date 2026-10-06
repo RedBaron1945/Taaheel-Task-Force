@@ -379,6 +379,19 @@ export const UserService = {
   },
 
   /**
+   * Mark student first-time welcome pledge as acknowledged
+   */
+  async markWelcomeAcknowledged(studentId) {
+    if (!studentId) return;
+    try {
+      const userRef = doc(db, 'users', studentId);
+      await setDoc(userRef, { hasAcknowledgedWelcomeNotice: true }, { merge: true });
+    } catch (e) {
+      console.warn('Welcome notice ack sync notice:', e);
+    }
+  },
+
+  /**
    * Seed Initial System Users into Firestore
    */
   async seedInitialFirestoreData() {

@@ -102,7 +102,7 @@ export const SupervisorView = {
                   <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
                   <span>نسبة الحضور والالتزام</span>
                 </span>
-                <span class="text-[10px] text-stone-400 font-medium">جلسات الأحد والثلاثاء</span>
+                <span class="text-[10px] text-stone-400 font-medium">جلسات الأحد والثلاثاء والخميسية</span>
               </div>
               <div class="flex items-baseline gap-2 mt-1">
                 <div class="text-2xl sm:text-3xl font-black tabular-nums text-slate-900 font-mono tracking-tight" id="kpi-attendance">—%</div>
@@ -1565,7 +1565,7 @@ export const SupervisorView = {
             <div style="font-size: 11px; font-weight: 600; color: #475569; margin-top: 4px; display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap;">
               <span>دفعة التأهيل 48</span>
               <span>•</span>
-              <span>جلسات يومي الأحد والثلاثاء</span>
+              <span>جلسات الأحد والثلاثاء والخميسية</span>
               <span>•</span>
               <span>تاريخ التقرير: ${dateFormatted}</span>
               <span>•</span>
@@ -1617,9 +1617,6 @@ export const SupervisorView = {
                 ${absentStudents.length} طلاب مسجل عليهم غياب
               </span>
             </div>
-            <p style="font-size: 10.5px; color: #881337; margin-bottom: 10px; line-height: 1.5;">
-              الطلاب التالية أسماؤهم سجلوا أعلى عدد أيام غياب في الجلسات المعتمدة، ويُوصى بالتواصل معهم ومع أولياء أمورهم لمعالجة أسباب الانقطاع وتثبيت الحضور:
-            </p>
             <table style="width: 100%; border-collapse: collapse; font-size: 10px; text-align: right; background: #ffffff; border-radius: 8px; overflow: hidden; border: 1px solid #fda4af;">
               <thead>
                 <tr style="background-color: #ffe4e6; color: #9f1239; font-weight: 800;">
@@ -2816,7 +2813,7 @@ export const SupervisorView = {
 
         <!-- 1. Attendance Record Section (Neutral gray on 0, red/amber only on >0) -->
         <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
-          <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider">سجل الحضور والغياب (الأحد والثلاثاء)</h4>
+          <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider">سجل الحضور والغياب (الأحد والثلاثاء والخميسية)</h4>
           <div class="grid grid-cols-3 gap-2 text-center text-xs">
             <!-- Present: Green always -->
             <div class="p-2.5 rounded-xl bg-emerald-100/70 text-emerald-900 border border-emerald-200/60">

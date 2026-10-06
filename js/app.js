@@ -21,6 +21,7 @@ export const App = {
 
   async init() {
     Storage.init();
+    this.initPWAInstall();
 
     // Setup global auth listener with user change protection
     let lastRenderedUserId = undefined;
@@ -208,8 +209,12 @@ export const App = {
             </form>
           </div>
 
-          <!-- Clean Footer with Direct Support Link -->
-          <div class="mt-6 sm:mt-7 text-center relative z-10 flex flex-col items-center gap-1">
+          <!-- Clean Footer with Direct Support Link & Install Prompt -->
+          <div class="mt-6 sm:mt-7 text-center relative z-10 flex flex-col items-center gap-2">
+            <button type="button" class="btn-pwa-install-action hidden text-xs font-bold text-blue-900 bg-blue-50/90 hover:bg-blue-100 border border-blue-200/90 px-3.5 py-2 rounded-xl items-center gap-1.5 transition-all shadow-2xs cursor-pointer active:scale-95" title="تثبيت تطبيق مرحلة التأهيل على الهاتف">
+              <svg class="w-4 h-4 text-blue-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+              <span>تثبيت «مرحلة التأهيل» على الهاتف</span>
+            </button>
             <div class="text-sm font-semibold text-slate-700">منصة مرحلة التأهيل © 2026</div>
             <button type="button" id="btn-login-support" class="text-xs text-[#1e3a8a] hover:text-[#172554] font-bold hover:underline cursor-pointer focus:outline-hidden rounded-md py-0.5">
               تواجه مشكلة في الدخول؟
@@ -375,6 +380,12 @@ export const App = {
                   <svg id="global-resync-icon" class="w-3.5 h-3.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
                 </button>
               </div>
+
+              <!-- PWA Install Action Button (Auto-shows when installable on mobile) -->
+              <button id="btn-pwa-install" type="button" class="btn-pwa-install-action hidden h-8.5 px-2.5 sm:px-3 items-center justify-center gap-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 active:scale-95 text-blue-900 border border-blue-200/90 shadow-2xs transition-all cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-blue-500 shrink-0" aria-label="تثبيت مرحلة التأهيل" title="تثبيت تطبيق مرحلة التأهيل على هاتفك">
+                <svg class="w-3.5 h-3.5 text-blue-700 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                <span class="text-xs font-bold text-blue-900 hidden sm:inline">تثبيت</span>
+              </button>
 
               <!-- Clear Visual Divider between Info and Action -->
               <div class="h-6 w-px bg-stone-300/80 shrink-0"></div>
@@ -551,7 +562,7 @@ export const App = {
       return `
         <div class="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-sky-50 text-sky-900 border border-sky-200/90 font-bold text-xs sm:text-sm shadow-2xs">
           <svg class="w-4 h-4 text-sky-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
-          <span>سجل الحضور (الأحد والثلاثاء)</span>
+          <span>سجل رصد الحضور (الأحد، الثلاثاء، والخميسية)</span>
         </div>
       `;
     }
@@ -751,11 +762,11 @@ export const App = {
           </div>
         </section>
 
-        <!-- The Two Cards Grid: Equal Stature & Tactile Elevation -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-1">
+        <!-- The Three Gateway Cards Grid: Equal Stature & Tactile Elevation -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-5 lg:gap-6 pt-1">
           
           <!-- Big Card 1: التحضير (Right side in RTL) -->
-          <div id="hub-card-attendance" class="group relative bg-white hover:bg-gradient-to-b hover:from-white hover:to-sky-50/40 rounded-3xl p-6 sm:p-8 border border-stone-200/90 hover:border-sky-400 shadow-md hover:shadow-xl hover:-translate-y-1 transition-all duration-200 cursor-pointer flex flex-col justify-between">
+          <div id="hub-card-attendance" class="group relative bg-white hover:bg-gradient-to-b hover:from-white hover:to-sky-50/40 rounded-3xl p-6 sm:p-7 border border-stone-200/90 hover:border-sky-400 shadow-md hover:shadow-xl hover:-translate-y-1 transition-all duration-200 cursor-pointer flex flex-col justify-between">
             <div class="space-y-4">
               <!-- Card Top Header -->
               <div class="flex items-center justify-between">
@@ -767,11 +778,11 @@ export const App = {
               </div>
 
               <div>
-                <h2 class="text-2xl font-black text-slate-900 group-hover:text-blue-900 transition-colors">
+                <h2 class="text-xl sm:text-2xl font-black text-slate-900 group-hover:text-blue-900 transition-colors">
                   التحضير
                 </h2>
-                <p class="text-sm text-slate-600 mt-2 leading-relaxed">
-                  رصد حضور وغياب الطلاب وتوثيق الأعذار، مع التقويم والتحضير الجماعي السريع.
+                <p class="text-xs sm:text-sm text-slate-600 mt-2 leading-relaxed">
+                  رصد حضور الطلّاب للقاءات و الخميسيات مع ميزة التقويم لتسهيل الرجوع للمعلومات.
                 </p>
               </div>
             </div>
@@ -785,8 +796,8 @@ export const App = {
             </div>
           </div>
 
-          <!-- Big Card 2: غرفة القيادة (Left side in RTL) -->
-          <div id="hub-card-command" class="group relative bg-white hover:bg-gradient-to-b hover:from-white hover:to-amber-50/40 rounded-3xl p-6 sm:p-8 border border-stone-200/90 hover:border-amber-400 shadow-md hover:shadow-xl hover:-translate-y-1 transition-all duration-200 cursor-pointer flex flex-col justify-between">
+          <!-- Big Card 2: غرفة القيادة (Center in RTL) -->
+          <div id="hub-card-command" class="group relative bg-white hover:bg-gradient-to-b hover:from-white hover:to-amber-50/40 rounded-3xl p-6 sm:p-7 border border-stone-200/90 hover:border-amber-400 shadow-md hover:shadow-xl hover:-translate-y-1 transition-all duration-200 cursor-pointer flex flex-col justify-between">
             <div class="space-y-4">
               <!-- Card Top Header -->
               <div class="flex items-center justify-between">
@@ -798,20 +809,55 @@ export const App = {
               </div>
 
               <div>
-                <h2 class="text-2xl font-black text-slate-900 group-hover:text-blue-950 transition-colors">
+                <h2 class="text-xl sm:text-2xl font-black text-slate-900 group-hover:text-blue-950 transition-colors">
                   غرفة القيادة
                 </h2>
-                <p class="text-sm text-slate-600 mt-2 leading-relaxed">
+                <p class="text-xs sm:text-sm text-slate-600 mt-2 leading-relaxed">
                   متابعة سجلات الطلاب، ومقارنة أداء المحاضن، ونسب إنجاز التكاليف والمهام.
                 </p>
               </div>
             </div>
 
-            <!-- Unified Solid Royal Action Button: Same weight as Card 1 for balanced hierarchy -->
+            <!-- Unified Solid Royal Action Button -->
             <div class="pt-6">
               <button type="button" id="btn-hub-goto-command" class="w-full min-h-[46px] py-3.5 px-5 rounded-2xl bg-blue-900 hover:bg-blue-950 active:scale-[0.99] text-white font-bold text-sm shadow-md shadow-blue-950/15 group-hover:shadow-lg flex items-center justify-center gap-2 transition-all cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2">
                 <span>الدخول إلى غرفة القيادة</span>
                 <svg class="w-4 h-4 rotate-180 group-hover:-translate-x-1.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Big Card 3: البوصلة القرآنية (Left side in RTL - رصاصي أنيق) -->
+          <div id="hub-card-quran-compass" class="group relative bg-white hover:bg-gradient-to-b hover:from-white hover:to-slate-100/60 rounded-3xl p-6 sm:p-7 border border-stone-200/90 hover:border-slate-400 shadow-md hover:shadow-xl hover:-translate-y-1 transition-all duration-200 cursor-pointer flex flex-col justify-between">
+            <div class="space-y-4">
+              <!-- Card Top Header with Slate/Gray Icon & Status Badge -->
+              <div class="flex items-center justify-between">
+                <div class="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-slate-600 via-stone-600 to-slate-800 text-stone-100 flex items-center justify-center shadow-md shadow-slate-700/20 group-hover:scale-105 transition-transform border border-slate-500/30 shrink-0">
+                  <svg class="w-7 h-7 sm:w-8 sm:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                  </svg>
+                </div>
+                <span class="text-[11px] font-bold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 border border-slate-300/80 flex items-center gap-1.5 shadow-2xs">
+                  <span class="w-2 h-2 rounded-full bg-slate-500 animate-pulse"></span>
+                  <span>قريبًا</span>
+                </span>
+              </div>
+
+              <div>
+                <h2 class="text-xl sm:text-2xl font-black text-slate-900 group-hover:text-slate-800 transition-colors">
+                  البوصلة القرآنية
+                </h2>
+                <p class="text-xs sm:text-sm text-slate-600 mt-2 leading-relaxed">
+                  متابعة دقيقة للوضع القرآني و التفطّن للمتدهورين و معالجة الخلل و التقصير بالجانب القرآني
+                </p>
+              </div>
+            </div>
+
+            <!-- Unified Action Button in Gray / Slate Style -->
+            <div class="pt-6">
+              <button type="button" id="btn-hub-goto-quran-compass" class="w-full min-h-[46px] py-3.5 px-5 rounded-2xl bg-slate-700 hover:bg-slate-800 active:scale-[0.99] text-white font-bold text-sm shadow-md shadow-slate-900/15 group-hover:shadow-lg flex items-center justify-center gap-2 transition-all cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-slate-500 focus-visible:ring-offset-2">
+                <svg class="w-4 h-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                <span>قريبًا ... تحت التطوير</span>
               </button>
             </div>
           </div>
@@ -826,6 +872,12 @@ export const App = {
     container.querySelector('#hub-card-command')?.addEventListener('click', () => {
       this.switchSection('dashboard');
     });
+    const handleQuranCompassClick = (e) => {
+      e?.stopPropagation();
+      Utils.showToast('قسم «البوصلة القرآنية» تحت التطوير حاليًا وسيتاح قريبًا بإذن الله.', 'info', 3500);
+    };
+    container.querySelector('#hub-card-quran-compass')?.addEventListener('click', handleQuranCompassClick);
+    container.querySelector('#btn-hub-goto-quran-compass')?.addEventListener('click', handleQuranCompassClick);
   },
 
   /**
@@ -935,6 +987,95 @@ export const App = {
         this.openSupportModal();
       }
     });
+  },
+
+  deferredInstallPrompt: null,
+
+  /**
+   * PWA Installation Management for Mobile & Desktop
+   */
+  initPWAInstall() {
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
+      (window.navigator && window.navigator.standalone === true);
+    
+    const isIOS = /iphone|ipad|ipod/.test(navigator.userAgent.toLowerCase());
+
+    const updateInstallButtons = (show) => {
+      const btns = document.querySelectorAll('.btn-pwa-install-action');
+      btns.forEach(btn => {
+        if (show && !isStandalone) {
+          btn.classList.remove('hidden');
+          btn.classList.add('flex');
+        } else {
+          btn.classList.add('hidden');
+          btn.classList.remove('flex');
+        }
+      });
+    };
+
+    if (isStandalone) {
+      updateInstallButtons(false);
+      return;
+    }
+
+    if (isIOS) {
+      updateInstallButtons(true);
+    }
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      this.deferredInstallPrompt = e;
+      updateInstallButtons(true);
+    });
+
+    window.addEventListener('appinstalled', () => {
+      this.deferredInstallPrompt = null;
+      updateInstallButtons(false);
+      Utils.showToast('تم تثبيت تطبيق «مرحلة التأهيل» بنجاح على هاتفك!', 'success');
+    });
+
+    // Global listener for install buttons
+    document.addEventListener('click', async (e) => {
+      const btn = e.target.closest('.btn-pwa-install-action');
+      if (!btn) return;
+      e.preventDefault();
+
+      if (this.deferredInstallPrompt) {
+        this.deferredInstallPrompt.prompt();
+        const choice = await this.deferredInstallPrompt.userChoice;
+        if (choice.outcome === 'accepted') {
+          Utils.showToast('جاري تثبيت «مرحلة التأهيل»...', 'info');
+        }
+        this.deferredInstallPrompt = null;
+      } else if (isIOS) {
+        this.openIOSInstallModal();
+      } else {
+        Utils.showToast('لتثبيت «مرحلة التأهيل»، افتح قائمة المتصفح (⋮) ثم اختر «تثبيت التطبيق» أو «إضافة إلى الشاشة الرئيسية».', 'info', 5000);
+      }
+    });
+
+    const iosClose = document.getElementById('ios-install-close');
+    if (iosClose) {
+      iosClose.addEventListener('click', () => {
+        this.closeIOSInstallModal();
+      });
+    }
+  },
+
+  openIOSInstallModal() {
+    const modal = document.getElementById('ios-install-modal');
+    if (modal) {
+      modal.classList.remove('hidden');
+      modal.style.display = 'flex';
+    }
+  },
+
+  closeIOSInstallModal() {
+    const modal = document.getElementById('ios-install-modal');
+    if (modal) {
+      modal.classList.add('hidden');
+      modal.style.display = 'none';
+    }
   }
 };
 

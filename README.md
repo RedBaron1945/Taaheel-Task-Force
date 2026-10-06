@@ -12,7 +12,8 @@
 │   ├── favicon.ico / favicon-16x16.png / favicon-32x32.png / apple-touch-icon.png
 │   ├── pwa-192x192.png / pwa-512x512.png   # أيقونات تثبيت الهاتف (PWA)
 │   ├── logo.png                # شعار بخلفية بيضاء لأي استخدام عام
-│   ├── og-image.png            # صورة المشاركة على واتساب/تيليجرام/تويتر (1200×630)
+│   ├── whatsapp-share.png / logo-share.png # بطاقة مربعة (512×512) لمعاينة واتساب وتويتر
+│   ├── og-image.png            # بانر كبير (1200×630) لفيسبوك ولينكدإن
 │   ├── manifest.json           # إعدادات تطبيق الويب التقدمي (PWA)
 │   └── sw.js                   # Service Worker (تخزين مؤقت للعمل بسرعة وبلا اتصال)
 ├── branding/taaheel-logo.png   # الشعار الرسمي (المصدر الوحيد لكل الأيقونات وصورة OG)
@@ -41,7 +42,7 @@ pip install pillow numpy
 python3 tools/generate-icons.py
 ```
 
-يولّد هذا كل أيقونات `public/` (التبويب، آيفون، تثبيت أندرويد) وصورة `og-image.png` التي تظهر عند مشاركة رابط الموقع في واتساب وتيليجرام وتويتر، والشعار المستخدم داخل التطبيق نفسه (`src/assets/images/taaheel-logo.png`).
+يولّد هذا كل أيقونات `public/` (التبويب، آيفون، تثبيت أندرويد)، وبطاقة `whatsapp-share.png` المربعة التي تظهر في معاينة واتساب وتويتر، وبانر `og-image.png` الكبير لفيسبوك ولينكدإن، والشعار المستخدم داخل التطبيق نفسه (`src/assets/images/taaheel-logo.png`).
 
 ---
 

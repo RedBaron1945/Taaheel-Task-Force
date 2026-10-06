@@ -53,14 +53,50 @@ export const Utils = {
   },
 
   /**
-   * Check if day is Sunday (0) or Tuesday (2)
+   * Determine the single designated Thursday in the middle of a given month ("الخميسية")
+   * Finds the Thursday closest to the 15th of the month.
+   */
+  getMonthlyKhamisDay(year, month) {
+    const totalDays = new Date(year, month + 1, 0).getDate();
+    let bestDay = null;
+    let minDiff = 999;
+    for (let d = 1; d <= totalDays; d++) {
+      if (new Date(year, month, d).getDay() === 4) {
+        const diff = Math.abs(d - 15);
+        if (diff < minDiff) {
+          minDiff = diff;
+          bestDay = d;
+        }
+      }
+    }
+    return bestDay;
+  },
+
+  /**
+   * Check if a given date is the designated "الخميسية" for its month
+   */
+  isMonthlyKhamisDay(dateStr) {
+    if (!dateStr) return false;
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const date = new Date(y, m - 1, d);
+    if (date.getDay() !== 4) return false;
+    return d === this.getMonthlyKhamisDay(y, m - 1);
+  },
+
+  /**
+   * Check if day is a valid attendance session:
+   * Sunday (0), Tuesday (2), or the single monthly "الخميسية" (Thursday closest to mid-month)
    */
   isValidAttendanceDay(dateStr) {
     if (!dateStr) return false;
     const [y, m, d] = dateStr.split('-').map(Number);
     const date = new Date(y, m - 1, d);
     const day = date.getDay();
-    return day === 0 || day === 2; // 0 = Sunday, 2 = Tuesday
+    if (day === 0 || day === 2) return true; // 0 = Sunday, 2 = Tuesday
+    if (day === 4) {
+      return this.isMonthlyKhamisDay(dateStr); // Only the single mid-month Thursday ("الخميسية")
+    }
+    return false;
   },
 
   /**

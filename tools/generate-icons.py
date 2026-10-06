@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""يولّد كل أيقونات الموقع وصورة المشاركة الاجتماعية (OG) من الشعار الرسمي
+"""يولّد كل أيقونات الموقع وصور المشاركة الاجتماعية من الشعار الرسمي
 branding/taaheel-logo.png — المصدر الوحيد. الأسماء مطابقة لما يتوقعه
 public/manifest.json وpublic/sw.js وindex.html في هذا المشروع.
 
 الاستخدام: python3 tools/generate-icons.py
-يحتاج: Pillow, numpy, وأداة rsvg-convert لصورة OG فقط
+يحتاج: Pillow, numpy, وأداة rsvg-convert لصور OG/WhatsApp فقط
        (تثبيتها مرة واحدة: sudo apt install librsvg2-bin)
 """
 import base64
@@ -36,14 +36,14 @@ oy, ox = np.where(alpha_c > 10)
 far = float(np.sqrt((oy - cy) ** 2 + (ox - cx) ** 2).max())
 
 
-def compose(size, fill_ratio=None, radius_ratio=None):
+def compose(size, fill_ratio=None, radius_ratio=None, bg=(255, 255, 255)):
     if radius_ratio is not None:
         scale = (size * radius_ratio) / far
     else:
         scale = (size * fill_ratio) / logo.height
     w, h = max(1, round(logo.width * scale)), max(1, round(logo.height * scale))
     img = logo.resize((w, h), Image.LANCZOS)
-    canvas = Image.new("RGBA", (size, size), (255, 255, 255, 255))
+    canvas = Image.new("RGBA", (size, size), (*bg, 255))
     canvas.alpha_composite(img, ((size - w) // 2, (size - h) // 2))
     return canvas.convert("RGB")
 
@@ -53,7 +53,7 @@ def save(name, img):
     print("✔", name, img.size)
 
 
-# --- أيقونات التبويب والتثبيت (أسماء مطابقة لـ public/manifest.json وpublic/sw.js) ---
+# --- أيقونات التبويب والتثبيت ---
 save("logo.png", compose(512, fill_ratio=0.94))
 save("favicon-32x32.png", compose(32, fill_ratio=0.94))
 save("favicon-16x16.png", compose(16, fill_ratio=0.98))
@@ -62,12 +62,15 @@ fav48 = compose(48, fill_ratio=0.94)
 fav48.save(PUB / "favicon.ico", sizes=[(16, 16), (32, 32), (48, 48)])
 print("✔ favicon.ico")
 
-# أيقونات PWA — manifest.json يصفها "any maskable" معًا، فنبقي الشعار داخل
-# دائرة آمنة (38%) حتى تبدو سليمة سواء استُخدمت عادية أو مقصوصة.
 save("pwa-192x192.png", compose(192, radius_ratio=0.38))
 save("pwa-512x512.png", compose(512, radius_ratio=0.38))
 
-# --- صورة المشاركة الاجتماعية (OG banner 1200×630) ---
+# --- بطاقة واتساب المربعة (512×512، خلفية بيضاء نقية — تُستخدم أيضًا كأيقونة maskable) ---
+wa_card = compose(512, fill_ratio=0.80)
+save("whatsapp-share.png", wa_card)
+save("logo-share.png", wa_card)
+
+# --- صورة المشاركة الكبيرة لفيسبوك/لينكدإن (OG banner 1200×630) ---
 transparent_path = ROOT / "_og_logo_tmp.png"
 logo.save(transparent_path)
 b64 = base64.b64encode(transparent_path.read_bytes()).decode("ascii")

@@ -3,37 +3,72 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
-    <title>منصة مرحلة التأهيل</title>
-    <meta name="description" content="منصة تعليمية عربية لمتابعة طلاب مرحلة التأهيل ومراقبة إنجازهم للتكاليف وحضورهم" />
-    <meta name="author" content="منصة مرحلة التأهيل" />
+    <title>مرحلة التأهيل</title>
+    <meta name="description" content="منصة مرحلة التأهيل لمتابعة طلاب الدفعة 48 ورصد حضور الجلسات والخميسيات وتكاليف القرآن والدروس." />
+    <meta name="author" content="مرحلة التأهيل" />
     <meta name="theme-color" content="#0d2252" />
 
-    <!-- OpenGraph Social Sharing (WhatsApp, Telegram, Facebook, LinkedIn, iMessage) -->
-    <meta property="og:site_name" content="منصة مرحلة التأهيل" />
-    <meta property="og:title" content="منصة مرحلة التأهيل" />
-    <meta property="og:description" content="منصة تعليمية عربية لمتابعة طلاب مرحلة التأهيل ومراقبة إنجازهم للتكاليف وحضورهم" />
+    <!-- Mobile Home Screen Installation (PWA Branding: «مرحلة التأهيل») -->
+    <meta name="application-name" content="مرحلة التأهيل" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="مرحلة التأهيل" />
+
+    <!-- OpenGraph Social Sharing & WhatsApp Link Preview (Square Card Thumbnail) -->
+    <meta property="og:site_name" content="مرحلة التأهيل" />
+    <meta property="og:title" content="مرحلة التأهيل" />
+    <meta property="og:description" content="منصة مرحلة التأهيل لمتابعة طلاب الدفعة 48 ورصد حضور الجلسات والخميسيات وتكاليف القرآن والدروس." />
     <meta property="og:type" content="website" />
     <meta property="og:locale" content="ar_SA" />
-    <meta property="og:url" content="https://taaheel-task-force.bbrys005.workers.dev" />
+    <meta property="og:url" content="https://taaheel-task-force.bbrys005.workers.dev/" />
+
+    <!-- Primary WhatsApp Image Thumbnail (512x512 Square PNG, crisp white background, under 100KB) -->
+    <meta property="og:image" content="https://taaheel-task-force.bbrys005.workers.dev/whatsapp-share.png" />
+    <meta property="og:image:secure_url" content="https://taaheel-task-force.bbrys005.workers.dev/whatsapp-share.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="512" />
+    <meta property="og:image:height" content="512" />
+    <meta property="og:image:alt" content="شعار مرحلة التأهيل" />
+
+    <!-- Secondary Large Banner for Facebook/LinkedIn -->
     <meta property="og:image" content="https://taaheel-task-force.bbrys005.workers.dev/og-image.png" />
     <meta property="og:image:secure_url" content="https://taaheel-task-force.bbrys005.workers.dev/og-image.png" />
-    <meta property="og:image:type" content="image/png" />
-    <meta property="og:image:width" content="1200" />
-    <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content="شعار منصة مرحلة التأهيل" />
 
     <!-- Twitter / X Card Meta Tags -->
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="منصة مرحلة التأهيل" />
-    <meta name="twitter:description" content="منصة تعليمية عربية لمتابعة طلاب مرحلة التأهيل ومراقبة إنجازهم للتكاليف وحضورهم" />
-    <meta name="twitter:image" content="https://taaheel-task-force.bbrys005.workers.dev/og-image.png" />
-    <meta name="twitter:image:alt" content="شعار منصة مرحلة التأهيل" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="مرحلة التأهيل" />
+    <meta name="twitter:description" content="منصة مرحلة التأهيل لمتابعة طلاب الدفعة 48 ورصد حضور الجلسات والخميسيات وتكاليف القرآن والدروس." />
+    <meta name="twitter:image" content="https://taaheel-task-force.bbrys005.workers.dev/whatsapp-share.png" />
+    <meta name="twitter:image:alt" content="شعار مرحلة التأهيل" />
 
     <!-- Schema.org Microdata & Legacy Crawlers -->
-    <meta itemprop="name" content="منصة مرحلة التأهيل" />
-    <meta itemprop="description" content="منصة تعليمية عربية لمتابعة طلاب مرحلة التأهيل ومراقبة إنجازهم للتكاليف وحضورهم" />
-    <meta itemprop="image" content="https://taaheel-task-force.bbrys005.workers.dev/og-image.png" />
-    <link rel="image_src" href="https://taaheel-task-force.bbrys005.workers.dev/og-image.png" />
+    <meta itemprop="name" content="مرحلة التأهيل" />
+    <meta itemprop="description" content="منصة مرحلة التأهيل لمتابعة طلاب الدفعة 48 ورصد حضور الجلسات والخميسيات وتكاليف القرآن والدروس." />
+    <meta itemprop="image" content="https://taaheel-task-force.bbrys005.workers.dev/whatsapp-share.png" />
+    <link rel="image_src" href="https://taaheel-task-force.bbrys005.workers.dev/whatsapp-share.png" />
+
+    <!-- Dynamic Domain Sync for Crawlers and Web Previews on Any Domain -->
+    <script>
+      (function() {
+        if (typeof window !== 'undefined' && window.location) {
+          try {
+            var origin = window.location.origin;
+            var path = window.location.pathname;
+            var fullUrl = origin + path;
+            var imgUrl = origin + '/whatsapp-share.png';
+            var ogUrl = document.querySelector('meta[property="og:url"]');
+            if (ogUrl) ogUrl.setAttribute('content', fullUrl);
+            if (origin && !origin.includes('localhost') && !origin.includes('127.0.0.1')) {
+              var ogImgs = document.querySelectorAll('meta[property="og:image"], meta[property="og:image:secure_url"], meta[name="twitter:image"]');
+              if (ogImgs.length > 0) ogImgs[0].setAttribute('content', imgUrl);
+              var linkImg = document.querySelector('link[rel="image_src"]');
+              if (linkImg) linkImg.setAttribute('href', imgUrl);
+            }
+          } catch(e) {}
+        }
+      })();
+    </script>
 
     <!-- Favicon & Touch Icons -->
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
@@ -55,10 +90,10 @@
     {
       "@context": "https://schema.org",
       "@type": "WebApplication",
-      "name": "منصة مرحلة التأهيل",
-      "url": "https://taaheel-task-force.bbrys005.workers.dev",
-      "image": "https://taaheel-task-force.bbrys005.workers.dev/og-image.png",
-      "description": "منصة تعليمية عربية لمتابعة طلاب مرحلة التأهيل ومراقبة إنجازهم للتكاليف وحضورهم",
+      "name": "مرحلة التأهيل",
+      "url": "https://taaheel-task-force.bbrys005.workers.dev/",
+      "image": "https://taaheel-task-force.bbrys005.workers.dev/whatsapp-share.png",
+      "description": "منصة مرحلة التأهيل لمتابعة طلاب الدفعة 48 ورصد حضور الجلسات والخميسيات وتكاليف القرآن والدروس.",
       "applicationCategory": "EducationalApplication",
       "operatingSystem": "All",
       "inLanguage": "ar"
@@ -75,7 +110,7 @@
               const el = document.querySelector(selector);
               if (el) el.setAttribute(attr, val);
             };
-            const fullImgUrl = origin + '/og-image.png';
+            const fullImgUrl = origin + '/whatsapp-share.png';
             updateMeta('meta[property="og:image"]', 'content', fullImgUrl);
             updateMeta('meta[property="og:image:secure_url"]', 'content', fullImgUrl);
             updateMeta('meta[name="twitter:image"]', 'content', fullImgUrl);
@@ -308,6 +343,36 @@
             <!-- Populated dynamically with the official printable report -->
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- iOS Safari PWA Install Modal -->
+    <div id="ios-install-modal" class="modal-overlay hidden" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="ios-modal-title">
+      <div class="modal-dialog relative p-6 max-w-sm w-[calc(100%-2rem)] mx-auto rounded-3xl border border-stone-200 bg-white shadow-2xl text-center space-y-4">
+        <div class="w-16 h-16 mx-auto rounded-2xl bg-blue-50 border border-blue-200 flex items-center justify-center p-2 shadow-xs">
+          <img src="/whatsapp-share.png" alt="مرحلة التأهيل" class="w-full h-full object-contain rounded-xl" />
+        </div>
+        <div>
+          <h3 id="ios-modal-title" class="font-black text-lg text-slate-900 leading-tight">تثبيت تطبيق «مرحلة التأهيل»</h3>
+          <p class="text-xs text-stone-500 mt-1">على شاشة هاتفك (iPhone / iPad)</p>
+        </div>
+        <div class="bg-stone-50 rounded-2xl p-4 text-right text-xs space-y-2.5 text-slate-700 border border-stone-200/70">
+          <div class="flex items-start gap-2.5">
+            <span class="w-5 h-5 rounded-full bg-blue-900 text-white flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">1</span>
+            <span>اضغط على زر المشاركة <strong>(مربع بسهم ⎋)</strong> في أسفل متصفح Safari.</span>
+          </div>
+          <div class="flex items-start gap-2.5">
+            <span class="w-5 h-5 rounded-full bg-blue-900 text-white flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">2</span>
+            <span>مرر لأسفل واختر <strong>«إضافة إلى الشاشة الرئيسية»</strong> (Add to Home Screen).</span>
+          </div>
+          <div class="flex items-start gap-2.5">
+            <span class="w-5 h-5 rounded-full bg-blue-900 text-white flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">3</span>
+            <span>سيظهر التطبيق فوراً باسم <strong>«مرحلة التأهيل»</strong> على شاشة جهازك.</span>
+          </div>
+        </div>
+        <button type="button" id="ios-install-close" class="w-full py-2.5 rounded-xl bg-blue-900 hover:bg-blue-950 text-white font-bold text-xs transition-colors cursor-pointer">
+          فهمت ذلك
+        </button>
       </div>
     </div>
 

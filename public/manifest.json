@@ -1,10 +1,11 @@
 {
-  "name": "منصة مرحلة التأهيل",
-  "short_name": "التأهيل",
-  "description": "منصة تعليمية عربية لمتابعة طلاب مرحلة التأهيل ومراقبة إنجازهم للتكاليف وحضورهم",
+  "name": "مرحلة التأهيل",
+  "short_name": "مرحلة التأهيل",
+  "description": "منصة مرحلة التأهيل لمتابعة طلاب الدفعة 48 ورصد حضور الجلسات والخميسيات وتكاليف القرآن والدروس.",
   "start_url": "/",
+  "id": "/",
   "display": "standalone",
-  "background_color": "#0d2252",
+  "background_color": "#ffffff",
   "theme_color": "#0d2252",
   "dir": "rtl",
   "lang": "ar",
@@ -25,13 +26,19 @@
       "src": "/pwa-192x192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
       "src": "/pwa-512x512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/whatsapp-share.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }

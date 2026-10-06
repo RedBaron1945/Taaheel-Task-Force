@@ -4,12 +4,13 @@
  * Employs Stale-While-Revalidate for app shell and Cache-First for static assets.
  */
 
-const CACHE_NAME = 'taheel-cache-v2';
+const CACHE_NAME = 'taheel-cache-v3';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/manifest.json',
   '/logo.png',
+  '/whatsapp-share.png',
   '/favicon.ico',
   '/favicon-16x16.png',
   '/favicon-32x32.png',

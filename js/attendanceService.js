@@ -221,7 +221,7 @@ export const AttendanceService = {
    */
   async recordAttendance(studentId, dateStr, status, recordedBy = 'TnCoR9ZTSibHTvIt15VPeQHfGFy1') {
     if (!Utils.isValidAttendanceDay(dateStr)) {
-      throw new Error('التحضير متاح فقط لأيام الأحد والثلاثاء.');
+      throw new Error('التحضير متاح لأيام الأحد والثلاثاء، وجلسة «الخميسية» (منتصف الشهر).');
     }
 
     if (!['present', 'excused', 'absent'].includes(status)) {
