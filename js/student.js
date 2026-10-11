@@ -385,7 +385,7 @@ export const StudentView = {
         `;
       } else {
         // Standard remaining days: Compact, sleek & elegant centered badge
-        let daysUnitLabel = 'يوماً متبقياً';
+        let daysUnitLabel = 'يوماً';
         if (deadlineInfo.days === 1) daysUnitLabel = 'يوم واحد فقط';
         else if (deadlineInfo.days === 2) daysUnitLabel = 'يومان متبقيان';
         else if (deadlineInfo.days >= 3 && deadlineInfo.days <= 10) daysUnitLabel = 'أيام متبقية';
