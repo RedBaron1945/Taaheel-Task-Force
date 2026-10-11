@@ -73,30 +73,25 @@ export const Utils = {
   },
 
   /**
-   * Check if a given date is the designated "الخميسية" for its month
+   * Check if a given date is a Thursday ("الخميسية")
    */
   isMonthlyKhamisDay(dateStr) {
     if (!dateStr) return false;
     const [y, m, d] = dateStr.split('-').map(Number);
     const date = new Date(y, m - 1, d);
-    if (date.getDay() !== 4) return false;
-    return d === this.getMonthlyKhamisDay(y, m - 1);
+    return date.getDay() === 4;
   },
 
   /**
    * Check if day is a valid attendance session:
-   * Sunday (0), Tuesday (2), or the single monthly "الخميسية" (Thursday closest to mid-month)
+   * Sunday (0), Tuesday (2), or Thursday (4) ("الخميسية" - كل أيام الخميس)
    */
   isValidAttendanceDay(dateStr) {
     if (!dateStr) return false;
     const [y, m, d] = dateStr.split('-').map(Number);
     const date = new Date(y, m - 1, d);
     const day = date.getDay();
-    if (day === 0 || day === 2) return true; // 0 = Sunday, 2 = Tuesday
-    if (day === 4) {
-      return this.isMonthlyKhamisDay(dateStr); // Only the single mid-month Thursday ("الخميسية")
-    }
-    return false;
+    return day === 0 || day === 2 || day === 4;
   },
 
   /**
@@ -111,7 +106,7 @@ export const Utils = {
   },
 
   /**
-   * Generate list of past and upcoming Sunday and Tuesday dates around current date
+   * Generate list of past and upcoming Sunday, Tuesday, and Thursday dates around current date
    */
   getRecentSundaysAndTuesdays(count = 12) {
     const dates = [];
@@ -122,12 +117,14 @@ export const Utils = {
 
     while (dates.length < count) {
       const day = cursor.getDay();
-      if (day === 0 || day === 2) {
+      if (day === 0 || day === 2 || day === 4) {
         const y = cursor.getFullYear();
         const m = String(cursor.getMonth() + 1).padStart(2, '0');
         const d = String(cursor.getDate()).padStart(2, '0');
         const iso = `${y}-${m}-${d}`;
-        const dayName = day === 0 ? 'الأحد' : 'الثلاثاء';
+        let dayName = 'الأحد';
+        if (day === 2) dayName = 'الثلاثاء';
+        else if (day === 4) dayName = 'الخميس (الخميسية)';
         dates.push({
           date: iso,
           label: `${dayName} (${d}/${m}/${y})`,

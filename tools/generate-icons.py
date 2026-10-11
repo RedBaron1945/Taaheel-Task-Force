@@ -36,12 +36,6 @@ def main():
         im.resize((16, 16), Image.Resampling.LANCZOS).save('public/favicon-16x16.png', format='PNG')
         im.resize((32, 32), Image.Resampling.LANCZOS).save('public/favicon.ico', format='ICO')
 
-        # OG Image (1200x630 banner with centered logo on pure white background)
-        og = Image.new('RGBA', (1200, 630), (255, 255, 255, 255))
-        logo_og = im.resize((480, 480), Image.Resampling.LANCZOS)
-        og.paste(logo_og, ((1200 - 480) // 2, (630 - 480) // 2), logo_og)
-        og.save('public/og-image.png', format='PNG')
-
         print("All icons generated successfully from branding/taaheel-logo.png")
     except ImportError:
         # Fallback if Pillow is not installed
@@ -49,8 +43,9 @@ def main():
         if os.path.exists('branding/whatsapp-share.png'):
             shutil.copyfile('branding/whatsapp-share.png', 'public/whatsapp-share.png')
             shutil.copyfile('branding/whatsapp-share.png', 'public/logo-share.png')
-        if os.path.exists('branding/og-image.png'):
-            shutil.copyfile('branding/og-image.png', 'public/og-image.png')
+        else:
+            shutil.copyfile(logo_path, 'public/whatsapp-share.png')
+            shutil.copyfile(logo_path, 'public/logo-share.png')
         print("Pillow not installed; copied base assets from branding/")
 
 if __name__ == '__main__':

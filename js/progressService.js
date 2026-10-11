@@ -16,17 +16,30 @@ export const ProgressService = {
     const local = Storage.getProgress() || {};
 
     const fetchRemote = async () => {
-      const snapshot = await getDocs(collection(db, 'progress'));
-      const remoteProgress = {};
-      snapshot.forEach(docSnap => {
-        const data = docSnap.data();
-        if (data.studentId && data.assignmentId) {
-          if (!remoteProgress[data.studentId]) remoteProgress[data.studentId] = {};
-          remoteProgress[data.studentId][data.assignmentId] = data.completedSubtaskIds || [];
+      try {
+        const snapshot = await getDocs(collection(db, 'progress'));
+        const remoteProgress = {};
+        snapshot.forEach(docSnap => {
+          const data = docSnap.data();
+          if (data.studentId && data.assignmentId) {
+            if (!remoteProgress[data.studentId]) remoteProgress[data.studentId] = {};
+            remoteProgress[data.studentId][data.assignmentId] = data.completedSubtaskIds || [];
+          }
+        });
+
+        // Smart merge: never wipe out unsynced local student progress
+        const merged = { ...remoteProgress };
+        const currentLocal = Storage.getProgress() || {};
+        for (const [sId, asgs] of Object.entries(currentLocal)) {
+          if (!merged[sId]) {
+            merged[sId] = asgs;
+          }
         }
-      });
-      Storage.saveProgress(remoteProgress);
-      return remoteProgress;
+        Storage.saveProgress(merged);
+        return merged;
+      } catch (_) {
+        return local;
+      }
     };
 
     const timeout = new Promise((resolve) => setTimeout(() => resolve(local), 1200));
@@ -42,9 +55,13 @@ export const ProgressService = {
    * Get completed subtask IDs for a student on a specific assignment
    */
   async getStudentAssignmentCompleted(studentId, assignmentId) {
-    const all = await this.getAllProgress();
+    const all = Storage.getProgress() || {};
     const studentData = all[studentId] || {};
-    return studentData[assignmentId] || [];
+    if (studentData[assignmentId]) {
+      return studentData[assignmentId];
+    }
+    const freshAll = await this.getAllProgress();
+    return (freshAll[studentId] && freshAll[studentId][assignmentId]) || [];
   },
 
   /**
@@ -59,44 +76,71 @@ export const ProgressService = {
       throw new Error('عذراً، انتهى وقت تسليم هذا التكليف وأصبح للقراءة فقط.');
     }
 
-    const all = await this.getAllProgress();
+    const all = Storage.getProgress() || {};
     if (!all[studentId]) all[studentId] = {};
     if (!all[studentId][assignmentId]) all[studentId][assignmentId] = [];
 
-    const list = all[studentId][assignmentId];
+    let list = [...all[studentId][assignmentId]];
     const index = list.indexOf(subtaskId);
 
-    // Sequential Validation
     const subtasks = assignment.subtasks || [];
     const targetIdx = subtasks.findIndex(s => s.id === subtaskId);
+
     if (targetIdx > -1) {
       if (index === -1) {
-        // Checking: All prior steps must be completed
-        for (let i = 0; i < targetIdx; i++) {
+        // Checking: ensure this step and all prior steps are completed
+        for (let i = 0; i <= targetIdx; i++) {
           if (!list.includes(subtasks[i].id)) {
-            throw new Error(`يرجى إنجاز الخطوة السابقة أولاً: «${subtasks[i].title}»`);
+            list.push(subtasks[i].id);
           }
         }
       } else {
-        // Unchecking: All subsequent steps must be uncompleted first
-        for (let i = targetIdx + 1; i < subtasks.length; i++) {
-          if (list.includes(subtasks[i].id)) {
-            throw new Error(`يرجى إلغاء الخطوة اللاحقة أولاً للحفاظ على ترتيب الإنجاز`);
-          }
+        // Unchecking: remove this step and all subsequent steps smoothly
+        const toRemove = new Set();
+        for (let i = targetIdx; i < subtasks.length; i++) {
+          toRemove.add(subtasks[i].id);
         }
+        list = list.filter(id => !toRemove.has(id));
+      }
+    } else {
+      if (index > -1) {
+        list.splice(index, 1);
+      } else {
+        list.push(subtaskId);
       }
     }
 
-    if (index > -1) {
-      list.splice(index, 1);
-    } else {
-      list.push(subtaskId);
-    }
+    all[studentId][assignmentId] = list;
+    Storage.saveProgress(all);
+    window.dispatchEvent(new CustomEvent('progress-updated', { detail: { studentId, assignmentId, list } }));
+
+    // Queue write to Firestore in background
+    const progressDocId = `${studentId}_${assignmentId}`;
+    setDoc(doc(db, 'progress', progressDocId), {
+      id: progressDocId,
+      studentId,
+      assignmentId,
+      completedSubtaskIds: list,
+      updatedAt: new Date().toISOString()
+    }).catch(err => {
+      console.warn('Firestore progress write background notice:', err);
+    });
+
+    return list;
+  },
+
+  /**
+   * Save explicit list of completed subtasks for an assignment
+   */
+  async saveAssignmentSubtasks(studentId, assignmentId, completedIds) {
+    const all = Storage.getProgress() || {};
+    if (!all[studentId]) all[studentId] = {};
+    const list = Array.isArray(completedIds) ? [...completedIds] : [];
+    all[studentId][assignmentId] = list;
 
     Storage.saveProgress(all);
     window.dispatchEvent(new CustomEvent('progress-updated', { detail: { studentId, assignmentId, list } }));
 
-    // Queue write to Firestore in background (non-blocking for slow networks)
     const progressDocId = `${studentId}_${assignmentId}`;
     setDoc(doc(db, 'progress', progressDocId), {
       id: progressDocId,

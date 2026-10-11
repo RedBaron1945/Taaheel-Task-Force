@@ -93,7 +93,7 @@ export const AttendanceView = {
                   ⓘ
                 </button>
                 <div class="absolute right-0 top-full mt-1.5 hidden group-hover/info:block z-30 w-64 p-2.5 rounded-xl bg-slate-900 text-white text-[11px] leading-relaxed shadow-xl border border-white/10 pointer-events-none">
-                  رصد حضور جلسات الأحد والثلاثاء، بالإضافة إلى جلسة «الخميسية» بمنتصف كل شهر لمرحلة التأهيل.
+                  رصد حضور جلسات الأحد والثلاثاء، بالإضافة إلى جلسات «الخميسية» لمرحلة التأهيل.
                 </div>
               </div>
             </div>
@@ -102,7 +102,7 @@ export const AttendanceView = {
             <div class="flex flex-wrap items-center gap-2 bg-white/10 backdrop-blur-xs p-1.5 sm:p-2 rounded-xl border border-amber-400/20">
               <!-- Calendar Date Navigator -->
               <div class="flex items-center gap-1">
-                <button id="att-prev-day-btn" type="button" title="الجلسة السابقة" class="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white border border-white/15 transition-colors cursor-pointer">
+                <button id="att-prev-day-btn" type="button" title="اللقاء السابق" class="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white border border-white/15 transition-colors cursor-pointer">
                   <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                 </button>
                 
@@ -112,7 +112,7 @@ export const AttendanceView = {
                   <span class="text-[9px] text-amber-900 bg-amber-100 font-bold px-1.5 py-0.5 rounded">التقويم ▾</span>
                 </button>
 
-                <button id="att-next-day-btn" type="button" title="الجلسة التالية" class="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white border border-white/15 transition-colors cursor-pointer">
+                <button id="att-next-day-btn" type="button" title="اللقاء التالي" class="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white border border-white/15 transition-colors cursor-pointer">
                   <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
                 </button>
               </div>
@@ -645,7 +645,7 @@ export const AttendanceView = {
         <span class="py-1">إثنين</span>
         <span class="text-blue-900 bg-blue-50/70 py-1 rounded">ثلاثاء</span>
         <span class="py-1">أربعاء</span>
-        <span class="text-amber-800 bg-amber-50/80 py-1 rounded font-bold" title="جلسة الخميسية (مرة واحدة منتصف الشهر)">خميس</span>
+        <span class="text-amber-800 bg-amber-50/80 py-1 rounded font-bold" title="جلسات الخميسية">خميس</span>
         <span class="py-1 text-stone-400">جمعة</span>
         <span class="py-1 text-stone-400">سبت</span>
       </div>
@@ -664,14 +664,11 @@ export const AttendanceView = {
     const todayD = today.getDate();
     const todayIso = `${todayY}-${String(todayM + 1).padStart(2, '0')}-${String(todayD).padStart(2, '0')}`;
 
-    // Single designated Thursday in the middle of the month ("الخميسية")
-    const midMonthKhamisDay = Utils.getMonthlyKhamisDay(year, month);
-
     for (let dayNum = 1; dayNum <= totalDays; dayNum++) {
       const dateIso = `${year}-${String(month + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
       const dayOfWeek = new Date(year, month, dayNum).getDay();
       const isSundayOrTuesday = (dayOfWeek === 0 || dayOfWeek === 2);
-      const isKhamisiya = (dayOfWeek === 4 && dayNum === midMonthKhamisDay);
+      const isKhamisiya = (dayOfWeek === 4); // كل أيام الخميس في الشهر تُدرج كـ الخميسية
       const isOfficialSession = isSundayOrTuesday || isKhamisiya;
 
       const isSelected = this.selectedDate === dateIso;
@@ -680,7 +677,6 @@ export const AttendanceView = {
       const recordedCount = dateRecordCountMap.get(dateIso) || 0;
       const isCompleted100 = totalCohortCount > 0 && recordedCount >= totalCohortCount;
       const isPartial = recordedCount > 0 && recordedCount < totalCohortCount;
-      const isPastSession = dateIso < todayIso;
 
       if (isOfficialSession) {
         let badgeHtml = '';
@@ -691,15 +687,15 @@ export const AttendanceView = {
               مكتمل
             </span>
           `;
-        } else if (isPartial || (isPastSession && recordedCount === 0)) {
-          // ناقص (سواء رُصد جزئياً أو جلسة ماضية لم يكتمل رصدها)
+        } else if (isPartial) {
+          // ناقص فقط لو تم الرصد و كان هناك نقص
           badgeHtml = `
             <span class="text-[9px] font-bold px-1.5 py-0.5 rounded ${isSelected ? 'bg-amber-300 text-slate-950 font-black' : 'bg-amber-100 text-amber-800 border border-amber-300'}" title="ناقص (${recordedCount}/${totalCohortCount})">
               ناقص
             </span>
           `;
         } else {
-          // جلسة حالية أو قادمة لم يبدأ رصدها بعد
+          // في حالة مرور يوم والرصد كان 0 بمعنى لم يتم الرصد أبداً فلا يُكتب ناقص لأن اليوم فارغ
           if (isKhamisiya) {
             badgeHtml = `
               <span class="text-[8.5px] font-black px-1.5 py-0.5 rounded ${isSelected ? 'text-amber-200 bg-white/10' : 'text-amber-900 bg-amber-100 border border-amber-300'}">
@@ -709,7 +705,7 @@ export const AttendanceView = {
           } else {
             badgeHtml = `
               <span class="text-[9px] font-semibold px-1 py-0.5 rounded ${isSelected ? 'text-blue-200' : 'text-stone-500'}">
-                جلسة
+                لقاء
               </span>
             `;
           }
@@ -719,7 +715,7 @@ export const AttendanceView = {
           <button type="button" 
                   data-date="${dateIso}"
                   class="cal-day-btn p-1.5 sm:p-2 min-h-[48px] rounded-xl flex flex-col items-center justify-between transition-all cursor-pointer border ${isSelected ? 'bg-blue-900 text-white font-bold ring-2 ring-amber-400 border-transparent shadow-md' : (isKhamisiya ? 'bg-amber-50/70 hover:bg-amber-100 text-slate-900 border-amber-300/90 shadow-2xs' : 'bg-white hover:bg-amber-50 text-slate-900 border-amber-200/80 shadow-2xs')}" 
-                  title="${isKhamisiya ? 'جلسة الخميسية (منتصف الشهر)' : 'جلسة معتمدة'}">
+                  title="${isKhamisiya ? 'الخميسية' : 'لقاء معتمد'}">
             <div class="flex items-center justify-between w-full">
               <span class="text-xs font-bold ${isSelected ? 'text-amber-300' : (isKhamisiya ? 'text-amber-950 font-black' : 'text-blue-950')}">${dayNum}</span>
               ${isToday ? `<span class="w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-amber-300' : 'bg-red-500'}" title="اليوم"></span>` : '<span></span>'}

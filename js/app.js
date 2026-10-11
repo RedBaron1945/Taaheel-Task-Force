@@ -116,6 +116,14 @@ export const App = {
     });
 
     this.setupSupportModalEvents();
+
+    // Fast-boot watchdog: ensure "جارٍ تهيئة منصة مرحلة التأهيل..." never hangs
+    setTimeout(() => {
+      const root = document.getElementById('app-root');
+      if (root && root.innerHTML.includes('جارٍ تهيئة منصة مرحلة التأهيل')) {
+        this.render();
+      }
+    }, 350);
   },
 
   /**

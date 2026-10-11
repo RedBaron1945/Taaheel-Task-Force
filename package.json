@@ -11,6 +11,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "canvas-confetti": "^1.9.4",
     "firebase": "^12.19.0"
   },
   "devDependencies": {

@@ -8,6 +8,7 @@ import { ProgressService } from './progressService.js';
 import { Utils } from './utils.js';
 import { Storage } from './storage.js';
 import { UserService } from './userService.js';
+import confetti from 'canvas-confetti';
 
 /**
  * Curated motivational sayings, slogans, and poetic verses for students
@@ -103,6 +104,7 @@ export const StudentView = {
   _countdownInterval: null,
   _lastAssignmentHandler: null,
   _quoteInterval: null,
+  _reorderTimeout: null,
   _currentQuoteIndex: 0,
   _isQuotePaused: false,
   _isQuoteAnimating: false,
@@ -167,6 +169,10 @@ export const StudentView = {
       clearInterval(this._quoteInterval);
       this._quoteInterval = null;
     }
+    if (this._reorderTimeout) {
+      clearTimeout(this._reorderTimeout);
+      this._reorderTimeout = null;
+    }
 
     container.innerHTML = `
       <div class="space-y-5">
@@ -219,14 +225,14 @@ export const StudentView = {
           </div>
         </section>
 
-        <!-- Compact Section Header with Integrated Period & Deadline Badge -->
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1 border-b border-stone-200 pb-3">
+        <!-- Prominent Centered Remaining Days Countdown Widget -->
+        <div id="student-deadline-pill" class="w-full flex justify-center items-center my-2 sm:my-3"></div>
+
+        <!-- Section Header -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-b border-stone-200 pb-3">
           <div class="flex items-center gap-2.5 flex-wrap">
             <h3 class="text-lg font-bold text-slate-900">خطة التكاليف المقررة</h3>
             <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-900 border border-blue-200/80 tabular-nums" id="student-assignments-count">—</span>
-            
-            <!-- Compact Integrated Deadline & Period Badge -->
-            <div id="student-deadline-pill" class="inline-flex"></div>
           </div>
         </div>
 
@@ -349,35 +355,55 @@ export const StudentView = {
     const firstStartDate = startDates.length > 0 ? startDates[0] : null;
 
     const updateDeadlinePill = () => {
-      if (!deadlinePillEl || !latestEndDate) return;
-      const deadlineInfo = this.getRemainingDeadlineInfo(latestEndDate);
-      if (!deadlineInfo) return;
+      if (!deadlinePillEl) return;
+      if (!latestEndDate) {
+        deadlinePillEl.innerHTML = '';
+        return;
+      }
 
-      const periodText = firstStartDate ? `${Utils.formatShortDate(firstStartDate)} – ${Utils.formatShortDate(latestEndDate)}` : '';
+      const deadlineInfo = this.getRemainingDeadlineInfo(latestEndDate);
+      if (!deadlineInfo) {
+        deadlinePillEl.innerHTML = '';
+        return;
+      }
 
       if (deadlineInfo.isExpired) {
         deadlinePillEl.innerHTML = `
-          <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-stone-100 text-stone-600 font-bold text-xs border border-stone-200 shadow-2xs tabular-nums">
+          <div class="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-2xl bg-stone-100 border border-stone-200 text-stone-700 text-xs font-bold shadow-2xs">
             <span class="w-2 h-2 rounded-full bg-stone-400"></span>
-            <span>${deadlineInfo.label}</span>
-          </span>
+            <span>انتهت المهلة المحددة لتسليم التكاليف</span>
+          </div>
         `;
       } else if (deadlineInfo.isUrgent) {
-        // Less than 24 hours: Animated high-contrast 24h countdown
+        // Less than 24 hours: Compact ticking urgency pill
         deadlinePillEl.innerHTML = `
-          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-xl bg-amber-50 text-amber-950 border border-amber-300 shadow-2xs animate-pulse tabular-nums">
-            <span class="w-2 h-2 rounded-full bg-amber-500"></span>
-            ${periodText ? `<span class="text-stone-500 text-[11px] hidden md:inline font-normal">${periodText} ·</span>` : ''}
-            <span class="text-xs font-black tracking-wide">${deadlineInfo.label}</span>
+          <div class="inline-flex items-center justify-center gap-2.5 px-4 py-2 rounded-2xl bg-gradient-to-r from-rose-50 via-white to-rose-50 border border-rose-300 shadow-xs text-rose-950 text-xs font-bold animate-pulse">
+            <span class="w-2 h-2 rounded-full bg-rose-600 animate-ping shrink-0"></span>
+            <span class="font-bold text-rose-900">المهلة المتبقية:</span>
+            <span class="font-black text-rose-950 font-serif tabular-nums text-sm tracking-wide">${String(deadlineInfo.hours).padStart(2, '0')}:${String(deadlineInfo.minutes).padStart(2, '0')}:${String(deadlineInfo.seconds).padStart(2, '0')}</span>
           </div>
         `;
       } else {
-        // Standard remaining days with period
+        // Standard remaining days: Compact, sleek & elegant centered badge
+        let daysUnitLabel = 'يوماً متبقياً';
+        if (deadlineInfo.days === 1) daysUnitLabel = 'يوم واحد فقط';
+        else if (deadlineInfo.days === 2) daysUnitLabel = 'يومان متبقيان';
+        else if (deadlineInfo.days >= 3 && deadlineInfo.days <= 10) daysUnitLabel = 'أيام متبقية';
+
         deadlinePillEl.innerHTML = `
-          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-xl bg-amber-50 text-amber-950 border border-amber-200/90 shadow-2xs tabular-nums">
-            <svg class="w-3.5 h-3.5 text-amber-700 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-            ${periodText ? `<span class="text-amber-900 text-xs font-semibold hidden md:inline">${periodText}</span><span class="text-amber-300 hidden md:inline">·</span>` : ''}
-            <span class="text-xs font-black text-slate-900">${deadlineInfo.label}</span>
+          <div class="inline-flex items-center justify-center gap-3 px-5 py-2 rounded-2xl bg-gradient-to-r from-amber-50/95 via-white to-amber-50/95 border border-amber-300/80 shadow-xs hover:border-amber-400 transition-all">
+            <div class="w-7 h-7 rounded-lg bg-amber-100/90 flex items-center justify-center text-amber-700 shrink-0 border border-amber-200/80">
+              <svg class="w-3.5 h-3.5 text-amber-700 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="text-xs font-bold text-amber-900/90">المهلة المتبقية للتسليم:</span>
+              <div class="flex items-baseline gap-1">
+                <span class="text-xl font-black text-amber-950 font-serif tabular-nums tracking-tight">${deadlineInfo.days}</span>
+                <span class="text-xs font-extrabold text-amber-800">${daysUnitLabel}</span>
+              </div>
+            </div>
           </div>
         `;
       }
@@ -385,14 +411,15 @@ export const StudentView = {
 
     updateDeadlinePill();
 
-    // Set up live ticking timer if deadline is within 24 hours
+    // Set up live ticking timer
     if (this._countdownInterval) clearInterval(this._countdownInterval);
     if (latestEndDate) {
       const deadlineInfo = this.getRemainingDeadlineInfo(latestEndDate);
-      if (deadlineInfo && deadlineInfo.isUrgent) {
+      if (deadlineInfo && !deadlineInfo.isExpired) {
+        const intervalMs = deadlineInfo.isUrgent ? 1000 : 60000;
         this._countdownInterval = setInterval(() => {
           updateDeadlinePill();
-        }, 1000);
+        }, intervalMs);
       }
     }
 
@@ -409,7 +436,7 @@ export const StudentView = {
       return;
     }
 
-    listEl.innerHTML = items.map(item => {
+    const renderCardHtml = (item) => {
       const asg = item.assignment;
       const s = item.stats;
       const completed = item.completedSubtaskIds || [];
@@ -443,7 +470,7 @@ export const StudentView = {
       const statusBadge = isDone
         ? `<span class="card-status-badge inline-flex items-center gap-1.5 text-xs font-bold text-emerald-800 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200 shadow-2xs shrink-0">
             <span class="w-2 h-2 rounded-full bg-emerald-600 inline-block"></span>
-            <span>مكتمل بالكامل</span>
+            <span>مكتمل</span>
            </span>`
         : (s.isExpired
           ? `<span class="card-status-badge inline-flex items-center text-xs font-semibold text-stone-500 bg-stone-100 px-3 py-1 rounded-full border border-stone-200 shrink-0">
@@ -467,7 +494,7 @@ export const StudentView = {
             : (s.isExpired 
                 ? 'border-stone-200 bg-stone-50/70' 
                 : 'border-stone-200/90 bg-white shadow-xs hover:border-blue-300 hover:shadow-md')
-        }" data-asg-id="${asg.id}">
+        }" data-asg-id="${asg.id}" data-order="${item.originalIndex}" data-is-done="${isDone ? '1' : '0'}">
           
           <div class="p-5 sm:p-6 space-y-4">
             
@@ -547,11 +574,12 @@ export const StudentView = {
                       <!-- Large 28-32px Checkbox with 48px Touch Target & Smooth SVG Feedback -->
                       <div class="relative flex items-center justify-center shrink-0 w-8 h-8">
                         <input type="checkbox" 
-                               class="subtask-checkbox peer sr-only" 
-                               data-asg-id="${asg.id}" 
-                               data-sub-id="${sub.id}"
-                               ${isChecked ? 'checked' : ''} 
-                               ${disabledAttr}>
+                                class="subtask-checkbox peer sr-only" 
+                                data-asg-id="${asg.id}" 
+                                data-sub-id="${sub.id}"
+                                data-points="${Number(sub.points) || 10}"
+                                ${isChecked ? 'checked' : ''} 
+                                ${disabledAttr}>
                         
                         <!-- Custom Tactile Checkbox Box: 28px min size -->
                         <div class="custom-check-box w-7 h-7 sm:w-8 sm:h-8 rounded-lg border-2 transition-all duration-200 flex items-center justify-center shadow-2xs 
@@ -587,8 +615,8 @@ export const StudentView = {
               }).join('')}
             </div>
 
-            <!-- Serene Celebration Card When 100% Completed -->
-            <div class="card-celebration ${isDone ? '' : 'hidden'} mt-4 p-4 rounded-2xl bg-emerald-50/90 border border-emerald-200/90 flex items-center gap-3.5 text-emerald-950 shadow-2xs transition-all duration-300">
+            <!-- Serene Celebration Card When 100% Completed (shown temporarily upon completion) -->
+            <div class="card-celebration hidden mt-4 p-4 rounded-2xl bg-emerald-50/90 border border-emerald-200/90 flex items-center gap-3.5 text-emerald-950 shadow-2xs transition-all duration-500 overflow-hidden">
               <div class="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-black text-lg shrink-0 shadow-xs">
                 ✓
               </div>
@@ -602,7 +630,28 @@ export const StudentView = {
           </div>
         </article>
       `;
-    }).join('');
+    };
+
+    const incompleteItems = items.filter(it => !(it.stats.isCompleted || it.stats.percentage >= 100));
+    const completedItems = items.filter(it => (it.stats.isCompleted || it.stats.percentage >= 100));
+
+    let html = incompleteItems.map(item => renderCardHtml(item)).join('');
+
+    if (completedItems.length > 0 && incompleteItems.length > 0) {
+      html += `
+        <div id="completed-assignments-divider" class="flex items-center gap-3 pt-4 pb-1 select-none">
+          <div class="h-px bg-stone-200/80 flex-1"></div>
+          <span class="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-800 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200/80 shadow-2xs">
+            <svg class="w-3.5 h-3.5 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+            <span>التكاليف المكتملة (${completedItems.length})</span>
+          </span>
+          <div class="h-px bg-stone-200/80 flex-1"></div>
+        </div>
+      `;
+    }
+
+    html += completedItems.map(item => renderCardHtml(item)).join('');
+    listEl.innerHTML = html;
 
     // Attach Collapsible Dropdown toggle listeners with smooth DOM animation
     listEl.querySelectorAll('.toggle-subtasks-btn').forEach(btn => {
@@ -629,6 +678,48 @@ export const StudentView = {
         }
       });
     });
+
+    // Helper to dynamically reorder cards: incomplete first (in original order), then divider, then completed (in original order)
+    const updateListOrder = () => {
+      const allCards = Array.from(listEl.querySelectorAll('.assignment-card'));
+      const incCards = [];
+      const compCards = [];
+
+      allCards.forEach(c => {
+        if (c.dataset.isDone === '1') {
+          compCards.push(c);
+        } else {
+          incCards.push(c);
+        }
+      });
+
+      incCards.sort((a, b) => parseInt(a.dataset.order || '0', 10) - parseInt(b.dataset.order || '0', 10));
+      compCards.sort((a, b) => parseInt(a.dataset.order || '0', 10) - parseInt(b.dataset.order || '0', 10));
+
+      let divEl = document.getElementById('completed-assignments-divider');
+      if (compCards.length > 0 && incCards.length > 0) {
+        if (!divEl) {
+          divEl = document.createElement('div');
+          divEl.id = 'completed-assignments-divider';
+          divEl.className = 'flex items-center gap-3 pt-4 pb-1 select-none';
+        }
+        divEl.innerHTML = `
+          <div class="h-px bg-stone-200/80 flex-1"></div>
+          <span class="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-800 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200/80 shadow-2xs">
+            <svg class="w-3.5 h-3.5 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+            <span>التكاليف المكتملة (${compCards.length})</span>
+          </span>
+          <div class="h-px bg-stone-200/80 flex-1"></div>
+        `;
+      } else if (divEl) {
+        divEl.remove();
+        divEl = null;
+      }
+
+      incCards.forEach(c => listEl.appendChild(c));
+      if (divEl) listEl.appendChild(divEl);
+      compCards.forEach(c => listEl.appendChild(c));
+    };
 
     // Helper to dynamically update row classes, single checkmark, and active blue highlight for all steps in a card
     const updateCardStepsVisualState = (card) => {
@@ -744,18 +835,9 @@ export const StudentView = {
             return;
           }
         } else {
-          // Unchecking: Verify that no subsequent steps are still completed
-          let laterChecked = -1;
+          // Unchecking / Reverting: smoothly uncheck all subsequent steps in this assignment
           for (let i = currentIndex + 1; i < allCardCheckboxes.length; i++) {
-            if (allCardCheckboxes[i].checked) {
-              laterChecked = i;
-              break;
-            }
-          }
-          if (laterChecked > -1) {
-            chk.checked = true; // Revert change to stay checked
-            Utils.showToast('يرجى إلغاء الخطوات اللاحقة أولاً للحفاظ على تسلسل الإنجاز', 'warning');
-            return;
+            allCardCheckboxes[i].checked = false;
           }
         }
 
@@ -764,11 +846,20 @@ export const StudentView = {
         updateCardStepsVisualState(card);
 
         // 2. Instant in-place Card Progress Calculation (0ms)
-        const checkedCardCheckboxes = card.querySelectorAll('.subtask-checkbox:checked');
+        const checkedCardCheckboxes = Array.from(card.querySelectorAll('.subtask-checkbox:checked'));
         const totalSub = allCardCheckboxes.length;
         const doneSub = checkedCardCheckboxes.length;
         const percentage = totalSub > 0 ? Math.round((doneSub / totalSub) * 100) : 0;
         const isAllDone = totalSub > 0 && doneSub === totalSub;
+
+        const previousDoneState = card.dataset.isDone === '1';
+        card.dataset.isDone = isAllDone ? '1' : '0';
+
+        if (isAllDone) {
+          card.className = 'assignment-card card rounded-2xl border transition-all duration-300 overflow-hidden border-emerald-200/80 bg-stone-50/50 shadow-2xs';
+        } else {
+          card.className = 'assignment-card card rounded-2xl border transition-all duration-300 overflow-hidden border-stone-200/90 bg-white shadow-xs hover:border-blue-300 hover:shadow-md';
+        }
 
         const counterText = card.querySelector('.card-step-counter');
         if (counterText) {
@@ -788,7 +879,7 @@ export const StudentView = {
         const badgeWrapper = card.querySelector('.card-status-badge');
         if (badgeWrapper) {
           badgeWrapper.innerHTML = isAllDone
-            ? `<span class="w-2 h-2 rounded-full bg-emerald-600 inline-block"></span><span>مكتمل بالكامل</span>`
+            ? `<span class="w-2 h-2 rounded-full bg-emerald-600 inline-block"></span><span>مكتمل</span>`
             : `<span class="w-2 h-2 rounded-full bg-amber-500 inline-block animate-pulse"></span><span>قيد الإنجاز</span>`;
           badgeWrapper.className = `card-status-badge inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full border shadow-2xs shrink-0 ${isAllDone ? 'text-emerald-800 bg-emerald-50 border-emerald-200' : 'text-amber-800 bg-amber-50 border-amber-200/90'}`;
         }
@@ -803,20 +894,43 @@ export const StudentView = {
         }
 
         const celebCard = card.querySelector('.card-celebration');
-        if (celebCard) {
-          if (isAllDone) {
-            celebCard.classList.remove('hidden');
-          } else {
-            celebCard.classList.add('hidden');
+        if (celebCard && !isAllDone) {
+          celebCard.classList.add('hidden');
+          celebCard.style.opacity = '';
+          celebCard.style.maxHeight = '';
+          if (card._celebTimer) {
+            clearTimeout(card._celebTimer);
+            card._celebTimer = null;
           }
         }
 
-        // 3. Instant in-place Overall Hero Progress Ring Update (0ms)
-        const allCheckboxes = listEl.querySelectorAll('.subtask-checkbox');
-        const allChecked = listEl.querySelectorAll('.subtask-checkbox:checked');
-        const totalAll = allCheckboxes.length;
-        const doneAll = allChecked.length;
-        const overallPct = totalAll > 0 ? Math.round((doneAll / totalAll) * 100) : 0;
+        // Trigger celebratory fireworks and show congratulatory phrase once then disappear
+        if (isAllDone && !previousDoneState) {
+          StudentView.triggerCompletionFireworks();
+          StudentView.showCompletionCelebrationMessage(card);
+        }
+
+        // Live Reordering: Incomplete assignments stay at the top, completed assignments drop to the bottom in order
+        if (previousDoneState !== isAllDone) {
+          if (this._reorderTimeout) clearTimeout(this._reorderTimeout);
+          this._reorderTimeout = setTimeout(() => {
+            updateListOrder();
+          }, isAllDone ? 600 : 250);
+        }
+
+        // 3. Accurate in-place Overall Hero Progress Ring Update (0ms)
+        let totalAllPoints = 0;
+        let earnedAllPoints = 0;
+        const allCheckboxes = Array.from(listEl.querySelectorAll('.subtask-checkbox'));
+        allCheckboxes.forEach(c => {
+          const pts = Number(c.dataset.points) || 10;
+          totalAllPoints += pts;
+          if (c.checked) {
+            earnedAllPoints += pts;
+          }
+        });
+
+        const overallPct = totalAllPoints > 0 ? Math.round((earnedAllPoints / totalAllPoints) * 100) : 0;
 
         const heroPct = document.getElementById('student-hero-pct');
         const heroRing = document.getElementById('student-hero-ring');
@@ -827,14 +941,12 @@ export const StudentView = {
           heroRing.style.strokeDashoffset = `${offset}`;
         }
 
-        // 4. Background Persistence with Silent Reliability
+        // 4. Background Persistence with Direct Exact Subtask List
+        const currentlyCheckedIds = checkedCardCheckboxes.map(c => c.dataset.subId);
         try {
-          await ProgressService.toggleSubtask(student.id, asgId, subId);
+          await ProgressService.saveAssignmentSubtasks(student.id, asgId, currentlyCheckedIds);
         } catch (err) {
-          // Revert visual state on error
-          chk.checked = !isChecked;
-          updateCardStepsVisualState(card);
-          Utils.showToast(err.message || 'حدث خطأ في حفظ الإنجاز', 'error');
+          console.warn('Progress save notice:', err);
         }
       });
     });
@@ -1046,8 +1158,12 @@ export const StudentView = {
   checkFirstTimeWelcomeModal(student) {
     if (!student || student.role !== 'student') return;
 
-    const storageKey = 'taheel_welcome_ack_' + student.id;
-    const isAcknowledged = localStorage.getItem(storageKey) === 'true' || student.hasAcknowledgedWelcomeNotice === true;
+    const storageKeyId = 'taheel_welcome_ack_' + student.id;
+    const storageKeyEmail = student.email ? 'taheel_welcome_ack_' + student.email.toLowerCase() : '';
+    const isAcknowledged = 
+      student.hasAcknowledgedWelcomeNotice === true ||
+      localStorage.getItem(storageKeyId) === 'true' ||
+      (storageKeyEmail && localStorage.getItem(storageKeyEmail) === 'true');
 
     if (isAcknowledged) return;
 
@@ -1125,8 +1241,10 @@ export const StudentView = {
     confirmBtn.addEventListener('click', () => {
       if (!checkbox.checked) return;
 
-      localStorage.setItem(storageKey, 'true');
+      localStorage.setItem(storageKeyId, 'true');
+      if (storageKeyEmail) localStorage.setItem(storageKeyEmail, 'true');
       student.hasAcknowledgedWelcomeNotice = true;
+      Storage.updateUser(student.id, { hasAcknowledgedWelcomeNotice: true });
       UserService.markWelcomeAcknowledged(student.id);
 
       modal.style.transition = 'opacity 0.2s ease, transform 0.2s ease';
@@ -1158,5 +1276,196 @@ export const StudentView = {
       }
     });
     observer.observe(document.body, { childList: true });
+  },
+
+  /**
+   * Triggers festive firecrackers and celebratory reactions upon completing an assignment (100%)
+   */
+  triggerCompletionFireworks() {
+    try {
+      if (typeof navigator !== 'undefined' && navigator.vibrate) {
+        navigator.vibrate([80, 40, 100]);
+      }
+    } catch (_) {}
+
+    const festiveColors = [
+      '#10b981', // emerald
+      '#059669', // dark emerald
+      '#f59e0b', // amber
+      '#fbbf24', // bright gold
+      '#2563eb', // royal blue
+      '#1d4ed8', // navy blue
+      '#e11d48', // ruby
+      '#38bdf8'  // sky blue
+    ];
+
+    try {
+      if (typeof confetti === 'function') {
+        // 1. Initial energetic center firecracker pop
+        confetti({
+          particleCount: 60,
+          spread: 75,
+          origin: { y: 0.62 },
+          colors: festiveColors,
+          ticks: 200,
+          gravity: 1.1,
+          scalar: 1,
+          startVelocity: 38,
+        });
+
+        // 2. Left cannon burst (mimics firecrackers shooting inwards)
+        setTimeout(() => {
+          confetti({
+            particleCount: 50,
+            angle: 60,
+            spread: 60,
+            origin: { x: 0.12, y: 0.65 },
+            colors: festiveColors,
+            ticks: 240,
+            gravity: 0.95,
+            scalar: 1.1,
+            startVelocity: 42,
+          });
+        }, 130);
+
+        // 3. Right cannon burst
+        setTimeout(() => {
+          confetti({
+            particleCount: 50,
+            angle: 120,
+            spread: 60,
+            origin: { x: 0.88, y: 0.65 },
+            colors: festiveColors,
+            ticks: 240,
+            gravity: 0.95,
+            scalar: 1.1,
+            startVelocity: 42,
+          });
+        }, 260);
+
+        // 4. Golden fireworks starburst finale
+        setTimeout(() => {
+          confetti({
+            particleCount: 45,
+            spread: 110,
+            origin: { y: 0.48 },
+            colors: ['#fbbf24', '#f59e0b', '#10b981', '#ffffff'],
+            shapes: ['star', 'circle'],
+            scalar: 1.3,
+            ticks: 200,
+            gravity: 0.85,
+            startVelocity: 32,
+          });
+        }, 420);
+      }
+    } catch (e) {
+      console.warn('Celebration fireworks animation error:', e);
+    }
+  },
+
+  /**
+   * Displays the celebratory congratulatory message once then auto-dismisses after a few seconds
+   */
+  showCompletionCelebrationMessage(cardEl = null) {
+    // 1. Show inside the completed assignment card with temporary reveal & auto-fade
+    if (cardEl) {
+      const celebCard = cardEl.querySelector('.card-celebration');
+      if (celebCard) {
+        celebCard.classList.remove('hidden');
+        celebCard.style.opacity = '1';
+        celebCard.style.maxHeight = '200px';
+
+        if (cardEl._celebTimer) clearTimeout(cardEl._celebTimer);
+        cardEl._celebTimer = setTimeout(() => {
+          celebCard.style.opacity = '0';
+          celebCard.style.maxHeight = '0';
+          setTimeout(() => {
+            celebCard.classList.add('hidden');
+            celebCard.style.maxHeight = '';
+          }, 500);
+        }, 4500);
+      }
+    }
+
+    // 2. High-visibility floating banner alert (shows once then smoothly disappears)
+    let banner = document.getElementById('student-completion-toast');
+    if (banner) {
+      banner.remove();
+    }
+
+    banner = document.createElement('div');
+    banner.id = 'student-completion-toast';
+    banner.className = 'fixed top-5 left-1/2 -translate-x-1/2 z-[9999] w-[calc(100%-2rem)] max-w-lg transition-all duration-500 ease-out transform -translate-y-8 opacity-0 pointer-events-auto select-none';
+    banner.setAttribute('role', 'alert');
+    banner.setAttribute('aria-live', 'polite');
+
+    banner.innerHTML = `
+      <div class="relative overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-900 via-emerald-800 to-teal-900 text-white p-4 sm:p-5 shadow-2xl border-2 border-emerald-400/50 backdrop-blur-md">
+        <!-- Ambient shimmer particles -->
+        <div class="absolute -right-8 -top-8 w-28 h-28 rounded-full bg-emerald-400/20 blur-xl pointer-events-none"></div>
+        <div class="absolute -left-8 -bottom-8 w-28 h-28 rounded-full bg-amber-400/20 blur-xl pointer-events-none"></div>
+
+        <div class="relative flex items-center gap-3.5 sm:gap-4">
+          <!-- Animated Celebration Badge -->
+          <div class="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-emerald-500/30 border border-emerald-300/40 text-emerald-200 flex items-center justify-center text-2xl shrink-0 shadow-inner animate-pulse">
+            🎉
+          </div>
+
+          <!-- Congratulatory Text Required by User -->
+          <div class="flex-1 min-w-0 space-y-1">
+            <div class="text-sm sm:text-base font-black text-amber-300 tracking-tight leading-snug">
+              هنيئاً لك إتمام هذا التكليف بالكامل! 🎉
+            </div>
+            <div class="text-xs sm:text-sm text-emerald-100 font-medium leading-relaxed">
+              بارك الله في همتك وعلمك ونفع بك ورزقك الإخلاص والقبول.
+            </div>
+          </div>
+
+          <!-- Close (X) Button -->
+          <button type="button" id="close-completion-toast" class="p-1.5 rounded-xl bg-white/10 hover:bg-white/20 active:scale-95 text-white/80 hover:text-white transition-all cursor-pointer shrink-0" aria-label="إغلاق التنبيه">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+        </div>
+
+        <!-- Auto-dismissal countdown timer indicator -->
+        <div class="absolute bottom-0 left-0 right-0 h-1 bg-white/10 overflow-hidden">
+          <div id="completion-toast-timer-bar" class="h-full bg-gradient-to-r from-amber-400 to-emerald-400 w-full transition-all duration-[4500ms] ease-linear"></div>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(banner);
+
+    // Smooth entrance animation
+    requestAnimationFrame(() => {
+      banner.classList.remove('-translate-y-8', 'opacity-0');
+      banner.classList.add('translate-y-0', 'opacity-100');
+
+      const timerBar = document.getElementById('completion-toast-timer-bar');
+      if (timerBar) {
+        requestAnimationFrame(() => {
+          timerBar.style.width = '0%';
+        });
+      }
+    });
+
+    const dismissToast = () => {
+      if (!banner || !banner.parentNode) return;
+      banner.classList.remove('translate-y-0', 'opacity-100');
+      banner.classList.add('-translate-y-8', 'opacity-0');
+      setTimeout(() => {
+        if (banner && banner.parentNode) {
+          banner.remove();
+        }
+      }, 500);
+    };
+
+    const closeBtn = banner.querySelector('#close-completion-toast');
+    if (closeBtn) {
+      closeBtn.addEventListener('click', dismissToast);
+    }
+
+    // Auto-dismiss: appears once then smoothly disappears
+    setTimeout(dismissToast, 4800);
   }
 };

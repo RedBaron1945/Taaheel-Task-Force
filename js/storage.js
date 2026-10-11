@@ -28,6 +28,10 @@ export const Storage = {
       for (let i = 0; i < localStorage.length; i++) {
         const k = localStorage.key(i);
         if (k && k.startsWith('taheel_') && k !== STORAGE_KEYS.CUSTOM_LOGO && k !== 'taheel_custom_logo_v3') {
+          // Never purge student welcome notice acknowledgments
+          if (k.startsWith('taheel_welcome_ack_')) {
+            continue;
+          }
           if (!k.endsWith('_v6') && !k.endsWith('_v7')) {
             keysToRemove.push(k);
           }
@@ -128,6 +132,22 @@ export const Storage = {
       users.push(student);
     }
     this.saveUsers(users);
+  },
+
+  updateUser(userId, partial) {
+    if (!userId || !partial) return;
+    try {
+      const users = this.getUsers();
+      const cleanId = String(userId).trim().toLowerCase();
+      const existingIndex = users.findIndex(u => 
+        (u.id && u.id.toLowerCase() === cleanId) || 
+        (u.email && u.email.toLowerCase() === cleanId)
+      );
+      if (existingIndex > -1) {
+        users[existingIndex] = { ...users[existingIndex], ...partial };
+        this.saveUsers(users);
+      }
+    } catch (_) {}
   },
 
   // ASSIGNMENTS

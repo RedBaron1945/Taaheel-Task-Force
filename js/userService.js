@@ -232,6 +232,18 @@ export const UserService = {
         });
       }
     } catch (_) {}
+
+    // 3. Guarantee welcome notice acknowledgment is attached if flag exists in localStorage
+    userMap.forEach((u, key) => {
+      if (!u.hasAcknowledgedWelcomeNotice) {
+        const byId = localStorage.getItem('taheel_welcome_ack_' + u.id) === 'true';
+        const byEmail = u.email ? localStorage.getItem('taheel_welcome_ack_' + u.email.toLowerCase()) === 'true' : false;
+        if (byId || byEmail) {
+          u.hasAcknowledgedWelcomeNotice = true;
+        }
+      }
+    });
+
     return Array.from(userMap.values());
   },
 
@@ -384,6 +396,20 @@ export const UserService = {
   async markWelcomeAcknowledged(studentId) {
     if (!studentId) return;
     try {
+      // 1. Save to local storage user record
+      Storage.updateUser(studentId, { hasAcknowledgedWelcomeNotice: true });
+
+      // 2. Save directly to dedicated persistent key by ID
+      localStorage.setItem('taheel_welcome_ack_' + studentId, 'true');
+
+      // 3. Find user and save by email too
+      const all = this.getAllLocalUsers();
+      const u = all.find(x => x.id === studentId || (x.email && x.email.toLowerCase() === String(studentId).toLowerCase()));
+      if (u && u.email) {
+        localStorage.setItem('taheel_welcome_ack_' + u.email.toLowerCase(), 'true');
+      }
+
+      // 4. Save to Cloud Firestore
       const userRef = doc(db, 'users', studentId);
       await setDoc(userRef, { hasAcknowledgedWelcomeNotice: true }, { merge: true });
     } catch (e) {

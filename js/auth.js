@@ -25,26 +25,49 @@ export const Auth = {
   onAuthStateChanged(listener) {
     authStateListeners.push(listener);
 
-    // Attach native Firebase Auth listener if not attached yet
+    // 1. Instant Fast-Boot: dispatch cached local session immediately (0ms) so screen never hangs
+    const currentId = Storage.getCurrentUserId();
+    let initialUser = null;
+    if (currentId) {
+      initialUser = UserService.getAllLocalUsers().find(u => 
+        u.id === currentId || (u.id && u.id.toLowerCase() === String(currentId).toLowerCase())
+      ) || null;
+    }
+    setTimeout(() => {
+      try {
+        listener(initialUser);
+      } catch (e) {
+        console.warn('Fast boot listener warning:', e);
+      }
+    }, 0);
+
+    // 2. Attach native Firebase Auth listener to keep session verified in background
     if (!firebaseAuthInitialized) {
       firebaseAuthInitialized = true;
       onAuthStateChanged(auth, async (fbUser) => {
-        if (fbUser) {
-          Storage.setCurrentUserId(fbUser.uid);
-          let user = await UserService.getUserById(fbUser.uid);
-          if (!user) {
-            user = await UserService.getUserByEmail(fbUser.email);
-          }
-          this.notifyListeners(user);
-        } else {
-          // If no Firebase Auth user, check simulated local session
-          const currentId = Storage.getCurrentUserId();
-          if (currentId) {
-            const user = await UserService.getUserById(currentId);
+        try {
+          if (fbUser) {
+            Storage.setCurrentUserId(fbUser.uid);
+            let user = await UserService.getUserById(fbUser.uid);
+            if (!user) {
+              user = await UserService.getUserByEmail(fbUser.email);
+            }
             this.notifyListeners(user);
           } else {
-            this.notifyListeners(null);
+            // If no Firebase Auth user, check simulated local session
+            const activeId = Storage.getCurrentUserId();
+            if (activeId) {
+              const user = await UserService.getUserById(activeId);
+              this.notifyListeners(user);
+            } else {
+              this.notifyListeners(null);
+            }
           }
+        } catch (err) {
+          console.warn('Firebase Auth state transition caught:', err);
+          const fallbackId = Storage.getCurrentUserId();
+          const fallbackUser = fallbackId ? (UserService.getAllLocalUsers().find(u => u.id === fallbackId) || null) : null;
+          this.notifyListeners(fallbackUser);
         }
       });
     }

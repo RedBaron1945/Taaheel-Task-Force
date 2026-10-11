@@ -2002,7 +2002,7 @@ export const SupervisorView = {
               <thead>
                 <tr style="background-color: #f1f5f9; color: #334155; font-weight: 800;">
                   <th style="padding: 6px 8px; border: 1px solid #e2e8f0; text-align: right; width: 36%;">اسم التكليف المقرر</th>
-                  <th style="padding: 6px 8px; border: 1px solid #e2e8f0; text-align: center; width: 17%;">مكتمل بالكامل</th>
+                  <th style="padding: 6px 8px; border: 1px solid #e2e8f0; text-align: center; width: 17%;">مكتمل</th>
                   <th style="padding: 6px 8px; border: 1px solid #e2e8f0; text-align: center; width: 17%;">إنجاز جزئي</th>
                   <th style="padding: 6px 8px; border: 1px solid #e2e8f0; text-align: center; width: 15%;">لم يبدأ بعد</th>
                   <th style="padding: 6px 8px; border: 1px solid #e2e8f0; text-align: center; width: 15%;">نسبة الاستكمال العامة</th>
