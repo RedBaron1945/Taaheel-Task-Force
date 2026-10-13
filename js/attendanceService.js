@@ -4,7 +4,7 @@
  * Synchronized with Cloud Firestore collection «attendance».
  */
 
-import { Storage } from './storage.js';
+import { Storage, DELETED_STUDENT_UIDS, isDeletedStudent } from './storage.js';
 import { Utils } from './utils.js';
 import { 
   db, 
@@ -13,9 +13,20 @@ import {
   setDoc, 
   deleteDoc,
   getDocs, 
+  query,
+  where,
   onSnapshot,
-  writeBatch 
+  writeBatch,
+  auth
 } from './firebase.js';
+
+async function ensureAuthReady() {
+  if (auth && typeof auth.authStateReady === 'function') {
+    try {
+      await auth.authStateReady();
+    } catch (_) {}
+  }
+}
 
 let attendanceUnsubscribe = null;
 let autoSyncInterval = null;
@@ -110,36 +121,26 @@ export const AttendanceService = {
    * while continuing background synchronization.
    */
   async getAllAttendance() {
-    const local = Storage.getAttendance() || [];
+    const local = (Storage.getAttendance() || []).filter(r => !isDeletedStudent(r.studentId));
 
     const fetchRemote = async () => {
       const snapshot = await getDocs(collection(db, 'attendance'));
       const remoteRecords = [];
-      const remoteIds = new Set();
       snapshot.forEach(docSnap => {
         const data = docSnap.data();
         const id = docSnap.id;
+        const studentId = data.studentId || (id ? id.split('_')[0] : '');
+        if (isDeletedStudent(studentId) || DELETED_STUDENT_UIDS.includes(studentId)) {
+          return; // Skip deleted students
+        }
         remoteRecords.push({ id, ...data });
-        remoteIds.add(id);
       });
 
-      // Auto-heal / Cloud Sync: If this device has any local records not yet in Cloud Firestore,
-      // upload them immediately so all other phones and computers get them!
-      if (local.length > 0) {
-        const unsynced = local.filter(r => !remoteIds.has(r.id || `${r.studentId}_${r.date}`));
-        if (unsynced.length > 0) {
-          const batch = writeBatch(db);
-          unsynced.forEach(r => {
-            const recId = r.id || `${r.studentId}_${r.date}`;
-            const fullRecord = { ...r, id: recId };
-            batch.set(doc(db, 'attendance', recId), fullRecord);
-            remoteRecords.push(fullRecord);
-          });
-          batch.commit().catch(e => console.warn('Auto-sync unsynced records notice:', e));
-        }
-      }
-
+      // Live Firestore is the source of truth. Synchronize local cache with remote records.
       Storage.saveAttendance(remoteRecords);
+      window.dispatchEvent(new CustomEvent('attendance-updated', { 
+        detail: { action: 'cloud-synced', count: remoteRecords.length } 
+      }));
       return remoteRecords;
     };
 
@@ -166,6 +167,7 @@ export const AttendanceService = {
    * Instant 0ms local mutation with cloud persistence
    */
   async removeAttendance(studentId, dateStr) {
+    await ensureAuthReady();
     const all = Storage.getAttendance() || [];
     const filtered = all.filter(item => !(item.studentId === studentId && item.date === dateStr));
     Storage.saveAttendance(filtered);
@@ -185,9 +187,104 @@ export const AttendanceService = {
   },
 
   /**
+   * Batch remove/cancel attendance for multiple students on a specific date
+   * Single atomic Firestore writeBatch + instant local storage synchronization
+   */
+  async batchRemoveAttendance(studentIds, dateStr) {
+    if (!studentIds || studentIds.length === 0) return true;
+    await ensureAuthReady();
+
+    const idSet = new Set(studentIds);
+    const all = Storage.getAttendance() || [];
+    const filtered = all.filter(item => !(idSet.has(item.studentId) && item.date === dateStr));
+    Storage.saveAttendance(filtered);
+
+    // Trigger local update event immediately
+    window.dispatchEvent(new CustomEvent('attendance-updated', { 
+      detail: { date: dateStr, action: 'batch-cleared', count: studentIds.length } 
+    }));
+
+    try {
+      const batch = writeBatch(db);
+      studentIds.forEach(sid => {
+        const recordId = `${sid}_${dateStr}`;
+        batch.delete(doc(db, 'attendance', recordId));
+      });
+      await batch.commit();
+    } catch (err) {
+      console.error('Firestore batch delete error:', err);
+      throw err;
+    }
+
+    return true;
+  },
+
+  /**
+   * Batch record or update attendance for multiple students on a date
+   * Single atomic Firestore writeBatch + instant local storage synchronization
+   */
+  async batchRecordAttendance(studentIds, dateStr, status, recordedBy = 'TnCoR9ZTSibHTvIt15VPeQHfGFy1') {
+    if (!studentIds || studentIds.length === 0) return [];
+    if (!Utils.isValidAttendanceDay(dateStr)) {
+      throw new Error('التحضير متاح لأيام الأحد والثلاثاء، وجلسات «الخميسية».');
+    }
+
+    if (!['present', 'excused', 'absent'].includes(status)) {
+      throw new Error('حالة التحضير غير صالحة.');
+    }
+
+    await ensureAuthReady();
+    const effectiveRecordedBy = auth?.currentUser?.uid || recordedBy;
+
+    const all = Storage.getAttendance() || [];
+    const recordMap = new Map();
+    all.forEach(item => {
+      const key = item.id || `${item.studentId}_${item.date}`;
+      recordMap.set(key, item);
+    });
+
+    const now = new Date().toISOString();
+    const batch = writeBatch(db);
+    const updatedRecords = [];
+
+    studentIds.forEach(sid => {
+      if (isDeletedStudent(sid)) return;
+      const recordId = `${sid}_${dateStr}`;
+      const rec = {
+        id: recordId,
+        studentId: sid,
+        date: dateStr,
+        status,
+        recordedBy: effectiveRecordedBy,
+        updatedAt: now
+      };
+      recordMap.set(recordId, rec);
+      updatedRecords.push(rec);
+      batch.set(doc(db, 'attendance', recordId), rec);
+    });
+
+    // 1. Instant local storage save and UI update
+    Storage.saveAttendance(Array.from(recordMap.values()));
+    window.dispatchEvent(new CustomEvent('attendance-updated', { 
+      detail: { date: dateStr, action: 'batch-recorded', count: updatedRecords.length, status } 
+    }));
+
+    // 2. Atomic Cloud Firestore writeBatch
+    try {
+      await batch.commit();
+    } catch (err) {
+      console.error('Firestore batch record error:', err);
+      throw err;
+    }
+
+    return updatedRecords;
+  },
+
+  /**
    * Clear all attendance records for a specific date across all devices
    */
   async clearAttendanceForDate(dateStr) {
+    await ensureAuthReady();
     const all = Storage.getAttendance() || [];
     const filtered = all.filter(item => item.date !== dateStr);
     Storage.saveAttendance(filtered);
@@ -195,15 +292,13 @@ export const AttendanceService = {
     window.dispatchEvent(new CustomEvent('attendance-updated', { detail: { date: dateStr, action: 'cleared' } }));
 
     try {
-      const snapshot = await getDocs(collection(db, 'attendance'));
+      const q = query(collection(db, 'attendance'), where('date', '==', dateStr));
+      const snapshot = await getDocs(q);
       const batch = writeBatch(db);
       let batchCount = 0;
       snapshot.forEach(docSnap => {
-        const data = docSnap.data();
-        if (data.date === dateStr) {
-          batch.delete(doc(db, 'attendance', docSnap.id));
-          batchCount++;
-        }
+        batch.delete(doc(db, 'attendance', docSnap.id));
+        batchCount++;
       });
       if (batchCount > 0) {
         await batch.commit();
@@ -228,6 +323,9 @@ export const AttendanceService = {
       throw new Error('حالة التحضير غير صالحة.');
     }
 
+    await ensureAuthReady();
+    const effectiveRecordedBy = auth?.currentUser?.uid || recordedBy;
+
     const all = Storage.getAttendance() || [];
     const existingIndex = all.findIndex(item => item.studentId === studentId && item.date === dateStr);
     const recordId = `${studentId}_${dateStr}`;
@@ -237,7 +335,7 @@ export const AttendanceService = {
       studentId,
       date: dateStr,
       status,
-      recordedBy,
+      recordedBy: effectiveRecordedBy,
       updatedAt: new Date().toISOString()
     };
 
@@ -326,7 +424,10 @@ export const AttendanceService = {
       attendanceUnsubscribe = onSnapshot(collection(db, 'attendance'), (snapshot) => {
         const remoteRecords = [];
         snapshot.forEach(docSnap => {
-          remoteRecords.push({ id: docSnap.id, ...docSnap.data() });
+          const data = docSnap.data();
+          const studentId = data.studentId || (docSnap.id ? docSnap.id.split('_')[0] : '');
+          if (isDeletedStudent(studentId) || DELETED_STUDENT_UIDS.includes(studentId)) return;
+          remoteRecords.push({ id: docSnap.id, ...data });
         });
         
         const newHash = JSON.stringify(remoteRecords.map(r => `${r.id}:${r.status}`));

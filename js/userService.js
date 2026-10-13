@@ -3,7 +3,7 @@
  * Manages user queries, roles, profiles, and Firestore synchronization.
  */
 
-import { Storage } from './storage.js';
+import { Storage, DELETED_STUDENT_UIDS, isDeletedStudent } from './storage.js';
 import { 
   db, 
   auth, 
@@ -18,9 +18,13 @@ import {
   handleFirestoreError, 
   OperationType,
   writeBatch,
-  deleteField 
+  deleteField,
+  deleteDoc 
 } from './firebase.js';
 import { INITIAL_DATA } from './data.js';
+
+const OLD_BAWAZEER_UID = '2il7BvfDzhebZOUxUG1og0pxlS53';
+const NEW_BAWAZEER_UID = '8GqPbLceefR8mfVBLzKPCMGmIUj2';
 
 let studentUnsubscribe = null;
 
@@ -45,6 +49,7 @@ export const UserService = {
       const snapshot = await getDocs(collection(db, 'users'));
       if (!snapshot.empty) {
         snapshot.forEach(docSnap => {
+          if (docSnap.id === OLD_BAWAZEER_UID || DELETED_STUDENT_UIDS.includes(docSnap.id)) return; // Discard deleted/deprecated UIDs
           const remoteUser = { id: docSnap.id, ...docSnap.data() };
           const existing = mergedMap.get(remoteUser.id) || {};
           mergedMap.set(remoteUser.id, { ...existing, ...remoteUser });
@@ -54,8 +59,33 @@ export const UserService = {
       console.warn('Firestore users fetch warning:', err);
     }
 
+    // Guarantee old and deleted UIDs are completely purged
+    mergedMap.delete(OLD_BAWAZEER_UID);
+    DELETED_STUDENT_UIDS.forEach(delId => mergedMap.delete(delId));
+    for (const [id, u] of mergedMap.entries()) {
+      if (isDeletedStudent(u)) mergedMap.delete(id);
+    }
+
+    // Guarantee Abdulrahman Bawazir has strictly ONE record: NEW_BAWAZEER_UID
+    let bawazirKept = false;
+    for (const [id, u] of mergedMap.entries()) {
+      const norm = (u.name || '').replace(/\s+/g, '');
+      if (norm === 'عبدالرحمنباوزير' || (u.name && u.name.includes('باوزير'))) {
+        if (id === NEW_BAWAZEER_UID && !bawazirKept) {
+          bawazirKept = true;
+        } else {
+          mergedMap.delete(id);
+        }
+      }
+    }
+
     const merged = Array.from(mergedMap.values());
     Storage.saveUsers(merged);
+
+    // Trigger cleanup and migration in Firestore in background if authenticated
+    this.purgeDeletedStudentsFromFirestore().catch(() => {});
+    this.syncStudentUidMigration().catch(() => {});
+
     const isOfficer = auth.currentUser?.uid === 'TnCoR9ZTSibHTvIt15VPeQHfGFy1';
     return isOfficer ? merged.filter(u => u.role === 'student') : merged;
   },
@@ -70,11 +100,14 @@ export const UserService = {
 
     // 1. Seed base student accounts
     INITIAL_DATA.users.filter(u => u.role === 'student').forEach(u => {
-      studentsMap.set(u.id, u);
+      if (!isDeletedStudent(u)) {
+        studentsMap.set(u.id, u);
+      }
     });
 
     // 2. Merge local storage students
     localUsers.filter(u => u.role === 'student').forEach(u => {
+      if (u.id === OLD_BAWAZEER_UID || isDeletedStudent(u)) return;
       const existing = studentsMap.get(u.id) || {};
       studentsMap.set(u.id, { ...existing, ...u });
     });
@@ -86,13 +119,23 @@ export const UserService = {
         const snapshot = await getDocs(q);
         if (!snapshot.empty) {
           snapshot.forEach(docSnap => {
+            if (docSnap.id === OLD_BAWAZEER_UID || isDeletedStudent(docSnap.id)) return;
             const remoteStudent = { id: docSnap.id, ...docSnap.data() };
+            if (isDeletedStudent(remoteStudent)) return;
             const existing = studentsMap.get(remoteStudent.id) || {};
             studentsMap.set(remoteStudent.id, { ...existing, ...remoteStudent });
           });
         }
       } catch (err) {
         console.warn('Firestore students fetch warning:', err);
+      }
+    }
+
+    // Guarantee old and deleted UIDs are purged from students map
+    studentsMap.delete(OLD_BAWAZEER_UID);
+    for (const [id, st] of studentsMap.entries()) {
+      if (isDeletedStudent(st) || DELETED_STUDENT_UIDS.includes(id)) {
+        studentsMap.delete(id);
       }
     }
 
@@ -106,6 +149,28 @@ export const UserService = {
       }
       return st;
     });
+
+    // Deduplicate students by name and ensure Abdulrahman Bawazir has strictly ONE record (NEW_BAWAZEER_UID)
+    const seenNames = new Set();
+    const cleanStudents = [];
+    for (const st of students) {
+      if (!st || !st.id) continue;
+      if (isDeletedStudent(st) || DELETED_STUDENT_UIDS.includes(st.id) || st.id === OLD_BAWAZEER_UID) continue;
+      const norm = (st.name || '').replace(/\s+/g, '');
+      if (norm === 'عبدالرحمنباوزير' || (st.name && st.name.includes('باوزير'))) {
+        if (st.id === NEW_BAWAZEER_UID && !seenNames.has('bawazir')) {
+          seenNames.add('bawazir');
+          cleanStudents.push(st);
+        }
+        continue;
+      }
+      if (seenNames.has(norm)) {
+        continue;
+      }
+      seenNames.add(norm);
+      cleanStudents.push(st);
+    }
+    students = cleanStudents;
 
     // Save back to local storage
     const nonStudents = localUsers.filter(u => u.role !== 'student');
@@ -166,17 +231,43 @@ export const UserService = {
         studentUnsubscribe = onSnapshot(q, (snapshot) => {
           const students = [];
           snapshot.forEach(docSnap => {
-            students.push({ id: docSnap.id, ...docSnap.data() });
+            if (docSnap.id === OLD_BAWAZEER_UID || isDeletedStudent(docSnap.id)) return;
+            const data = docSnap.data();
+            if (isDeletedStudent(data)) return;
+            students.push({ id: docSnap.id, ...data });
           });
           if (students.length > 0) {
             const allUsers = Storage.getUsers();
             const userMap = new Map();
             // Seed all official initial users
-            INITIAL_DATA.users.forEach(u => userMap.set(u.id, u));
+            INITIAL_DATA.users.forEach(u => {
+              if (!isDeletedStudent(u)) userMap.set(u.id, u);
+            });
             // Keep local users
-            allUsers.forEach(u => userMap.set(u.id, { ...userMap.get(u.id), ...u }));
+            allUsers.forEach(u => {
+              if (!isDeletedStudent(u)) userMap.set(u.id, { ...userMap.get(u.id), ...u });
+            });
             // Merge remote snapshot students
-            students.forEach(st => userMap.set(st.id, { ...userMap.get(st.id), ...st }));
+            students.forEach(st => {
+              if (!isDeletedStudent(st)) userMap.set(st.id, { ...userMap.get(st.id), ...st });
+            });
+            userMap.delete(OLD_BAWAZEER_UID);
+            for (const [id, u] of userMap.entries()) {
+              if (isDeletedStudent(u) || DELETED_STUDENT_UIDS.includes(id)) userMap.delete(id);
+            }
+
+            // Guarantee Abdulrahman Bawazir has strictly ONE record: NEW_BAWAZEER_UID
+            let bawazirKept = false;
+            for (const [id, u] of userMap.entries()) {
+              const norm = (u.name || '').replace(/\s+/g, '');
+              if (norm === 'عبدالرحمنباوزير' || (u.name && u.name.includes('باوزير'))) {
+                if (id === NEW_BAWAZEER_UID && !bawazirKept) {
+                  bawazirKept = true;
+                } else {
+                  userMap.delete(id);
+                }
+              }
+            }
 
             const merged = Array.from(userMap.values());
             const studentList = merged.filter(u => u.role === 'student');
@@ -221,17 +312,34 @@ export const UserService = {
     const userMap = new Map();
     // 1. Initial Data Users
     INITIAL_DATA.users.forEach(u => {
-      if (u && u.id) userMap.set(u.id, u);
+      if (u && u.id && u.id !== OLD_BAWAZEER_UID && !isDeletedStudent(u)) userMap.set(u.id, u);
     });
     // 2. Storage Users
     try {
       const stored = Storage.getUsers();
       if (Array.isArray(stored)) {
         stored.forEach(u => {
-          if (u && u.id) userMap.set(u.id, { ...userMap.get(u.id), ...u });
+          if (u && u.id && u.id !== OLD_BAWAZEER_UID && !isDeletedStudent(u)) userMap.set(u.id, { ...userMap.get(u.id), ...u });
         });
       }
     } catch (_) {}
+    userMap.delete(OLD_BAWAZEER_UID);
+    for (const [id, u] of userMap.entries()) {
+      if (isDeletedStudent(u) || DELETED_STUDENT_UIDS.includes(id)) userMap.delete(id);
+    }
+
+    // Guarantee Abdulrahman Bawazir has strictly ONE record: NEW_BAWAZEER_UID
+    let bawazirKeptLocal = false;
+    for (const [id, u] of userMap.entries()) {
+      const norm = (u.name || '').replace(/\s+/g, '');
+      if (norm === 'عبدالرحمنباوزير' || (u.name && u.name.includes('باوزير'))) {
+        if (id === NEW_BAWAZEER_UID && !bawazirKeptLocal) {
+          bawazirKeptLocal = true;
+        } else {
+          userMap.delete(id);
+        }
+      }
+    }
 
     // 3. Guarantee welcome notice acknowledgment is attached if flag exists in localStorage
     userMap.forEach((u, key) => {
@@ -252,7 +360,14 @@ export const UserService = {
    */
   async getUserById(id) {
     if (!id) return null;
-    const cleanId = String(id).trim();
+    let cleanId = String(id).trim();
+    if (DELETED_STUDENT_UIDS.includes(cleanId) || cleanId === OLD_BAWAZEER_UID) {
+      if (cleanId === OLD_BAWAZEER_UID) {
+        cleanId = NEW_BAWAZEER_UID;
+      } else {
+        return null;
+      }
+    }
 
     // 1. Check local users
     const allUsers = this.getAllLocalUsers();
@@ -281,6 +396,14 @@ export const UserService = {
     const clean = raw.toLowerCase();
     const prefix = clean.split('@')[0].trim();
 
+    // Block deleted students immediately
+    if (DELETED_STUDENT_UIDS.some(delId => {
+      const lower = delId.toLowerCase();
+      return clean === lower || prefix === lower || clean.startsWith(lower + '@');
+    })) {
+      return null;
+    }
+
     // 1. Supervisor check (by UID, prefix, or official email)
     if (prefix === 'o83e55hquyajvh3ji4fjltobyg63' || prefix === 'supervisor' || clean === 'admin@taaheel.sa' || clean === 'supervisor@taaheeltaskforce.com') {
       return INITIAL_DATA.users.find(u => u.id === 'O83e55HQuyajVh3Ji4FJltobyg63') || null;
@@ -288,6 +411,11 @@ export const UserService = {
     // 2. Attendance check (by UID, prefix, or official email)
     if (prefix === 'tncor9ztsibhtvit15vpeqhfgfy1' || prefix === 'attendance' || clean === 'attendance@taaheeltaskforce.com') {
       return INITIAL_DATA.users.find(u => u.id === 'TnCoR9ZTSibHTvIt15VPeQHfGFy1') || null;
+    }
+
+    // 2b. Migrated student UID check (Abdulrahman Bawazeer)
+    if (prefix === OLD_BAWAZEER_UID.toLowerCase() || prefix === NEW_BAWAZEER_UID.toLowerCase() || clean === `${OLD_BAWAZEER_UID.toLowerCase()}@taaheeltaskforce.com` || clean === `${NEW_BAWAZEER_UID.toLowerCase()}@taaheeltaskforce.com`) {
+      return INITIAL_DATA.users.find(u => u.id === NEW_BAWAZEER_UID) || null;
     }
 
     // 3. Search in INITIAL_DATA.users
@@ -414,6 +542,66 @@ export const UserService = {
       await setDoc(userRef, { hasAcknowledgedWelcomeNotice: true }, { merge: true });
     } catch (e) {
       console.warn('Welcome notice ack sync notice:', e);
+    }
+  },
+
+  /**
+   * Permanently purge deleted student documents and attendance records from Firestore
+   */
+  async purgeDeletedStudentsFromFirestore() {
+    try {
+      for (const delId of DELETED_STUDENT_UIDS) {
+        try {
+          await deleteDoc(doc(db, 'users', delId));
+        } catch (_) {}
+      }
+      const knownAttendanceKeys = [
+        '91yuoylr8nX2bOkwGkgRkjctfFl2_2026-10-04',
+        '91yuoylr8nX2bOkwGkgRkjctfFl2_2026-10-08',
+        '91yuoylr8nX2bOkwGkgRkjctfFl2_2026-10-11',
+        '91yuoylr8nX2bOkwGkgRkjctfFl2_2026-10-15',
+        'odhZaV2Uq9VxqHQbbxAq2ZS94Ls1_2026-10-04',
+        'odhZaV2Uq9VxqHQbbxAq2ZS94Ls1_2026-10-11',
+        'odhZaV2Uq9VxqHQbbxAq2ZS94Ls1_2026-10-15',
+        'sFtURW5zOSPu68halRL3u6IoZB03_2026-10-04',
+        'sFtURW5zOSPu68halRL3u6IoZB03_2026-10-11',
+        'sFtURW5zOSPu68halRL3u6IoZB03_2026-10-15'
+      ];
+      for (const attId of knownAttendanceKeys) {
+        try {
+          await deleteDoc(doc(db, 'attendance', attId));
+        } catch (_) {}
+      }
+    } catch (e) {
+      console.warn('Purge deleted students notice:', e);
+    }
+  },
+
+  /**
+   * Migrate and sync Abdulrahman Bawazeer new UID into Firestore and purge old UID
+   */
+  async syncStudentUidMigration() {
+    if (!auth.currentUser) return;
+    try {
+      const student = INITIAL_DATA.users.find(u => u.id === NEW_BAWAZEER_UID);
+      if (!student) return;
+
+      const isSupervisor = auth.currentUser.uid === 'O83e55HQuyajVh3Ji4FJltobyg63';
+      const isSelf = auth.currentUser.uid === NEW_BAWAZEER_UID;
+
+      // 1. Ensure new student doc is registered in Firestore
+      if (isSupervisor || isSelf) {
+        await setDoc(doc(db, 'users', NEW_BAWAZEER_UID), student, { merge: true });
+      }
+
+      // 2. If supervisor, delete the obsolete doc from Firestore
+      if (isSupervisor) {
+        try {
+          await deleteDoc(doc(db, 'users', OLD_BAWAZEER_UID));
+        } catch (_) {}
+      }
+    } catch (e) {
+      console.warn('Migration sync notice:', e);
     }
   },
 

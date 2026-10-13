@@ -155,7 +155,7 @@ export const AttendanceView = {
               </div>
               <div class="flex items-center justify-between text-[10px] text-stone-500">
                 <span id="att-recorded-label">0 مكتمل</span>
-                <span id="att-total-label">54 إجمالي</span>
+                <span id="att-total-label">51 إجمالي</span>
               </div>
             </div>
           </div>
@@ -327,6 +327,16 @@ export const AttendanceView = {
     // Ensure background cloud auto sync is active
     AttendanceService.startAutoSync(10000);
 
+    // Bind real-time update listeners to keep UI synchronized with cloud
+    if (!this._hasBoundCloudEvents) {
+      this._hasBoundCloudEvents = true;
+      window.addEventListener('attendance-updated', async () => {
+        if (this.selectedDate) {
+          await this.refreshDataSilently();
+        }
+      });
+    }
+
     // Hook KPI card click: Toggle 'المتبقي'
     const cardRemaining = container.querySelector('#att-card-remaining');
     if (cardRemaining) {
@@ -394,13 +404,14 @@ export const AttendanceView = {
       });
     }
 
-    // Hook bulk attendance buttons with instant optimistic application
+    // Hook bulk attendance buttons with instant optimistic application and atomic batch persistence
     const bindBulkBtn = (btnId, status, label) => {
       const btn = container.querySelector(btnId);
       if (btn) {
         btn.addEventListener('click', async () => {
           if (this.selectedStudentIds.size === 0) return;
           const ids = Array.from(this.selectedStudentIds);
+          const count = ids.length;
           
           // 1. Instant 0ms Optimistic UI updates across all selected rows
           ids.forEach(sid => {
@@ -409,17 +420,17 @@ export const AttendanceView = {
           this.selectedStudentIds.clear();
           this.updateSelectionUI();
 
-          // 2. Persist in background
+          // 2. Atomic Batch persist in Firestore & LocalStorage
           try {
-            for (const sid of ids) {
-              if (status === null) {
-                await AttendanceService.removeAttendance(sid, this.selectedDate);
-              } else {
-                await AttendanceService.recordAttendance(sid, this.selectedDate, status);
-              }
+            if (status === null) {
+              await AttendanceService.batchRemoveAttendance(ids, this.selectedDate);
+              Utils.showToast(`تم إلغاء رصد ${count} طالب بنجاح ✓`, 'info', 2500);
+            } else {
+              await AttendanceService.batchRecordAttendance(ids, this.selectedDate, status);
+              Utils.showToast(`تم رصد ${count} طالب (${label}) بنجاح ✓`, 'success', 2500);
             }
           } catch (err) {
-            Utils.showToast(err.message, 'error');
+            Utils.showToast(err.message || 'حدث خطأ في المزامنة', 'error');
             await this.renderQueue();
           }
         });
@@ -625,7 +636,7 @@ export const AttendanceView = {
       AttendanceService.getAllAttendance(),
       UserService.getStudents()
     ]);
-    const totalCohortCount = students.length || 54;
+    const totalCohortCount = (students && students.length > 0) ? students.length : 51;
 
     // Count recorded students per date
     const dateRecordCountMap = new Map();
@@ -893,7 +904,13 @@ export const AttendanceView = {
       records.forEach(r => recordsMap.set(r.studentId, r.status));
 
       const cards = document.querySelectorAll('.rollcall-card');
-      if (cards.length === 0) return;
+      if (cards.length === 0) {
+        const container = document.getElementById('att-rollcall-container');
+        if (container) {
+          await this.renderQueue();
+        }
+        return;
+      }
 
       cards.forEach(card => {
         const sid = card.dataset.studentId;
@@ -1211,3 +1228,7 @@ export const AttendanceView = {
     });
   }
 };
+
+if (typeof window !== 'undefined') {
+  window.AttendanceView = AttendanceView;
+}

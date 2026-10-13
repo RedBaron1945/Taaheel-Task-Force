@@ -85,15 +85,6 @@ export const INITIAL_DATA = {
       createdAt: '2026-09-01T08:00:00Z'
     },
     {
-      id: 'sFtURW5zOSPu68halRL3u6IoZB03',
-      name: 'أبو بكر موسى عيسى مالا',
-      email: 'sFtURW5zOSPu68halRL3u6IoZB03@taaheeltaskforce.com',
-      role: 'student',
-      mahadId: 'mahd_takween_ajawid',
-      mahadName: 'تكوين الأجاويد',
-      createdAt: '2026-09-01T08:00:00Z'
-    },
-    {
       id: 'EbnDIOf5POhT0E3f6DwSDISNerA2',
       name: 'أحمد إبراهيم عبدالله القرني',
       email: 'EbnDIOf5POhT0E3f6DwSDISNerA2@taaheeltaskforce.com',
@@ -106,15 +97,6 @@ export const INITIAL_DATA = {
       id: 'sdz7zvE4ftf3H8R3Xlm4SBPwwNE2',
       name: 'يوسف البسيسي',
       email: 'sdz7zvE4ftf3H8R3Xlm4SBPwwNE2@taaheeltaskforce.com',
-      role: 'student',
-      mahadId: 'mahd_takween_ajawid',
-      mahadName: 'تكوين الأجاويد',
-      createdAt: '2026-09-01T08:00:00Z'
-    },
-    {
-      id: 'odhZaV2Uq9VxqHQbbxAq2ZS94Ls1',
-      name: 'علي أبوبكر أبوبكر تيجاني',
-      email: 'odhZaV2Uq9VxqHQbbxAq2ZS94Ls1@taaheeltaskforce.com',
       role: 'student',
       mahadId: 'mahd_takween_ajawid',
       mahadName: 'تكوين الأجاويد',
@@ -283,15 +265,6 @@ export const INITIAL_DATA = {
       id: 'udizbwik0xSCjX34BeqYJSXHGyc2',
       name: 'فارس سكندر علي',
       email: 'udizbwik0xSCjX34BeqYJSXHGyc2@taaheeltaskforce.com',
-      role: 'student',
-      mahadId: 'mahd_tasees_raghama',
-      mahadName: 'تأسيس الرغامة',
-      createdAt: '2026-09-01T08:00:00Z'
-    },
-    {
-      id: '91yuoylr8nX2bOkwGkgRkjctfFl2',
-      name: 'خليل إبراهيم جابر',
-      email: '91yuoylr8nX2bOkwGkgRkjctfFl2@taaheeltaskforce.com',
       role: 'student',
       mahadId: 'mahd_tasees_raghama',
       mahadName: 'تأسيس الرغامة',
@@ -512,9 +485,9 @@ export const INITIAL_DATA = {
       createdAt: '2026-09-01T08:00:00Z'
     },
     {
-      id: '2il7BvfDzhebZOUxUG1og0pxlS53',
+      id: '8GqPbLceefR8mfVBLzKPCMGmIUj2',
       name: 'عبدالرحمن باوزير',
-      email: '2il7BvfDzhebZOUxUG1og0pxlS53@taaheeltaskforce.com',
+      email: '8GqPbLceefR8mfVBLzKPCMGmIUj2@taaheeltaskforce.com',
       role: 'student',
       mahadId: 'mahd_takween_naseem',
       mahadName: 'تكوين النسيم',

@@ -11,24 +11,26 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // المشرف العام (مبني على الـ UID الخاص بالمشرف أو دوره المسجل في النظام)
+    // المشرف العام (مبني على الـ UID الخاص بالمشرف أو حسابه الموثق أو دوره المسجل في النظام)
     function isSupervisor() {
       return isAuthenticated() && (
-        request.auth.uid == 'O83e55HQuyajVh3Ji4FJltobyg63' ||
+        request.auth.uid in ['O83e55HQuyajVh3Ji4FJltobyg63', 'tpNwAC13RsZs3RB7hfBRefwzedH2'] ||
+        (request.auth.token.email == 'bbrys005@gmail.com' && request.auth.token.email_verified == true) ||
         (
           exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'supervisor'
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['supervisor', 'admin']
         )
       );
     }
 
-    // مسؤول التحضير (مبني على الـ UID الخاص بمسؤول التحضير أو دوره والمشرف)
+    // مسؤول التحضير (مبني على الـ UID الخاص بمسؤول التحضير أو حسابه الموثق أو دوره والمشرف)
     function isAttendanceOfficer() {
       return isAuthenticated() && (
-        request.auth.uid == 'TnCoR9ZTSibHTvIt15VPeQHfGFy1' ||
+        request.auth.uid in ['TnCoR9ZTSibHTvIt15VPeQHfGFy1', 'O83e55HQuyajVh3Ji4FJltobyg63', 'tpNwAC13RsZs3RB7hfBRefwzedH2'] ||
+        (request.auth.token.email == 'bbrys005@gmail.com' && request.auth.token.email_verified == true) ||
         (
           exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['attendance', 'supervisor']
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['attendance', 'supervisor', 'admin']
         ) ||
         isSupervisor()
       );
@@ -47,11 +49,22 @@ service cloud.firestore {
       // السماح بالقراءة لتشغيل التحقق وتسجيل الدخول ولوحة الصدارة
       allow read: if true;
 
-      // المشرف فقط ينشئ ويحذف المستخدمين
-      allow create, delete: if isSupervisor();
+      // الإنشاء: للمشرف، أو لصاحب الحساب في وثيقته فقط بشرط أن يكون role == 'student'
+      allow create: if isSupervisor() || (
+        isAuthenticated() && 
+        request.auth.uid == userId && 
+        request.resource.data.role == 'student'
+      );
 
-      // التحديث متاح للمشرف، أو لصاحب الحساب لنفسه فقط
-      allow update: if isSupervisor() || (isAuthenticated() && request.auth.uid == userId);
+      // الحذف: للمشرف فقط
+      allow delete: if isSupervisor();
+
+      // التعديل: للمشرف، أو لصاحب الحساب في وثيقته فقط بشرط أن يبقى حقل role كما هو دون تغيير
+      allow update: if isSupervisor() || (
+        isAuthenticated() && 
+        request.auth.uid == userId && 
+        request.resource.data.role == resource.data.role
+      );
     }
 
 

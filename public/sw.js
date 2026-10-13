@@ -4,7 +4,7 @@
  * Employs Stale-While-Revalidate for app shell and Cache-First for static assets.
  */
 
-const CACHE_NAME = 'taheel-cache-v3';
+const CACHE_NAME = 'taheel-cache-v8';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -80,11 +80,25 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 3. Static Assets (JS, CSS, Images, SVGs, Fonts): Cache-First with Network fallback
+  // 2b. Application scripts & modules: Network-First to ensure zero-stale authentication/data logic
+  if (url.pathname.endsWith('.js') || url.pathname.includes('/js/') || url.pathname.includes('/@vite/')) {
+    event.respondWith(
+      fetch(event.request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const clone = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          }
+          return networkResponse;
+        })
+        .catch(() => caches.match(event.request))
+    );
+    return;
+  }
+
+  // 3. Static Assets (Images, Icons, Fonts): Cache-First with Network fallback
   if (
     url.pathname.startsWith('/assets/') ||
-    url.pathname.endsWith('.js') ||
-    url.pathname.endsWith('.css') ||
     url.pathname.endsWith('.png') ||
     url.pathname.endsWith('.svg') ||
     url.pathname.endsWith('.ico') ||

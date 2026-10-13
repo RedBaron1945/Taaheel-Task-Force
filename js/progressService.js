@@ -5,6 +5,7 @@
 
 import { Storage } from './storage.js';
 import { AssignmentService } from './assignmentService.js';
+import { UserService } from './userService.js';
 import { db, auth, collection, doc, setDoc, getDocs, onSnapshot } from './firebase.js';
 
 export const ProgressService = {
@@ -113,6 +114,18 @@ export const ProgressService = {
     all[studentId][assignmentId] = list;
     Storage.saveProgress(all);
     window.dispatchEvent(new CustomEvent('progress-updated', { detail: { studentId, assignmentId, list } }));
+
+    // Record last activity for student
+    try {
+      const subtaskObj = subtasks.find(s => s.id === subtaskId);
+      const isDone = list.includes(subtaskId);
+      const actionText = isDone ? 'إنجاز مهمة' : 'تراجع عن مهمة';
+      UserService.recordUserActivity(studentId, {
+        type: 'assignment',
+        text: `${actionText}: ${subtaskObj?.title || 'مهمة مقررة'} (${assignment.title})`,
+        timestamp: new Date().toISOString()
+      });
+    } catch (_) {}
 
     // Queue write to Firestore in background
     const progressDocId = `${studentId}_${assignmentId}`;

@@ -458,26 +458,26 @@ export const SupervisorView = {
         attEl.textContent = `${attendanceRate}%`;
         if (attBar) {
           attBar.style.width = `${attendanceRate}%`;
-          if (attendanceRate >= 80) {
+          if (attendanceRate >= 70) {
             attBar.className = 'h-full rounded-full transition-all duration-700 bg-emerald-600';
-          } else if (attendanceRate >= 65) {
-            attBar.className = 'h-full rounded-full transition-all duration-700 bg-teal-600';
+          } else if (attendanceRate >= 50) {
+            attBar.className = 'h-full rounded-full transition-all duration-700 bg-amber-500';
           } else {
             attBar.className = 'h-full rounded-full transition-all duration-700 bg-rose-600';
           }
         }
-        if (attendanceRate >= 80) {
+        if (attendanceRate >= 70) {
           attEl.className = 'text-2xl sm:text-3xl font-black tabular-nums text-emerald-700 font-mono tracking-tight';
-          if (attSub) attSub.innerHTML = '<span class="text-emerald-700 font-bold">حضور ممتاز ومنتظم</span>';
-          if (attLabel) attLabel.innerHTML = `<span class="text-emerald-800 font-bold">${attendanceRate}% محقق (ممتاز)</span>`;
-        } else if (attendanceRate >= 65) {
-          attEl.className = 'text-2xl sm:text-3xl font-black tabular-nums text-teal-700 font-mono tracking-tight';
-          if (attSub) attSub.innerHTML = '<span class="text-teal-800 font-bold">معدل حضور مستقر</span>';
-          if (attLabel) attLabel.innerHTML = `<span class="text-teal-800 font-bold">${attendanceRate}% محقق (مستقر)</span>`;
+          if (attSub) attSub.innerHTML = '<span class="text-emerald-700 font-bold">حضور مستقر</span>';
+          if (attLabel) attLabel.innerHTML = `<span class="text-emerald-800 font-bold">${attendanceRate}% محقق (حضور مستقر)</span>`;
+        } else if (attendanceRate >= 50) {
+          attEl.className = 'text-2xl sm:text-3xl font-black tabular-nums text-amber-700 font-mono tracking-tight';
+          if (attSub) attSub.innerHTML = '<span class="text-amber-700 font-bold">تراجع ملحوظ</span>';
+          if (attLabel) attLabel.innerHTML = `<span class="text-amber-800 font-bold">${attendanceRate}% محقق (تراجع ملحوظ)</span>`;
         } else {
           attEl.className = 'text-2xl sm:text-3xl font-black tabular-nums text-rose-600 font-mono tracking-tight';
-          if (attSub) attSub.innerHTML = '<span class="text-rose-700 font-bold">تراجع ملحوظ بالحضور</span>';
-          if (attLabel) attLabel.innerHTML = `<span class="text-rose-700 font-bold">${attendanceRate}% محقق (منخفض)</span>`;
+          if (attSub) attSub.innerHTML = '<span class="text-rose-700 font-bold">متدهور</span>';
+          if (attLabel) attLabel.innerHTML = `<span class="text-rose-700 font-bold">${attendanceRate}% محقق (متدهور)</span>`;
         }
       }
     }
@@ -1584,7 +1584,7 @@ export const SupervisorView = {
 
           <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 10px; padding: 10px 6px;">
             <div style="font-size: 10px; color: #64748b; font-weight: bold;">نسبة الحضور العامة</div>
-            <div style="font-size: 17px; font-weight: 900; color: ${hasCohortAttendance ? (attRate >= 80 ? '#059669' : '#b45309') : '#64748b'}; font-family: monospace; margin-top: 2px;">
+            <div style="font-size: 17px; font-weight: 900; color: ${hasCohortAttendance ? (attRate >= 70 ? '#059669' : (attRate >= 50 ? '#b45309' : '#dc2626')) : '#64748b'}; font-family: monospace; margin-top: 2px;">
               ${hasCohortAttendance ? `${attRate}%` : '—'}
             </div>
             <div style="font-size: 9px; color: #94a3b8; margin-top: 2px;">${hasCohortAttendance ? `المحقق للدفعة` : 'بانتظار رصد الجلسات'}</div>

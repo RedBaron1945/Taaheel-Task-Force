@@ -96,6 +96,9 @@ export const App = {
         if (this.currentUser.role === 'supervisor') {
           safeMountCurrentSection(['hub', 'dashboard']);
         }
+        if (window.AttendanceView && typeof window.AttendanceView.refreshDataSilently === 'function') {
+          window.AttendanceView.refreshDataSilently();
+        }
       }
     });
 
@@ -224,9 +227,11 @@ export const App = {
               <span>تثبيت «مرحلة التأهيل» على الهاتف</span>
             </button>
             <div class="text-sm font-semibold text-slate-700">منصة مرحلة التأهيل © 2026</div>
-            <button type="button" id="btn-login-support" class="text-xs text-[#1e3a8a] hover:text-[#172554] font-bold hover:underline cursor-pointer focus:outline-hidden rounded-md py-0.5">
-              تواجه مشكلة في الدخول؟
-            </button>
+            <div class="flex items-center justify-center gap-3 flex-wrap">
+              <button type="button" id="btn-login-support" class="text-xs text-[#1e3a8a] hover:text-[#172554] font-bold hover:underline cursor-pointer focus:outline-hidden rounded-md py-0.5">
+                تواجه مشكلة في الدخول؟
+              </button>
+            </div>
           </div>
         </div>
       </div>

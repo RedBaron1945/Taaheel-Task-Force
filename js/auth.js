@@ -3,8 +3,9 @@
  * Uses Firebase Authentication (email/password) as the single source of truth for sign-in.
  */
 
-import { Storage } from './storage.js';
+import { Storage, DELETED_STUDENT_UIDS } from './storage.js';
 import { UserService } from './userService.js';
+import { INITIAL_DATA } from './data.js';
 import { 
   auth, 
   signInWithEmailAndPassword, 
@@ -12,7 +13,8 @@ import {
   onAuthStateChanged,
   db,
   doc,
-  getDoc
+  getDoc,
+  setDoc
 } from './firebase.js';
 
 let authStateListeners = [];
@@ -51,6 +53,33 @@ export const Auth = {
             let user = await UserService.getUserById(fbUser.uid);
             if (!user) {
               user = await UserService.getUserByEmail(fbUser.email);
+            }
+            if (!user) {
+              const initialMatch = INITIAL_DATA.users.find(u => 
+                u.id === fbUser.uid || 
+                (u.email && u.email.toLowerCase() === (fbUser.email || '').toLowerCase())
+              );
+              if (initialMatch) {
+                user = { ...initialMatch, id: fbUser.uid };
+              }
+            }
+            if (!user && fbUser.uid === '8GqPbLceefR8mfVBLzKPCMGmIUj2') {
+              user = {
+                id: '8GqPbLceefR8mfVBLzKPCMGmIUj2',
+                name: 'عبدالرحمن باوزير',
+                email: fbUser.email || '8GqPbLceefR8mfVBLzKPCMGmIUj2@taaheeltaskforce.com',
+                role: 'student',
+                mahadId: 'mahd_takween_naseem',
+                mahadName: 'تكوين النسيم',
+                createdAt: '2026-09-01T08:00:00Z'
+              };
+            }
+            if (user) {
+              user.email = fbUser.email || user.email;
+              Storage.addStudent(user);
+              try {
+                await setDoc(doc(db, 'users', fbUser.uid), user, { merge: true });
+              } catch (_) {}
             }
             this.notifyListeners(user);
           } else {
@@ -92,11 +121,19 @@ export const Auth = {
    */
   async getCurrentUser() {
     if (auth.currentUser) {
+      if (DELETED_STUDENT_UIDS.includes(auth.currentUser.uid)) {
+        try { await fbSignOut(auth); } catch (_) {}
+        Storage.setCurrentUserId(null);
+        return null;
+      }
       let user = await UserService.getUserById(auth.currentUser.uid);
       if (user) return user;
     }
     const currentId = Storage.getCurrentUserId();
-    if (!currentId) return null;
+    if (!currentId || DELETED_STUDENT_UIDS.includes(currentId)) {
+      if (currentId) Storage.setCurrentUserId(null);
+      return null;
+    }
     return UserService.getUserById(currentId);
   },
 
@@ -109,11 +146,20 @@ export const Auth = {
     const rawInput = email.trim();
     const cleanEmail = rawInput.toLowerCase();
 
+    // Block deleted accounts immediately
+    if (DELETED_STUDENT_UIDS.some(delId => cleanEmail.includes(delId.toLowerCase()))) {
+      throw new Error('تم حذف هذا الحساب نهائياً من المنصة.');
+    }
+
     // 1. Direct Firebase Authentication (authenticates the email registered in Firebase console)
     if (cleanEmail.includes('@') && password.length >= 6) {
       try {
         const cred = await signInWithEmailAndPassword(auth, rawInput, password);
         if (cred && cred.user) {
+          if (DELETED_STUDENT_UIDS.includes(cred.user.uid)) {
+            try { await fbSignOut(auth); } catch (_) {}
+            throw new Error('تم حذف هذا الحساب نهائياً من المنصة.');
+          }
           // Link by UID directly: fetch users/{cred.user.uid} directly from Firestore first
           let user = null;
           try {
@@ -130,9 +176,40 @@ export const Auth = {
           if (!user) {
             user = await UserService.getUserByEmail(cred.user.email);
           }
+          if (!user) {
+            const foundInInitial = INITIAL_DATA.users.find(u => 
+              u.id === cred.user.uid || 
+              (u.email && u.email.toLowerCase() === cleanEmail) ||
+              (cred.user.email && u.email && u.email.toLowerCase() === cred.user.email.toLowerCase())
+            );
+            if (foundInInitial) {
+              user = { ...foundInInitial, id: cred.user.uid };
+            }
+          }
+          // Explicit fallback for Abdulrahman Bawazeer (8GqPbLceefR8mfVBLzKPCMGmIUj2)
+          if (!user && (cred.user.uid === '8GqPbLceefR8mfVBLzKPCMGmIUj2' || cleanEmail.includes('8gqpblceefr8mfvblzkpcmgmiuj2') || cleanEmail.includes('2il7bvfdzhebzouxug1og0pxls53'))) {
+            user = {
+              id: '8GqPbLceefR8mfVBLzKPCMGmIUj2',
+              name: 'عبدالرحمن باوزير',
+              email: cred.user.email || '8GqPbLceefR8mfVBLzKPCMGmIUj2@taaheeltaskforce.com',
+              role: 'student',
+              mahadId: 'mahd_takween_naseem',
+              mahadName: 'تكوين النسيم',
+              createdAt: '2026-09-01T08:00:00Z'
+            };
+          }
           if (user) {
             user.email = cred.user.email || user.email;
+            Storage.addStudent(user);
             Storage.setCurrentUserId(user.id);
+
+            // Self-heal document directly in Cloud Firestore
+            try {
+              await setDoc(doc(db, 'users', cred.user.uid), user, { merge: true });
+            } catch (fsErr) {
+              console.warn('Auto-sync user doc to Firestore notice:', fsErr);
+            }
+
             this.notifyListeners(user);
             return user;
           } else {

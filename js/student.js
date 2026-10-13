@@ -385,10 +385,7 @@ export const StudentView = {
         `;
       } else {
         // Standard remaining days: Compact, sleek & elegant centered badge
-        let daysUnitLabel = 'يوماً';
-        if (deadlineInfo.days === 1) daysUnitLabel = 'يوم واحد فقط';
-        else if (deadlineInfo.days === 2) daysUnitLabel = 'يومان متبقيان';
-        else if (deadlineInfo.days >= 3 && deadlineInfo.days <= 10) daysUnitLabel = 'أيام متبقية';
+        const daysUnitLabel = (deadlineInfo.days >= 3 && deadlineInfo.days <= 10) ? 'أيام' : 'يوم';
 
         deadlinePillEl.innerHTML = `
           <div class="inline-flex items-center justify-center gap-3 px-5 py-2 rounded-2xl bg-gradient-to-r from-amber-50/95 via-white to-amber-50/95 border border-amber-300/80 shadow-xs hover:border-amber-400 transition-all">
