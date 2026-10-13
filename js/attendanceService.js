@@ -144,7 +144,8 @@ export const AttendanceService = {
       return remoteRecords;
     };
 
-    const timeout = new Promise((resolve) => setTimeout(() => resolve(local), 1200));
+    const timeoutMs = (local && local.length > 0) ? 300 : 1200;
+    const timeout = new Promise((resolve) => setTimeout(() => resolve(local), timeoutMs));
 
     try {
       return await Promise.race([fetchRemote(), timeout]);

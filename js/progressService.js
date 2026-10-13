@@ -43,7 +43,9 @@ export const ProgressService = {
       }
     };
 
-    const timeout = new Promise((resolve) => setTimeout(() => resolve(local), 1200));
+    const hasLocal = local && Object.keys(local).length > 0;
+    const timeoutMs = hasLocal ? 300 : 1200;
+    const timeout = new Promise((resolve) => setTimeout(() => resolve(local), timeoutMs));
 
     try {
       return await Promise.race([fetchRemote(), timeout]);

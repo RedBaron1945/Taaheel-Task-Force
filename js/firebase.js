@@ -58,16 +58,16 @@ export const firebaseConfig = firebaseAppletConfig;
 export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 
-// Initialize Firestore with persistent IndexedDB multi-tab cache and long polling
+// Initialize Firestore with persistent IndexedDB multi-tab cache and auto-detected transport
 let firestoreInstance;
 try {
   firestoreInstance = initializeFirestore(app, {
     localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
-    experimentalForceLongPolling: true
+    experimentalAutoDetectLongPolling: true
   }, firebaseConfig.firestoreDatabaseId || '(default)');
 } catch (_) {
   firestoreInstance = initializeFirestore(app, {
-    experimentalForceLongPolling: true
+    experimentalAutoDetectLongPolling: true
   }, firebaseConfig.firestoreDatabaseId || '(default)');
 }
 

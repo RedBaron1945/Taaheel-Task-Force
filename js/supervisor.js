@@ -16,6 +16,7 @@ import { AssignmentService } from './assignmentService.js';
 import { ProgressService } from './progressService.js';
 import { AttendanceService } from './attendanceService.js';
 import { Utils } from './utils.js';
+import { INITIAL_DATA } from './data.js';
 
 export const SupervisorView = {
   activeTab: 'leaderboard', // 'leaderboard' | 'mahaden_comparison' | 'follow_up' | 'manage_assignments'
@@ -180,6 +181,12 @@ export const SupervisorView = {
               <span>الترتيب العام</span>
             </button>
 
+            <button data-tab="assignments_breakdown" class="sup-nav-tab group px-3.5 py-2 text-xs sm:text-sm font-bold rounded-xl transition-all ${this.activeTab === 'assignments_breakdown' ? 'active-tab bg-white text-blue-950 shadow-2xs' : 'text-stone-600 hover:text-slate-900 hover:bg-white/60'} whitespace-nowrap flex items-center gap-1.5 cursor-pointer">
+              <svg class="tab-icon w-4 h-4 ${this.activeTab === 'assignments_breakdown' ? 'text-amber-600' : 'text-stone-400 group-hover:text-stone-600'} transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+              <span>التكاليف في أرقام</span>
+              <span class="text-[10px] px-1.5 py-0.2 rounded-full bg-blue-100 text-blue-900 font-bold border border-blue-200">جديد</span>
+            </button>
+
             <button data-tab="mahaden_comparison" class="sup-nav-tab group px-3.5 py-2 text-xs sm:text-sm font-bold rounded-xl transition-all ${this.activeTab === 'mahaden_comparison' ? 'active-tab bg-white text-blue-950 shadow-2xs' : 'text-stone-600 hover:text-slate-900 hover:bg-white/60'} whitespace-nowrap flex items-center gap-1.5 cursor-pointer">
               <svg class="tab-icon w-4 h-4 ${this.activeTab === 'mahaden_comparison' ? 'text-amber-600' : 'text-stone-400 group-hover:text-stone-600'} transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
               <span>مقارنة المحاضن (7)</span>
@@ -250,22 +257,65 @@ export const SupervisorView = {
       });
     }
 
+    // Hook KPI Card clicks for quick navigation to Assignments In Numbers
+    const kpiProgress = container.querySelector('#kpi-card-progress');
+    if (kpiProgress) {
+      kpiProgress.classList.add('cursor-pointer');
+      kpiProgress.setAttribute('title', 'انقر للانتقال المباشر إلى قسم التكاليف في أرقام');
+      kpiProgress.addEventListener('click', () => {
+        this.activeTab = 'assignments_breakdown';
+        this.renderActiveSection();
+      });
+    }
+
+    const kpiActiveAsg = container.querySelector('#kpi-card-active-asg');
+    if (kpiActiveAsg) {
+      kpiActiveAsg.classList.add('cursor-pointer');
+      kpiActiveAsg.setAttribute('title', 'انقر للانتقال المباشر إلى قسم التكاليف في أرقام');
+      kpiActiveAsg.addEventListener('click', () => {
+        this.activeTab = 'assignments_breakdown';
+        this.renderActiveSection();
+      });
+    }
+
     await this.loadAll();
   },
 
   /**
-   * Load summary stats and render current active section (High performance parallel pipeline)
+   * Load summary stats and render current active section (High performance SWR parallel pipeline)
    */
   async loadAll() {
-    // 1. Fetch all raw datasets in one single concurrent batch
-    const [students, assignments, attendanceRecords, allProgress, mahaden] = await Promise.all([
-      UserService.getStudents(),
-      AssignmentService.getAllAssignments(),
-      AttendanceService.getAllAttendance(),
-      ProgressService.getAllProgress(),
-      UserService.getMahaden()
-    ]);
+    // Phase 1: Fast Cache First (0ms instant render for command room)
+    const localUsers = Storage.getUsers() || [];
+    const cachedStudents = localUsers.filter(u => u && u.role === 'student' && !UserService.isDeletedStudent?.(u));
+    const cachedAssignments = Storage.getAssignments() || INITIAL_DATA.assignments || [];
+    const cachedAttendance = Storage.getAttendance() || [];
+    const cachedProgress = Storage.getProgress() || {};
+    const cachedMahaden = Storage.getMahaden() || INITIAL_DATA.mahaden || [];
 
+    if (cachedStudents.length > 0) {
+      await this.processDatasets(cachedStudents, cachedAssignments, cachedAttendance, cachedProgress, cachedMahaden);
+    }
+
+    // Phase 2: Concurrent background fetch & seamless revalidation
+    try {
+      const [freshStudents, freshAssignments, freshAttendance, freshProgress, freshMahaden] = await Promise.all([
+        UserService.getStudents(),
+        AssignmentService.getAllAssignments(),
+        AttendanceService.getAllAttendance(),
+        ProgressService.getAllProgress(),
+        UserService.getMahaden()
+      ]);
+      await this.processDatasets(freshStudents, freshAssignments, freshAttendance, freshProgress, freshMahaden);
+    } catch (err) {
+      console.warn('Supervisor background sync notice:', err);
+    }
+  },
+
+  /**
+   * Process datasets and update dashboard & active section synchronously
+   */
+  async processDatasets(students, assignments, attendanceRecords, allProgress, mahaden) {
     // 2. Pre-index attendance records by studentId in a hashmap for O(1) synchronous lookups
     const attendanceMap = new Map();
     for (const record of attendanceRecords) {
@@ -605,6 +655,8 @@ export const SupervisorView = {
 
     if (this.activeTab === 'leaderboard' || this.activeTab === 'students') {
       this.renderLeaderboard(content);
+    } else if (this.activeTab === 'assignments_breakdown' || this.activeTab === 'assignments_stats') {
+      this.renderAssignmentsBreakdown(content);
     } else if (this.activeTab === 'mahaden_comparison') {
       this.renderMahadenComparison(content);
     } else if (this.activeTab === 'follow_up' || this.activeTab === 'absentees' || this.activeTab === 'low_progress') {
@@ -1044,18 +1096,12 @@ export const SupervisorView = {
             ` : ''}
           </div>
           
-          <!-- Left Side: Action Buttons (Export PDF & Add Student) -->
+          <!-- Left Side: Action Buttons (Export PDF) -->
           <div class="flex items-center gap-2 self-start lg:self-auto shrink-0">
             <!-- Export PDF Button -->
             <button id="btn-leaderboard-export-pdf" type="button" class="px-3 py-1.5 rounded-xl bg-white hover:bg-stone-50 text-blue-950 font-bold text-xs flex items-center gap-1.5 transition-all border border-stone-200/90 hover:border-blue-300 shadow-2xs cursor-pointer" title="تصدير كشف الترتيب العام المعتمد بصيغة PDF رسمية معتمدة">
               <svg class="w-3.5 h-3.5 text-red-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
               <span>تصدير PDF</span>
-            </button>
-
-            <!-- Add Student Button -->
-            <button id="btn-leaderboard-add-student" class="px-3.5 py-1.5 rounded-xl bg-blue-900 hover:bg-blue-950 text-white font-bold text-xs flex items-center gap-1.5 transition-all shadow-xs cursor-pointer">
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-              <span>إضافة طالب</span>
             </button>
           </div>
         </div>
@@ -1290,11 +1336,6 @@ export const SupervisorView = {
     // Hook Export PDF button -> Open choice modal (Attendance or Assignments)
     content.querySelector('#btn-leaderboard-export-pdf')?.addEventListener('click', () => {
       this.openExportChoiceModal(items);
-    });
-
-    // Hook add student button
-    content.querySelector('#btn-leaderboard-add-student')?.addEventListener('click', () => {
-      this.openAddStudentModal();
     });
 
     // Hook student detail modal
@@ -2086,6 +2127,238 @@ export const SupervisorView = {
   },
 
   /**
+   * Calculate student completion breakdown for each assignment
+   */
+  getAssignmentsBreakdownData() {
+    const allAggregates = this.cachedAggregates || [];
+    const assignments = this.cachedAssignments || [];
+    const totalCohortCount = allAggregates.length;
+
+    return assignments.map((asg, idx) => {
+      const totalSubtasks = (asg.subtasks || []).length;
+      const fullStudents = [];
+      const partialStudents = [];
+      const zeroStudents = [];
+
+      allAggregates.forEach(agg => {
+        const student = agg.student;
+        const detail = agg.stats?.assignmentDetails?.find(d => String(d.assignment?.id) === String(asg.id)) ||
+                       agg.stats?.assignmentDetails?.find(d => d.assignment?.id == asg.id);
+        const completedIds = detail?.completedSubtaskIds || [];
+        const completedCount = completedIds.length;
+        const pct = (detail?.stats?.percentage !== undefined && detail?.stats?.percentage !== null)
+          ? Number(detail.stats.percentage)
+          : (totalSubtasks > 0 ? Math.round((completedCount / totalSubtasks) * 100) : 0);
+        const earnedPoints = detail?.stats?.earnedPoints || 0;
+
+        const info = {
+          student,
+          completedCount,
+          totalSubtasks,
+          earnedPoints,
+          percentage: pct,
+          completedSubtaskIds: completedIds
+        };
+
+        if (totalSubtasks > 0) {
+          if (completedCount >= totalSubtasks || pct >= 100) {
+            fullStudents.push(info);
+          } else if (completedCount > 0) {
+            partialStudents.push(info);
+          } else {
+            zeroStudents.push(info);
+          }
+        } else {
+          if (pct >= 100) {
+            fullStudents.push(info);
+          } else if (pct > 0) {
+            partialStudents.push(info);
+          } else {
+            zeroStudents.push(info);
+          }
+        }
+      });
+
+      const fullPct = totalCohortCount > 0 ? Math.round((fullStudents.length / totalCohortCount) * 100) : 0;
+      const partialPct = totalCohortCount > 0 ? Math.round((partialStudents.length / totalCohortCount) * 100) : 0;
+      const zeroPct = totalCohortCount > 0 ? Math.round((zeroStudents.length / totalCohortCount) * 100) : 0;
+
+      return {
+        assignment: asg,
+        index: idx + 1,
+        totalSubtasks,
+        fullStudents,
+        partialStudents,
+        zeroStudents,
+        fullCount: fullStudents.length,
+        partialCount: partialStudents.length,
+        zeroCount: zeroStudents.length,
+        fullPct,
+        partialPct,
+        zeroPct,
+        totalCohortCount
+      };
+    });
+  },
+
+  /**
+   * Render HTML cards for Assignments In Numbers section (Mobile optimized, no total count)
+   */
+  getAssignmentsBreakdownHtml() {
+    const assignments = this.cachedAssignments || [];
+    const assignmentsBreakdown = this.getAssignmentsBreakdownData();
+
+    return `
+      <!-- القسم: التكاليف في أرقام (بطاقات متجاوبة مع الهاتف) -->
+      <div id="section-assignments-in-numbers" class="space-y-4">
+        <!-- Header Strip -->
+        <div class="card p-4 sm:p-5 rounded-2xl border border-stone-200 bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+          <div class="flex items-center gap-2">
+            <div class="w-8 h-8 rounded-xl bg-blue-100 text-blue-900 flex items-center justify-center font-bold text-sm shadow-2xs shrink-0">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+            </div>
+            <h3 class="text-base sm:text-lg font-black text-slate-900 tracking-tight">التكاليف في أرقام</h3>
+            <span class="text-xs font-bold text-blue-900 bg-blue-50 border border-blue-200 px-2.5 py-0.5 rounded-full shadow-2xs">
+              ${assignments.length} تكليفات
+            </span>
+          </div>
+
+          <!-- Quick Legend Indicator -->
+          <div class="flex items-center gap-2.5 text-xs text-stone-500 flex-wrap bg-stone-50 px-3 py-1.5 rounded-xl border border-stone-200/80">
+            <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span><span class="font-medium text-slate-700">منجز 100%</span></span>
+            <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span><span class="font-medium text-slate-700">إنجاز جزئي</span></span>
+            <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span><span class="font-medium text-slate-700">غير منجز (0%)</span></span>
+          </div>
+        </div>
+
+        <!-- Assignments Cards Grid (Optimized for Mobile and Desktop) -->
+        ${assignmentsBreakdown.length === 0 ? `
+          <div class="py-12 text-center text-stone-400 bg-stone-50 rounded-2xl border border-stone-200">
+            <div class="text-sm font-bold text-stone-600">لا توجد تكاليف مسجلة في المنصة حالياً</div>
+          </div>
+        ` : `
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+            ${assignmentsBreakdown.map(item => `
+              <div class="card p-4 sm:p-5 rounded-2xl border border-stone-200 bg-white shadow-2xs hover:shadow-xs transition-shadow flex flex-col justify-between gap-3.5">
+                <!-- Top Section: Assignment Info & Progress -->
+                <div>
+                  <div class="flex items-start justify-between gap-3">
+                    <div class="flex items-start gap-2.5 min-w-0">
+                      <span class="w-7 h-7 rounded-xl bg-stone-100 text-stone-700 font-mono font-bold text-xs flex items-center justify-center shrink-0 border border-stone-200/80 mt-0.5">
+                        ${item.index}
+                      </span>
+                      <div class="min-w-0">
+                        <h4 class="font-bold text-slate-900 text-sm sm:text-base leading-snug break-words">
+                          ${Utils.escapeHtml(item.assignment.title)}
+                        </h4>
+                      </div>
+                    </div>
+
+                    <!-- Completion Percentage Badge -->
+                    <div class="shrink-0 text-left">
+                      <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-mono font-black ${item.fullPct >= 70 ? 'text-emerald-800 bg-emerald-50 border border-emerald-200' : (item.fullPct >= 40 ? 'text-blue-900 bg-blue-50 border border-blue-200' : 'text-amber-800 bg-amber-50 border border-amber-200')}">
+                        <span>${item.fullPct}%</span>
+                        <span class="text-[11px] font-sans font-bold">منجز</span>
+                      </span>
+                    </div>
+                  </div>
+
+                  <!-- Visual Progress Bar -->
+                  <div class="mt-3">
+                    <div class="w-full bg-stone-100 rounded-full h-1.5 overflow-hidden">
+                      <div class="h-full rounded-full transition-all duration-500 ${item.fullPct >= 70 ? 'bg-emerald-600' : (item.fullPct >= 40 ? 'bg-blue-600' : 'bg-amber-500')}" style="width: ${item.fullPct}%"></div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Bottom Section: 3 Touch-Friendly Interactive Status Buttons -->
+                <div class="grid grid-cols-3 gap-2 pt-3 border-t border-stone-100">
+                  <!-- 1. المنجزون بالكامل (100%) -->
+                  <button type="button" 
+                    class="btn-asg-breakdown-cell flex flex-col items-center justify-center p-2.5 sm:p-3 rounded-xl bg-emerald-50 hover:bg-emerald-100 active:scale-[0.97] border border-emerald-200 text-emerald-950 transition-all cursor-pointer shadow-2xs group text-center"
+                    data-asg-id="${item.assignment.id}" 
+                    data-status="completed" 
+                    title="انقر لعرض قائمة الطلاب المنجزين 100% (${item.fullCount} طالب)">
+                    <div class="flex items-center gap-1 text-[11px] font-bold text-emerald-800">
+                      <span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+                      <span>منجز 100%</span>
+                    </div>
+                    <div class="text-base sm:text-lg font-black text-emerald-900 font-mono mt-1 leading-none">
+                      ${item.fullCount}
+                    </div>
+                    <div class="text-[10px] text-emerald-700/80 mt-1 font-medium group-hover:underline flex items-center gap-0.5">
+                      <span>طالب</span>
+                      <span class="text-emerald-600 font-bold">←</span>
+                    </div>
+                  </button>
+
+                  <!-- 2. المنجزون جزئياً -->
+                  <button type="button" 
+                    class="btn-asg-breakdown-cell flex flex-col items-center justify-center p-2.5 sm:p-3 rounded-xl bg-amber-50 hover:bg-amber-100 active:scale-[0.97] border border-amber-200 text-amber-950 transition-all cursor-pointer shadow-2xs group text-center"
+                    data-asg-id="${item.assignment.id}" 
+                    data-status="partial" 
+                    title="انقر لعرض قائمة الطلاب المنجزين جزئياً (${item.partialCount} طالب)">
+                    <div class="flex items-center gap-1 text-[11px] font-bold text-amber-900">
+                      <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                      <span>جزئي</span>
+                    </div>
+                    <div class="text-base sm:text-lg font-black text-amber-950 font-mono mt-1 leading-none">
+                      ${item.partialCount}
+                    </div>
+                    <div class="text-[10px] text-amber-800/80 mt-1 font-medium group-hover:underline flex items-center gap-0.5">
+                      <span>طالب</span>
+                      <span class="text-amber-600 font-bold">←</span>
+                    </div>
+                  </button>
+
+                  <!-- 3. غير المنجزين (0%) -->
+                  <button type="button" 
+                    class="btn-asg-breakdown-cell flex flex-col items-center justify-center p-2.5 sm:p-3 rounded-xl bg-rose-50 hover:bg-rose-100 active:scale-[0.97] border border-rose-200 text-rose-950 transition-all cursor-pointer shadow-2xs group text-center"
+                    data-asg-id="${item.assignment.id}" 
+                    data-status="not_started" 
+                    title="انقر لعرض قائمة الطلاب الذين لم ينجزوا (${item.zeroCount} طالب)">
+                    <div class="flex items-center gap-1 text-[11px] font-bold text-rose-800">
+                      <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+                      <span>غير منجز</span>
+                    </div>
+                    <div class="text-base sm:text-lg font-black text-rose-950 font-mono mt-1 leading-none">
+                      ${item.zeroCount}
+                    </div>
+                    <div class="text-[10px] text-rose-700/80 mt-1 font-medium group-hover:underline flex items-center gap-0.5">
+                      <span>طالب</span>
+                      <span class="text-rose-600 font-bold">←</span>
+                    </div>
+                  </button>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        `}
+      </div>
+    `;
+  },
+
+  /**
+   * Standalone view for Assignments In Numbers tab
+   */
+  renderAssignmentsBreakdown(content) {
+    content.innerHTML = `
+      <div class="space-y-6">
+        ${this.getAssignmentsBreakdownHtml()}
+      </div>
+    `;
+
+    // Hook Assignment Breakdown Buttons (المنجزين / جزئياً / غير المنجزين)
+    content.querySelectorAll('.btn-asg-breakdown-cell').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const asgId = btn.dataset.asgId;
+        const status = btn.dataset.status;
+        this.openAssignmentBreakdownModal(asgId, status);
+      });
+    });
+  },
+
+  /**
    * 3. Combined Follow-Up Section (يحتاج متابعة)
    * Merges absentees and genuinely low-progress students into an actionable supervision dashboard.
    */
@@ -2141,134 +2414,140 @@ export const SupervisorView = {
     }
 
     content.innerHTML = `
-      <div class="card p-5 sm:p-6 rounded-2xl border border-stone-200 bg-white space-y-5">
-        <!-- Section Header -->
-        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-stone-100">
-          <div>
-            <div class="flex items-center gap-2 flex-wrap">
-              <h3 class="text-base sm:text-lg font-bold text-slate-900">سجل الطلاب المحتاجين للمتابعة</h3>
-              ${allFollowUpList.length > 0 ? `
-                <span class="text-xs font-bold text-amber-900 bg-amber-50 border border-amber-300 px-2.5 py-0.5 rounded-full shadow-2xs">
-                  ${allFollowUpList.length} ${allFollowUpList.length === 1 ? 'حالة تحتاج متابعة' : 'حالات تحتاج متابعة'}
-                </span>
-              ` : `
-                <span class="text-xs font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full shadow-2xs flex items-center gap-1">
-                  <span>✓</span>
-                  <span>لا توجد حالات حرجة</span>
-                </span>
-              `}
+      <div class="space-y-6">
+        <!-- القسم الأول: سجل الطلاب المحتاجين للمتابعة -->
+        <div class="card p-5 sm:p-6 rounded-2xl border border-stone-200 bg-white space-y-5">
+          <!-- Section Header -->
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-stone-100">
+            <div>
+              <div class="flex items-center gap-2 flex-wrap">
+                <h3 class="text-base sm:text-lg font-bold text-slate-900">سجل الطلاب المحتاجين للمتابعة</h3>
+                ${allFollowUpList.length > 0 ? `
+                  <span class="text-xs font-bold text-amber-900 bg-amber-50 border border-amber-300 px-2.5 py-0.5 rounded-full shadow-2xs">
+                    ${allFollowUpList.length} ${allFollowUpList.length === 1 ? 'حالة تحتاج متابعة' : 'حالات تحتاج متابعة'}
+                  </span>
+                ` : `
+                  <span class="text-xs font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full shadow-2xs flex items-center gap-1">
+                    <span>✓</span>
+                    <span>لا توجد حالات حرجة</span>
+                  </span>
+                `}
+              </div>
+              <p class="text-xs text-stone-500 mt-1">حصر مركزي فوري للطلاب المسجل بحقهم أيام غياب أو المنخفضين في معدل إنجاز التكاليف.</p>
             </div>
-            <p class="text-xs text-stone-500 mt-1">حصر مركزي فوري للطلاب المسجل بحقهم أيام غياب أو المنخفضين في معدل إنجاز التكاليف.</p>
-          </div>
 
-          <!-- Threshold Setting Selector -->
-          <div class="flex items-center gap-2 self-start md:self-auto bg-stone-50 px-3 py-1.5 rounded-xl border border-stone-200 shadow-2xs">
-            <span class="text-xs text-stone-600 font-semibold">معيار تدني الإنجاز:</span>
-            <select id="sup-follow-up-threshold" class="text-xs font-bold text-slate-900 bg-white border border-stone-200 rounded-lg px-2 py-1 focus:ring-blue-900 focus:outline-hidden cursor-pointer">
-              <option value="20" ${threshold === 20 ? 'selected' : ''}>أقل من 20%</option>
-              <option value="30" ${threshold === 30 ? 'selected' : ''}>أقل من 30%</option>
-              <option value="40" ${threshold === 40 ? 'selected' : ''}>أقل من 40%</option>
-              <option value="50" ${threshold === 50 ? 'selected' : ''}>أقل من 50%</option>
-              <option value="60" ${threshold === 60 ? 'selected' : ''}>أقل من 60%</option>
-            </select>
-          </div>
-        </div>
-
-        <!-- 3 Interactive Clickable Filter Cards (تغني عن التبويبات المكررة) -->
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <!-- Filter Card 1: All Follow-Up Cases -->
-          <div data-filter="all" class="follow-filter-card p-4 rounded-2xl border transition-all cursor-pointer select-none ${subFilter === 'all' ? 'bg-blue-50/80 border-blue-900 shadow-xs ring-2 ring-blue-900/10' : 'bg-stone-50/80 hover:bg-white border-stone-200 hover:border-blue-300 shadow-2xs'}">
-            <div class="flex items-center justify-between">
-              <span class="text-xs font-bold ${subFilter === 'all' ? 'text-blue-950' : 'text-stone-600'}">إجمالي حالات المتابعة</span>
-              <span class="text-[10px] font-bold px-2 py-0.5 rounded-md ${subFilter === 'all' ? 'bg-blue-900 text-white' : 'bg-stone-200 text-stone-700'}">الكل</span>
+            <!-- Threshold Setting Selector -->
+            <div class="flex items-center gap-2 self-start md:self-auto bg-stone-50 px-3 py-1.5 rounded-xl border border-stone-200 shadow-2xs">
+              <span class="text-xs text-stone-600 font-semibold">معيار تدني الإنجاز:</span>
+              <select id="sup-follow-up-threshold" class="text-xs font-bold text-slate-900 bg-white border border-stone-200 rounded-lg px-2 py-1 focus:ring-blue-900 focus:outline-hidden cursor-pointer">
+                <option value="20" ${threshold === 20 ? 'selected' : ''}>أقل من 20%</option>
+                <option value="30" ${threshold === 30 ? 'selected' : ''}>أقل من 30%</option>
+                <option value="40" ${threshold === 40 ? 'selected' : ''}>أقل من 40%</option>
+                <option value="50" ${threshold === 50 ? 'selected' : ''}>أقل من 50%</option>
+                <option value="60" ${threshold === 60 ? 'selected' : ''}>أقل من 60%</option>
+              </select>
             </div>
-            <div class="text-2xl font-black text-slate-900 tabular-nums mt-2">${allFollowUpList.length}</div>
-            <div class="text-[11px] text-stone-500 mt-0.5">طالب يحتاج متابعة أو توثيق</div>
           </div>
 
-          <!-- Filter Card 2: Absentees -->
-          <div data-filter="absent" class="follow-filter-card p-4 rounded-2xl border transition-all cursor-pointer select-none ${subFilter === 'absent' ? 'bg-red-50/80 border-red-600 shadow-xs ring-2 ring-red-600/10' : 'bg-stone-50/80 hover:bg-white border-stone-200 hover:border-red-300 shadow-2xs'}">
-            <div class="flex items-center justify-between">
-              <span class="text-xs font-bold ${subFilter === 'absent' ? 'text-red-950' : 'text-stone-600'}">تنبيهات الغياب</span>
-              <span class="text-[10px] font-bold px-2 py-0.5 rounded-md ${subFilter === 'absent' ? 'bg-red-600 text-white' : 'bg-stone-200 text-stone-700'}">غياب</span>
+          <!-- 3 Interactive Clickable Filter Cards -->
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <!-- Filter Card 1: All Follow-Up Cases -->
+            <div data-filter="all" class="follow-filter-card p-4 rounded-2xl border transition-all cursor-pointer select-none ${subFilter === 'all' ? 'bg-blue-50/80 border-blue-900 shadow-xs ring-2 ring-blue-900/10' : 'bg-stone-50/80 hover:bg-white border-stone-200 hover:border-blue-300 shadow-2xs'}">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold ${subFilter === 'all' ? 'text-blue-950' : 'text-stone-600'}">إجمالي حالات المتابعة</span>
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded-md ${subFilter === 'all' ? 'bg-blue-900 text-white' : 'bg-stone-200 text-stone-700'}">الكل</span>
+              </div>
+              <div class="text-2xl font-black text-slate-900 tabular-nums mt-2">${allFollowUpList.length}</div>
+              <div class="text-[11px] text-stone-500 mt-0.5">طالب يحتاج متابعة أو توثيق</div>
             </div>
-            <div class="text-2xl font-black ${absentStudents.length > 0 ? 'text-red-600' : 'text-slate-900'} tabular-nums mt-2">${absentStudents.length}</div>
-            <div class="text-[11px] text-stone-500 mt-0.5">طالب سُجل بحقهم غياب</div>
-          </div>
 
-          <!-- Filter Card 3: Low Progress -->
-          <div data-filter="low_progress" class="follow-filter-card p-4 rounded-2xl border transition-all cursor-pointer select-none ${subFilter === 'low_progress' ? 'bg-amber-50/80 border-amber-600 shadow-xs ring-2 ring-amber-600/10' : 'bg-stone-50/80 hover:bg-white border-stone-200 hover:border-amber-300 shadow-2xs'}">
-            <div class="flex items-center justify-between">
-              <span class="text-xs font-bold ${subFilter === 'low_progress' ? 'text-amber-950' : 'text-stone-600'}">انخفاض الإنجاز (&lt;${threshold}%)</span>
-              <span class="text-[10px] font-bold px-2 py-0.5 rounded-md ${subFilter === 'low_progress' ? 'bg-amber-600 text-white' : 'bg-stone-200 text-stone-700'}">إنجاز</span>
+            <!-- Filter Card 2: Absentees -->
+            <div data-filter="absent" class="follow-filter-card p-4 rounded-2xl border transition-all cursor-pointer select-none ${subFilter === 'absent' ? 'bg-red-50/80 border-red-600 shadow-xs ring-2 ring-red-600/10' : 'bg-stone-50/80 hover:bg-white border-stone-200 hover:border-red-300 shadow-2xs'}">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold ${subFilter === 'absent' ? 'text-red-950' : 'text-stone-600'}">تنبيهات الغياب</span>
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded-md ${subFilter === 'absent' ? 'bg-red-600 text-white' : 'bg-stone-200 text-stone-700'}">غياب</span>
+              </div>
+              <div class="text-2xl font-black ${absentStudents.length > 0 ? 'text-red-600' : 'text-slate-900'} tabular-nums mt-2">${absentStudents.length}</div>
+              <div class="text-[11px] text-stone-500 mt-0.5">طالب سُجل بحقهم غياب</div>
             </div>
-            <div class="text-2xl font-black text-slate-900 tabular-nums mt-2">${lowProgressStudents.length}</div>
-            <div class="text-[11px] text-stone-500 mt-0.5">${hasCohortProgress ? 'طالب بحاجة لخطة دعم' : 'بانتظار رصد المهام'}</div>
+
+            <!-- Filter Card 3: Low Progress -->
+            <div data-filter="low_progress" class="follow-filter-card p-4 rounded-2xl border transition-all cursor-pointer select-none ${subFilter === 'low_progress' ? 'bg-amber-50/80 border-amber-600 shadow-xs ring-2 ring-amber-600/10' : 'bg-stone-50/80 hover:bg-white border-stone-200 hover:border-amber-300 shadow-2xs'}">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold ${subFilter === 'low_progress' ? 'text-amber-950' : 'text-stone-600'}">انخفاض الإنجاز (&lt;${threshold}%)</span>
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded-md ${subFilter === 'low_progress' ? 'bg-amber-600 text-white' : 'bg-stone-200 text-stone-700'}">إنجاز</span>
+              </div>
+              <div class="text-2xl font-black text-slate-900 tabular-nums mt-2">${lowProgressStudents.length}</div>
+              <div class="text-[11px] text-stone-500 mt-0.5">${hasCohortProgress ? 'طالب بحاجة لخطة دعم' : 'بانتظار رصد المهام'}</div>
+            </div>
           </div>
-        </div>
 
-        <!-- Students List -->
-        ${displayItems.length === 0 ? `
-          <div class="text-center py-12 px-4 bg-stone-50/80 rounded-2xl border border-stone-200 text-slate-800 space-y-2">
-            <div class="w-12 h-12 mx-auto rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-xl font-bold shadow-2xs">✓</div>
-            <h4 class="text-sm sm:text-base font-bold text-slate-900">سجل ممتاز: لا توجد أي حالات تنطبق عليها هذه الشروط</h4>
-            <p class="text-xs text-stone-500 max-w-md mx-auto">جميع الطلاب منتظمون ومستوفون لمعدلات الحضور والإنجاز المحددة.</p>
-          </div>
-        ` : `
-          <div class="divide-y divide-stone-100">
-            ${displayItems.map(item => {
-              const st = item.student;
-              const att = item.attendance;
-              const s = item.stats;
-              const hasAbsence = att.absentCount > 0;
-              const isLowProg = hasCohortProgress && (s.overallPercentage < threshold);
+          <!-- Students List -->
+          ${displayItems.length === 0 ? `
+            <div class="text-center py-12 px-4 bg-stone-50/80 rounded-2xl border border-stone-200 text-slate-800 space-y-2">
+              <div class="w-12 h-12 mx-auto rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-xl font-bold shadow-2xs">✓</div>
+              <h4 class="text-sm sm:text-base font-bold text-slate-900">سجل ممتاز: لا توجد أي حالات تنطبق عليها هذه الشروط</h4>
+              <p class="text-xs text-stone-500 max-w-md mx-auto">جميع الطلاب منتظمون ومستوفون لمعدلات الحضور والإنجاز المحددة.</p>
+            </div>
+          ` : `
+            <div class="divide-y divide-stone-100">
+              ${displayItems.map(item => {
+                const st = item.student;
+                const att = item.attendance;
+                const s = item.stats;
+                const hasAbsence = att.absentCount > 0;
+                const isLowProg = hasCohortProgress && (s.overallPercentage < threshold);
 
-              return `
-                <div class="py-3.5 flex flex-col md:flex-row md:items-center justify-between gap-3 hover:bg-stone-50/60 p-2.5 rounded-2xl transition-colors">
-                  <!-- Zone 1: Student Identity, Mahad, and Reason Badges -->
-                  <div class="space-y-1 flex-1 min-w-0">
-                    <div class="flex items-center gap-2 flex-wrap">
-                      <h4 class="text-sm sm:text-base font-bold text-slate-900">${Utils.escapeHtml(st.name)}</h4>
-                      ${this.getMahadBadgeHtml(st.mahadId, st.mahadName)}
-                      
-                      <!-- Reason Badges with Calm Severity -->
-                      ${hasAbsence ? `
-                        <span class="inline-flex items-center gap-1 text-[11px] font-bold ${att.absentCount >= 2 ? 'text-red-700 bg-red-50 border border-red-200' : 'text-amber-800 bg-amber-50 border border-amber-200'} px-2 py-0.5 rounded-md">
-                          <span>غياب: ${att.absentCount} ${att.absentCount === 1 ? 'يوم' : 'أيام'}</span>
-                        </span>
-                      ` : ''}
+                return `
+                  <div class="py-3.5 flex flex-col md:flex-row md:items-center justify-between gap-3 hover:bg-stone-50/60 p-2.5 rounded-2xl transition-colors">
+                    <!-- Zone 1: Student Identity, Mahad, and Reason Badges -->
+                    <div class="space-y-1 flex-1 min-w-0">
+                      <div class="flex items-center gap-2 flex-wrap">
+                        <h4 class="text-sm sm:text-base font-bold text-slate-900">${Utils.escapeHtml(st.name)}</h4>
+                        ${this.getMahadBadgeHtml(st.mahadId, st.mahadName)}
+                        
+                        <!-- Reason Badges with Calm Severity -->
+                        ${hasAbsence ? `
+                          <span class="inline-flex items-center gap-1 text-[11px] font-bold ${att.absentCount >= 2 ? 'text-red-700 bg-red-50 border border-red-200' : 'text-amber-800 bg-amber-50 border border-amber-200'} px-2 py-0.5 rounded-md">
+                            <span>غياب: ${att.absentCount} ${att.absentCount === 1 ? 'يوم' : 'أيام'}</span>
+                          </span>
+                        ` : ''}
 
-                      ${isLowProg ? `
-                        <span class="inline-flex items-center gap-1 text-[11px] font-bold text-amber-900 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md">
-                          <span>إنجاز: ${s.overallPercentage}%</span>
-                        </span>
-                      ` : ''}
+                        ${isLowProg ? `
+                          <span class="inline-flex items-center gap-1 text-[11px] font-bold text-amber-900 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md">
+                            <span>إنجاز: ${s.overallPercentage}%</span>
+                          </span>
+                        ` : ''}
+                      </div>
+
+                      <!-- Clean Metrics Line -->
+                      <div class="flex items-center gap-3 text-xs text-stone-500 flex-wrap pt-0.5">
+                        <span>النقاط: <strong class="text-slate-900 font-bold">${s.totalEarnedPoints > 0 ? s.totalEarnedPoints : '—'}</strong> / 100</span>
+                        <span>·</span>
+                        <span>حضور: <strong class="text-slate-800 font-semibold">${att.presentCount}</strong></span>
+                        <span>·</span>
+                        <span>غياب: <strong class="${att.absentCount > 0 ? 'text-red-600 font-bold' : 'text-slate-800'}">${att.absentCount}</strong></span>
+                        <span>·</span>
+                        <span>عذر: <strong class="text-slate-800">${att.excusedCount}</strong></span>
+                      </div>
                     </div>
 
-                    <!-- Clean Metrics Line -->
-                    <div class="flex items-center gap-3 text-xs text-stone-500 flex-wrap pt-0.5">
-                      <span>النقاط: <strong class="text-slate-900 font-bold">${s.totalEarnedPoints > 0 ? s.totalEarnedPoints : '—'}</strong> / 100</span>
-                      <span>·</span>
-                      <span>حضور: <strong class="text-slate-800 font-semibold">${att.presentCount}</strong></span>
-                      <span>·</span>
-                      <span>غياب: <strong class="${att.absentCount > 0 ? 'text-red-600 font-bold' : 'text-slate-800'}">${att.absentCount}</strong></span>
-                      <span>·</span>
-                      <span>عذر: <strong class="text-slate-800">${att.excusedCount}</strong></span>
+                    <!-- Zone 2: Prominent Action Button -->
+                    <div class="flex items-center gap-2 shrink-0 self-start md:self-auto">
+                      <button type="button" class="student-modal-btn min-h-[38px] px-4 py-2 text-xs font-bold text-white bg-blue-900 hover:bg-blue-950 active:scale-[0.98] rounded-xl transition-all shadow-2xs cursor-pointer flex items-center gap-1.5 border border-blue-950/20" data-student-id="${st.id}">
+                        <svg class="w-4 h-4 text-amber-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                        <span>الملف والتفاصيل</span>
+                      </button>
                     </div>
                   </div>
+                `;
+              }).join('')}
+            </div>
+          `}
+        </div>
 
-                  <!-- Zone 2: Prominent Action Button -->
-                  <div class="flex items-center gap-2 shrink-0 self-start md:self-auto">
-                    <button type="button" class="student-modal-btn min-h-[38px] px-4 py-2 text-xs font-bold text-white bg-blue-900 hover:bg-blue-950 active:scale-[0.98] rounded-xl transition-all shadow-2xs cursor-pointer flex items-center gap-1.5 border border-blue-950/20" data-student-id="${st.id}">
-                      <svg class="w-4 h-4 text-amber-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-                      <span>الملف والتفاصيل</span>
-                    </button>
-                  </div>
-                </div>
-              `;
-            }).join('')}
-          </div>
-        `}
+        <!-- القسم الثاني: التكاليف في أرقام -->
+        ${this.getAssignmentsBreakdownHtml()}
       </div>
     `;
 
@@ -2293,6 +2572,15 @@ export const SupervisorView = {
     content.querySelectorAll('.student-modal-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         this.openStudentDetailModal(btn.dataset.studentId);
+      });
+    });
+
+    // Hook Assignment Breakdown Buttons (المنجزين / جزئياً / غير المنجزين)
+    content.querySelectorAll('.btn-asg-breakdown-cell').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const asgId = btn.dataset.asgId;
+        const status = btn.dataset.status;
+        this.openAssignmentBreakdownModal(asgId, status);
       });
     });
   },
@@ -2969,6 +3257,209 @@ export const SupervisorView = {
       if (e.target === modal) {
         closeModal();
       }
+    };
+  },
+
+  /**
+   * Open Assignment Student Breakdown Modal (المنجزين / جزئياً / غير المنجزين)
+   */
+  openAssignmentBreakdownModal(asgId, status) {
+    const modal = document.getElementById('asg-breakdown-modal');
+    const titleEl = document.getElementById('asg-breakdown-title');
+    const subtitleEl = document.getElementById('asg-breakdown-subtitle');
+    const contentEl = document.getElementById('asg-breakdown-content');
+    if (!modal || !contentEl) return;
+
+    const assignments = this.cachedAssignments || [];
+    const asg = assignments.find(a => String(a.id) === String(asgId)) || assignments.find(a => a.id == asgId);
+    if (!asg) {
+      console.warn('Assignment not found for breakdown modal:', asgId);
+      return;
+    }
+
+    // Retrieve the exact student lists computed for this assignment
+    const breakdownList = this.getAssignmentsBreakdownData();
+    const currentBreakdown = breakdownList.find(b => String(b.assignment?.id) === String(asg.id)) ||
+                             breakdownList.find(b => b.assignment?.id == asg.id);
+
+    let targetStudents = [];
+    if (currentBreakdown) {
+      if (status === 'completed') {
+        targetStudents = currentBreakdown.fullStudents || [];
+      } else if (status === 'partial') {
+        targetStudents = currentBreakdown.partialStudents || [];
+      } else {
+        targetStudents = currentBreakdown.zeroStudents || [];
+      }
+    }
+
+    const allAggregates = this.cachedAggregates || [];
+
+    // Configure titles & badges
+    let statusLabel = '';
+    let statusBadgeHtml = '';
+    let statusTextForCopy = '';
+    if (status === 'completed') {
+      statusLabel = 'الطلاب المنجزون بالكامل (100%)';
+      statusTextForCopy = 'المنجزون بالكامل (100%)';
+      statusBadgeHtml = `<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 shadow-2xs"><span class="w-2 h-2 rounded-full bg-emerald-600"></span><span>أنجزوا التكليف 100%</span></span>`;
+    } else if (status === 'partial') {
+      statusLabel = 'الطلاب المنجزون جزئيًا';
+      statusTextForCopy = 'المنجزون جزئيًا (غير مكتمل)';
+      statusBadgeHtml = `<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold text-amber-900 bg-amber-50 border border-amber-200 shadow-2xs"><span class="w-2 h-2 rounded-full bg-amber-500"></span><span>إنجاز جزئي لم يكتمل</span></span>`;
+    } else {
+      statusLabel = 'الطلاب غير المنجزين (0%)';
+      statusTextForCopy = 'غير المنجزين (0%)';
+      statusBadgeHtml = `<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold text-rose-800 bg-rose-50 border border-rose-200 shadow-2xs"><span class="w-2 h-2 rounded-full bg-rose-500"></span><span>لم يبدأوا أي خطوة</span></span>`;
+    }
+
+    if (titleEl) {
+      titleEl.innerHTML = `
+        <span class="font-black">${statusLabel}</span>
+      `;
+    }
+    if (subtitleEl) {
+      subtitleEl.innerHTML = `
+        <span class="font-bold text-slate-800">«${Utils.escapeHtml(asg.title)}»</span>
+        <span class="mx-1.5">·</span>
+        <span class="font-semibold text-slate-600">${targetStudents.length} طالب من أصل ${allAggregates.length} طالب في الدفعة</span>
+      `;
+    }
+
+    // Modal HTML layout (without search or mahad filter as requested)
+    contentEl.innerHTML = `
+      <div class="space-y-4">
+        <!-- Top Toolbar: Status Badge + Student Count + Copy Button -->
+        <div class="flex items-center justify-between gap-3 bg-stone-50 p-3 sm:p-3.5 rounded-2xl border border-stone-200 flex-wrap">
+          <div class="flex items-center gap-2 flex-wrap">
+            ${statusBadgeHtml}
+            <span class="text-xs font-extrabold text-slate-800 bg-white px-2.5 py-1 rounded-xl border border-stone-200 shadow-2xs">
+              ${targetStudents.length} طالب
+            </span>
+          </div>
+
+          <!-- Prominent Copy Names Button -->
+          <button type="button" id="asg-modal-copy-btn" class="px-3 py-1.5 text-xs font-bold text-blue-900 bg-blue-50 hover:bg-blue-100 active:scale-[0.98] border border-blue-200 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 shrink-0 shadow-2xs" title="نسخ الأسماء مع عنوان التكليف والحالة إلى الحافظة">
+            <svg class="w-4 h-4 text-blue-800" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/></svg>
+            <span>نسخ أسماء الطلاب</span>
+          </button>
+        </div>
+
+        <!-- Student Rows List -->
+        <div id="asg-modal-students-list" class="max-h-[55vh] overflow-y-auto space-y-2">
+          ${targetStudents.length === 0 ? `
+            <div class="py-12 text-center text-stone-400 bg-stone-50 rounded-2xl border border-stone-200">
+              <div class="text-sm font-bold text-stone-600">لا يوجد طلاب في هذه الفئة</div>
+              <div class="text-xs text-stone-400 mt-1">جميع طلاب الدفعة في حالات إنجاز أخرى لهذا التكليف.</div>
+            </div>
+          ` : `
+            <div class="divide-y divide-stone-100 border border-stone-200 rounded-2xl overflow-hidden bg-white shadow-2xs">
+              ${targetStudents.map((item, idx) => {
+                const st = item.student || {};
+                const studentName = (st.name || st.fullName || st.displayName || st.studentName || (st.email ? st.email.split('@')[0] : '') || `طالب ${idx + 1}`).trim();
+                
+                let statusPill = '';
+                if (status === 'partial') {
+                  statusPill = `
+                    <div class="flex items-center gap-2">
+                      <div class="w-16 sm:w-20 bg-stone-100 rounded-full h-2 overflow-hidden border border-stone-200">
+                        <div class="bg-amber-500 h-full rounded-full" style="width: ${item.percentage}%"></div>
+                      </div>
+                      <span class="text-xs font-bold text-amber-900 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-200 font-mono">
+                        ${item.completedCount} / ${item.totalSubtasks} (${item.percentage}%)
+                      </span>
+                    </div>
+                  `;
+                }
+
+                return `
+                  <div class="p-3 sm:px-4 flex items-center justify-between gap-3 hover:bg-stone-50/80 transition-colors">
+                    <div class="flex items-center gap-3 min-w-0 flex-1">
+                      <span class="w-7 h-7 rounded-xl bg-stone-100 text-stone-700 text-xs font-mono font-bold flex items-center justify-center shrink-0 border border-stone-200">
+                        ${idx + 1}
+                      </span>
+                      <div class="min-w-0 flex-1 space-y-0.5">
+                        <div class="flex items-center gap-2 flex-wrap">
+                          <span class="font-extrabold text-sm sm:text-base text-slate-900 break-words">
+                            ${Utils.escapeHtml(studentName)}
+                          </span>
+                          ${this.getMahadBadgeHtml(st.mahadId, st.mahadName)}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="flex items-center gap-2.5 shrink-0">
+                      ${statusPill}
+                      <button type="button" class="btn-open-student-from-breakdown p-2 text-stone-500 hover:text-blue-900 hover:bg-blue-50 rounded-xl transition-colors cursor-pointer border border-stone-200 hover:border-blue-200" data-student-id="${st.id}" title="عرض ملف الطالب الكامل">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                      </button>
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          `}
+        </div>
+      </div>
+    `;
+
+    // Hook student detail click from within this modal
+    contentEl.querySelectorAll('.btn-open-student-from-breakdown').forEach(b => {
+      b.addEventListener('click', () => {
+        this.openStudentDetailModal(b.dataset.studentId);
+      });
+    });
+
+    // Hook Copy Names button with Assignment & Status Header
+    contentEl.querySelector('#asg-modal-copy-btn')?.addEventListener('click', async () => {
+      if (targetStudents.length === 0) {
+        Utils.showToast('لا يوجد طلاب في هذه القائمة لنسخهم', 'info');
+        return;
+      }
+
+      const header = `📋 التكليف: ${asg.title}\n📌 الحالة: ${statusTextForCopy}\n👥 العدد: ${targetStudents.length} طالب\n----------------------------------------`;
+      const studentsList = targetStudents.map((item, idx) => {
+        const st = item.student || {};
+        const sName = (st.name || st.fullName || st.displayName || st.studentName || `طالب ${idx + 1}`).trim();
+        const mName = st.mahadName ? ` (${st.mahadName})` : '';
+        let extra = '';
+        if (status === 'partial') {
+          extra = ` - [أنجز ${item.completedCount} من ${item.totalSubtasks} خطوات (${item.percentage}%)]`;
+        } else if (status === 'completed') {
+          extra = ` - [منجز 100%]`;
+        } else {
+          extra = ` - [لم يبدأ 0%]`;
+        }
+        return `${idx + 1}. ${sName}${mName}${extra}`;
+      }).join('\n');
+
+      const fullTextToCopy = `${header}\n${studentsList}`;
+
+      const copied = await Utils.copyToClipboard(fullTextToCopy);
+      if (copied) {
+        Utils.showToast(`✓ تم نسخ قائمة «${statusTextForCopy}» لتكليف «${asg.title}» (${targetStudents.length} طالب)`, 'success');
+      } else {
+        Utils.showToast(`✓ تم نسخ القائمة`, 'info');
+      }
+    });
+
+    // Open Modal
+    modal.classList.remove('hidden');
+    modal.classList.add('active');
+    modal.style.removeProperty('display');
+    modal.style.display = 'flex';
+
+    const closeModal = () => {
+      modal.classList.add('hidden');
+      modal.classList.remove('active');
+      modal.style.display = 'none';
+    };
+
+    const closeBtn = document.getElementById('asg-breakdown-close');
+    if (closeBtn) closeBtn.onclick = closeModal;
+
+    modal.onclick = (e) => {
+      if (e.target === modal) closeModal();
     };
   },
 

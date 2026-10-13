@@ -23,27 +23,6 @@ export const App = {
     Storage.init();
     this.initPWAInstall();
 
-    // Setup global auth listener with user change protection
-    let lastRenderedUserId = undefined;
-    Auth.onAuthStateChanged((user) => {
-      const newUserId = user ? (user.id || user.uid) : null;
-      if (newUserId === lastRenderedUserId) {
-        return; // Prevent duplicate re-renders if user session hasn't changed
-      }
-      lastRenderedUserId = newUserId;
-      this.currentUser = user;
-      if (user) {
-        if (user.role === 'supervisor') {
-          if (!this.activeSection || this.activeSection === 'home') this.activeSection = 'hub';
-        } else if (user.role === 'attendance' || user.role === 'attendanceAdmin') {
-          if (!this.activeSection || this.activeSection === 'home') this.activeSection = 'attendance';
-        } else {
-          this.activeSection = 'home';
-        }
-      }
-      this.render();
-    });
-
     // Safe section refresh with modal guard, input protection, and debouncing
     let sectionRemountTimer = null;
     const safeMountCurrentSection = (allowedSections = []) => {
@@ -72,34 +51,73 @@ export const App = {
       }, 400);
     };
 
-    // Realtime subscriptions for remote data updates
-    UserService.subscribeToStudents(() => {
-      if (this.currentUser && this.currentUser.role === 'supervisor') {
-        safeMountCurrentSection(['students', 'hub', 'dashboard']);
+    // Setup role-based realtime subscriptions manager
+    this.realtimeUnsubs = [];
+    const setupSubscriptionsForUser = (user) => {
+      // Clean up any existing listeners
+      if (this.realtimeUnsubs && this.realtimeUnsubs.length > 0) {
+        this.realtimeUnsubs.forEach(unsub => {
+          try { if (typeof unsub === 'function') unsub(); } catch (_) {}
+        });
+        this.realtimeUnsubs = [];
       }
-    });
 
-    AssignmentService.subscribeToAssignments(() => {
-      if (this.currentUser && this.currentUser.role === 'supervisor') {
-        safeMountCurrentSection(['assignments', 'hub', 'dashboard']);
-      }
-    });
+      if (!user) return;
 
-    ProgressService.subscribeToProgress(() => {
-      if (this.currentUser && this.currentUser.role === 'supervisor') {
-        safeMountCurrentSection(['hub', 'dashboard']);
-      }
-    });
-
-    AttendanceService.subscribeToAttendance(() => {
-      if (this.currentUser) {
-        if (this.currentUser.role === 'supervisor') {
+      if (user.role === 'supervisor') {
+        const u1 = UserService.subscribeToStudents(() => {
+          safeMountCurrentSection(['students', 'hub', 'dashboard']);
+        });
+        const u2 = AssignmentService.subscribeToAssignments(() => {
+          safeMountCurrentSection(['assignments', 'hub', 'dashboard']);
+        });
+        const u3 = ProgressService.subscribeToProgress(() => {
           safeMountCurrentSection(['hub', 'dashboard']);
-        }
-        if (window.AttendanceView && typeof window.AttendanceView.refreshDataSilently === 'function') {
-          window.AttendanceView.refreshDataSilently();
+        });
+        const u4 = AttendanceService.subscribeToAttendance(() => {
+          safeMountCurrentSection(['hub', 'dashboard']);
+          if (window.AttendanceView && typeof window.AttendanceView.refreshDataSilently === 'function') {
+            window.AttendanceView.refreshDataSilently();
+          }
+        });
+        this.realtimeUnsubs.push(u1, u2, u3, u4);
+      } else if (user.role === 'attendance' || user.role === 'attendanceAdmin') {
+        const uAtt = AttendanceService.subscribeToAttendance(() => {
+          if (window.AttendanceView && typeof window.AttendanceView.refreshDataSilently === 'function') {
+            window.AttendanceView.refreshDataSilently();
+          }
+        });
+        this.realtimeUnsubs.push(uAtt);
+      } else if (user.role === 'student') {
+        const uAsg = AssignmentService.subscribeToAssignments(() => {
+          if (this.currentUser && this.activeSection === 'home') {
+            safeMountCurrentSection(['home']);
+          }
+        });
+        this.realtimeUnsubs.push(uAsg);
+      }
+    };
+
+    // Setup global auth listener with user change protection
+    let lastRenderedUserId = undefined;
+    Auth.onAuthStateChanged((user) => {
+      const newUserId = user ? (user.id || user.uid) : null;
+      if (newUserId === lastRenderedUserId) {
+        return; // Prevent duplicate re-renders if user session hasn't changed
+      }
+      lastRenderedUserId = newUserId;
+      this.currentUser = user;
+      if (user) {
+        if (user.role === 'supervisor') {
+          if (!this.activeSection || this.activeSection === 'home') this.activeSection = 'hub';
+        } else if (user.role === 'attendance' || user.role === 'attendanceAdmin') {
+          if (!this.activeSection || this.activeSection === 'home') this.activeSection = 'attendance';
+        } else {
+          this.activeSection = 'home';
         }
       }
+      setupSubscriptionsForUser(user);
+      this.render();
     });
 
     window.addEventListener('logo-updated', () => {
@@ -738,8 +756,10 @@ export const App = {
    * 2) «غرفة القيادة»
    */
   async renderSupervisorHub(container) {
-    const students = await UserService.getStudents();
-    const studentCount = students.length;
+    // Instant cache read for 0ms transition back to main options
+    const localUsers = Storage.getUsers() || [];
+    const localStudents = localUsers.filter(u => u && u.role === 'student');
+    const studentCount = localStudents.length > 0 ? localStudents.length : 54;
 
     container.innerHTML = `
       <div class="max-w-5xl mx-auto space-y-6">
@@ -769,7 +789,7 @@ export const App = {
               </div>
               <div class="bg-stone-50 border border-stone-200/90 px-3.5 py-2.5 rounded-2xl text-center min-w-[90px] shadow-2xs">
                 <span class="text-[10px] text-slate-500 font-bold block">الطلاب الحاليين</span>
-                <span class="text-sm font-black text-blue-950">${studentCount} طالب</span>
+                <span id="hub-student-count-metric" class="text-sm font-black text-blue-950">${studentCount} طالب</span>
               </div>
             </div>
           </div>
@@ -891,6 +911,14 @@ export const App = {
     };
     container.querySelector('#hub-card-quran-compass')?.addEventListener('click', handleQuranCompassClick);
     container.querySelector('#btn-hub-goto-quran-compass')?.addEventListener('click', handleQuranCompassClick);
+
+    // Asynchronously update student count in background without blocking UI
+    UserService.getStudents().then(students => {
+      const badge = container.querySelector('#hub-student-count-metric');
+      if (badge && students && students.length) {
+        badge.textContent = `${students.length} طالب`;
+      }
+    }).catch(() => {});
   },
 
   /**

@@ -938,13 +938,11 @@ export const StudentView = {
           heroRing.style.strokeDashoffset = `${offset}`;
         }
 
-        // 4. Background Persistence with Direct Exact Subtask List
+        // 4. Background Persistence with Direct Exact Subtask List (Non-blocking async)
         const currentlyCheckedIds = checkedCardCheckboxes.map(c => c.dataset.subId);
-        try {
-          await ProgressService.saveAssignmentSubtasks(student.id, asgId, currentlyCheckedIds);
-        } catch (err) {
+        ProgressService.saveAssignmentSubtasks(student.id, asgId, currentlyCheckedIds).catch(err => {
           console.warn('Progress save notice:', err);
-        }
+        });
       });
     });
   },

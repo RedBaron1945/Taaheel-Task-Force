@@ -112,20 +112,24 @@ export const UserService = {
       studentsMap.set(u.id, { ...existing, ...u });
     });
 
-    // 3. Merge remote Firestore students
+    // 3. Merge remote Firestore students (Fast-Timeout Race: returns in <= 400ms to guarantee instant UI)
     if (auth.currentUser) {
       try {
         const q = query(collection(db, 'users'), where('role', '==', 'student'));
-        const snapshot = await getDocs(q);
-        if (!snapshot.empty) {
-          snapshot.forEach(docSnap => {
-            if (docSnap.id === OLD_BAWAZEER_UID || isDeletedStudent(docSnap.id)) return;
-            const remoteStudent = { id: docSnap.id, ...docSnap.data() };
-            if (isDeletedStudent(remoteStudent)) return;
-            const existing = studentsMap.get(remoteStudent.id) || {};
-            studentsMap.set(remoteStudent.id, { ...existing, ...remoteStudent });
-          });
-        }
+        const fetchRemote = async () => {
+          const snapshot = await getDocs(q);
+          if (!snapshot.empty) {
+            snapshot.forEach(docSnap => {
+              if (docSnap.id === OLD_BAWAZEER_UID || isDeletedStudent(docSnap.id)) return;
+              const remoteStudent = { id: docSnap.id, ...docSnap.data() };
+              if (isDeletedStudent(remoteStudent)) return;
+              const existing = studentsMap.get(remoteStudent.id) || {};
+              studentsMap.set(remoteStudent.id, { ...existing, ...remoteStudent });
+            });
+          }
+        };
+        const timeout = new Promise((resolve) => setTimeout(resolve, 400));
+        await Promise.race([fetchRemote(), timeout]);
       } catch (err) {
         console.warn('Firestore students fetch warning:', err);
       }
