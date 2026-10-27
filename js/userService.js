@@ -219,6 +219,28 @@ export const UserService = {
   },
 
   /**
+   * Update student phone number and sync to Firestore & Storage
+   */
+  async updateStudentPhone(studentId, phone) {
+    const cleanPhone = (phone || '').trim();
+    const users = Storage.getUsers();
+    const user = users.find(u => u.id === studentId);
+    if (user) {
+      user.phone = cleanPhone;
+      Storage.saveUsers(users);
+    }
+    if (auth.currentUser) {
+      try {
+        await setDoc(doc(db, 'users', studentId), { phone: cleanPhone }, { merge: true });
+      } catch (err) {
+        console.warn('Firestore update phone warning:', err);
+      }
+    }
+    window.dispatchEvent(new CustomEvent('students-updated', { detail: { id: studentId, phone: cleanPhone } }));
+    return cleanPhone;
+  },
+
+  /**
    * Listen to student changes in real-time via Firestore snapshot
    */
   subscribeToStudents(callback) {

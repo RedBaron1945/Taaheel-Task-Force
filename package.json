@@ -1,22 +1,20 @@
 {
-  "name": "marhala-taheel-platform",
+  "name": "marhalat-altaaheel",
   "private": true,
   "version": "1.0.0",
-  "description": "منصة مرحلة التأهيل",
+  "description": "منصة مرحلة التأهيل لمتابعة طلاب الدفعة 48: الحضور والخميسيات وتكاليف القرآن والدروس",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --port=3000 --host=0.0.0.0",
     "build": "vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "canvas-confetti": "^1.9.4",
-    "firebase": "^12.19.0"
-  },
-  "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",
+    "canvas-confetti": "^1.9.4",
+    "firebase": "^12.19.0",
     "tailwindcss": "^4.3.3",
-    "vite": "^6.2.3"
+    "vite": "^8.3.0"
   }
 }

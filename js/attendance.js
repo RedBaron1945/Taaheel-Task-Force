@@ -186,13 +186,18 @@ export const AttendanceView = {
                 <div class="text-2xl font-black text-amber-700 tabular-nums" id="att-count-excused">0</div>
               </div>
 
-              <!-- Absent -->
-              <div class="p-2.5 rounded-xl bg-rose-50/80 border border-rose-200/80">
+              <!-- Absent (Clickable to view absentees and WhatsApp messaging) -->
+              <div class="p-2.5 rounded-xl bg-rose-50/80 hover:bg-rose-100/90 border border-rose-200/80 hover:border-rose-300 transition-all cursor-pointer select-none group shadow-2xs active:scale-[0.98]" id="att-card-absent" title="انقر لعرض قائمة الطلاب الغائبين والتواصل معهم عبر واتساب">
                 <div class="flex items-center justify-center gap-1 text-[11px] text-rose-800 font-bold mb-1">
                   <span class="w-2 h-2 rounded-full bg-rose-600"></span>
                   <span>غائب</span>
+                  <span class="text-[10px] text-rose-600 font-bold group-hover:translate-y-0.5 transition-transform">▾</span>
                 </div>
                 <div class="text-2xl font-black text-rose-700 tabular-nums" id="att-count-absent">0</div>
+                <div class="text-[10px] text-rose-700 font-semibold text-center mt-1 group-hover:underline flex items-center justify-center gap-1">
+                  <svg class="w-3 h-3 text-emerald-600 shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91C2.13 13.66 2.59 15.36 3.45 16.86L2.05 22L7.3 20.63C8.75 21.41 10.38 21.83 12.04 21.83C17.5 21.83 21.95 17.38 21.95 11.92C21.95 9.27 20.92 6.78 19.05 4.91C17.18 3.03 14.69 2 12.04 2M12.05 3.67C14.25 3.67 16.31 4.53 17.87 6.09C19.42 7.65 20.28 9.72 20.28 11.92C20.28 16.46 16.58 20.15 12.04 20.15C10.56 20.15 9.11 19.76 7.85 19L7.55 18.83L4.43 19.65L5.26 16.61L5.06 16.29C4.24 15 3.8 13.47 3.8 11.91C3.81 7.37 7.5 3.67 12.05 3.67Z"/></svg>
+                  <span>تنبيه واتساب</span>
+                </div>
               </div>
             </div>
           </div>
@@ -343,6 +348,14 @@ export const AttendanceView = {
       cardRemaining.addEventListener('click', () => {
         this.statusFilter = this.statusFilter === 'unrecorded' ? 'all' : 'unrecorded';
         this.renderQueue();
+      });
+    }
+
+    // Hook Absent Card click: Open absent students WhatsApp modal
+    const cardAbsent = container.querySelector('#att-card-absent');
+    if (cardAbsent) {
+      cardAbsent.addEventListener('click', () => {
+        this.openAbsentStudentsModal();
       });
     }
 
@@ -1226,6 +1239,151 @@ export const AttendanceView = {
         }
       });
     });
+  },
+
+  /**
+   * Helper: Clean and format phone number for WhatsApp wa.me direct linking
+   */
+  cleanSaudiPhone(phone) {
+    if (!phone) return '';
+    let clean = String(phone).replace(/[^0-9]/g, '');
+    if (clean.startsWith('00966')) clean = clean.substring(2);
+    else if (clean.startsWith('05')) clean = '966' + clean.substring(1);
+    else if (clean.startsWith('5') && clean.length === 9) clean = '966' + clean;
+    return clean;
+  },
+
+  /**
+   * Open Absent Students WhatsApp Follow-up Modal
+   * Displays list of absentees on the selected day with direct WhatsApp link and prepared message:
+   * 💔افتقدناك بلقاء اليوم
+   * 
+   * تم تسجيلك كـ "غائب" بلقاء اليوم [تاريخ اليوم]
+   */
+  async openAbsentStudentsModal() {
+    let modal = document.getElementById('absent-students-modal');
+    if (!modal) return;
+
+    const content = document.getElementById('absent-modal-content');
+    const titleEl = document.getElementById('absent-modal-title');
+    const subtitleEl = document.getElementById('absent-modal-subtitle');
+    const badgeEl = document.getElementById('absent-modal-count-badge');
+    const closeBtn = document.getElementById('absent-modal-close');
+    if (!content) return;
+
+    const dateFormatted = this.getFormattedSelectedDate();
+    const dateIso = this.selectedDate;
+
+    if (titleEl) titleEl.textContent = 'قائمة الغائبين';
+    if (subtitleEl) subtitleEl.textContent = `لقاء: ${dateFormatted}`;
+
+    content.innerHTML = `
+      <div class="py-12 text-center text-stone-500 space-y-2">
+        <div class="w-8 h-8 mx-auto border-3 border-rose-500 border-t-transparent rounded-full animate-spin"></div>
+        <p class="text-xs font-bold text-slate-700">جارٍ حصر قائمة الغائبين...</p>
+      </div>
+    `;
+
+    modal.classList.remove('hidden');
+    modal.classList.add('active');
+    modal.style.removeProperty('display');
+    modal.style.display = 'flex';
+
+    const closeModal = () => {
+      modal.classList.add('hidden');
+      modal.classList.remove('active');
+      modal.style.display = 'none';
+    };
+
+    if (closeBtn) closeBtn.onclick = closeModal;
+    modal.onclick = (e) => {
+      if (e.target === modal) closeModal();
+    };
+
+    // 1. Fetch all students and records for dateIso
+    const [allStudents, records] = await Promise.all([
+      UserService.getStudents(),
+      AttendanceService.getAttendanceForDate(dateIso)
+    ]);
+
+    const recordsMap = new Map();
+    records.forEach(r => recordsMap.set(r.studentId, r.status));
+
+    // Also factor in current optimistic cache
+    for (const [sId, st] of this.currentRecordsCache.entries()) {
+      if (st) recordsMap.set(sId, st);
+      else recordsMap.delete(sId);
+    }
+
+    // Filter students whose status is 'absent' on this date
+    let absentStudents = allStudents.filter(s => recordsMap.get(s.id) === 'absent');
+
+    if (badgeEl) {
+      badgeEl.textContent = `${absentStudents.length} ${absentStudents.length === 1 ? 'طالب غائب' : 'طلاب غائبين'}`;
+      badgeEl.className = absentStudents.length > 0
+        ? 'text-[11px] font-bold text-rose-800 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-md'
+        : 'text-[11px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md';
+    }
+
+    // Prepared Message template according to user specifications
+    const rawMessage = `💔افتقدناك بلقاء اليوم\n\nتم تسجيلك كـ "غائب" بلقاء اليوم ${dateFormatted}`;
+
+    const renderList = () => {
+      if (absentStudents.length === 0) {
+        content.innerHTML = `
+          <div class="py-12 px-4 text-center bg-stone-50 rounded-2xl border border-stone-200 space-y-2">
+            <div class="w-12 h-12 mx-auto rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-xl font-bold shadow-2xs">✓</div>
+            <h4 class="text-sm sm:text-base font-bold text-slate-900">سجل مثالي: لا يوجد أي غياب مسجل</h4>
+            <p class="text-xs text-stone-500 max-w-sm mx-auto">جميع الطلاب المقيدين في لقاء ${dateFormatted} إما حاضرون أو معتذرون 🌿</p>
+          </div>
+        `;
+        return;
+      }
+
+      content.innerHTML = `
+        <div class="space-y-2">
+          ${absentStudents.map((st, idx) => {
+            const cleanPhone = this.cleanSaudiPhone(st.phone);
+            const waUrl = cleanPhone 
+              ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(rawMessage)}`
+              : `https://wa.me/?text=${encodeURIComponent(rawMessage)}`;
+
+            return `
+              <div class="p-3 sm:p-3.5 rounded-2xl border border-stone-200 bg-white hover:border-stone-300 transition-all flex items-center justify-between gap-2.5 sm:gap-3 shadow-2xs">
+                <!-- Student Number, Full Name & Mahad -->
+                <div class="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
+                  <span class="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-stone-100 text-stone-600 font-mono text-xs font-bold inline-flex items-center justify-center shrink-0 border border-stone-200/70">
+                    ${idx + 1}
+                  </span>
+                  <div class="min-w-0 flex-1">
+                    <h4 class="text-xs sm:text-sm font-bold text-slate-900 leading-snug break-words">
+                      ${Utils.escapeHtml(st.name)}
+                    </h4>
+                    <div class="mt-0.5 flex items-center">
+                      <span class="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-stone-100 text-stone-600 border border-stone-200/80 shrink-0">
+                        ${Utils.escapeHtml(st.mahadName || 'المحضن')}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- WhatsApp Action Button -->
+                <a href="${waUrl}" 
+                   target="_blank" 
+                   rel="noopener noreferrer" 
+                   class="px-3 sm:px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs shadow-2xs flex items-center gap-1.5 cursor-pointer transition-all border border-emerald-700/30 shrink-0" 
+                   title="مراسلة الطالب عبر واتساب">
+                  <svg class="w-4 h-4 fill-current shrink-0" viewBox="0 0 24 24"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91C2.13 13.66 2.59 15.36 3.45 16.86L2.05 22L7.3 20.63C8.75 21.41 10.38 21.83 12.04 21.83C17.5 21.83 21.95 17.38 21.95 11.92C21.95 9.27 20.92 6.78 19.05 4.91C17.18 3.03 14.69 2 12.04 2M12.05 3.67C14.25 3.67 16.31 4.53 17.87 6.09C19.42 7.65 20.28 9.72 20.28 11.92C20.28 16.46 16.58 20.15 12.04 20.15C10.56 20.15 9.11 19.76 7.85 19L7.55 18.83L4.43 19.65L5.26 16.61L5.06 16.29C4.24 15 3.8 13.47 3.8 11.91C3.81 7.37 7.5 3.67 12.05 3.67M9.53 7.35C9.35 7.35 9.06 7.42 8.81 7.69C8.56 7.96 7.85 8.63 7.85 9.97C7.85 11.31 8.83 12.61 8.96 12.79C9.1 12.97 10.87 15.84 13.67 16.93C15.91 17.81 16.36 17.63 16.85 17.59C17.34 17.54 18.42 16.95 18.64 16.32C18.86 15.69 18.86 15.15 18.8 15.04C18.73 14.93 18.55 14.86 18.28 14.73C18 14.59 16.67 13.93 16.42 13.84C16.18 13.75 16 13.71 15.82 13.97C15.65 14.24 15.14 14.86 14.99 15.04C14.84 15.22 14.69 15.24 14.42 15.11C14.15 14.97 13.29 14.69 12.27 13.78C11.47 13.07 10.93 12.2 10.79 11.93C10.64 11.66 10.77 11.51 10.91 11.38C11.03 11.26 11.18 11.06 11.31 10.91C11.45 10.76 11.5 10.65 11.59 10.47C11.68 10.29 11.63 10.13 11.57 10C11.5 9.87 11 8.64 10.79 8.13C10.59 7.64 10.38 7.71 10.21 7.71C10.06 7.7 9.88 7.7 9.71 7.7C9.53 7.7 9.53 7.35 9.53 7.35Z"/></svg>
+                  <span>واتساب</span>
+                </a>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+    };
+
+    renderList();
   }
 };
 

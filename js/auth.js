@@ -1,6 +1,9 @@
 /**
  * Auth Service for Platform «مرحلة التأهيل»
- * Uses Firebase Authentication (email/password) as the single source of truth for sign-in.
+ * Supports real Firebase Authentication SDK and quick-role switching:
+ * - General Supervisor: الشيخ محمد الشواحي (UID: O83e55HQuyajVh3Ji4FJltobyg63)
+ * - Attendance Officer: مسؤول التحضير (UID: TnCoR9ZTSibHTvIt15VPeQHfGFy1)
+ * - Student: أحمد خالد باكيلي (UID: StOwdFf48idvoduZET5ZUbkbMul2)
  */
 
 import { Storage, DELETED_STUDENT_UIDS } from './storage.js';

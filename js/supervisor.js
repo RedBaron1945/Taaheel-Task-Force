@@ -23,6 +23,7 @@ export const SupervisorView = {
   selectedMahadFilter: 'all', // 'all' or mahadId
   followUpSubFilter: 'all', // 'all' | 'absent' | 'low_progress'
   lowProgressThreshold: 20, // default 20%
+  absenceAlertMode: '20', // dynamic threshold: 20% of held sessions or 2x cohort average
   leaderboardSearchQuery: '',
   leaderboardSortColumn: 'points', // 'rank' | 'name' | 'mahad' | 'points' | 'progress' | 'attendance'
   leaderboardSortDirection: 'desc', // 'desc' | 'asc'
@@ -184,7 +185,6 @@ export const SupervisorView = {
             <button data-tab="assignments_breakdown" class="sup-nav-tab group px-3.5 py-2 text-xs sm:text-sm font-bold rounded-xl transition-all ${this.activeTab === 'assignments_breakdown' ? 'active-tab bg-white text-blue-950 shadow-2xs' : 'text-stone-600 hover:text-slate-900 hover:bg-white/60'} whitespace-nowrap flex items-center gap-1.5 cursor-pointer">
               <svg class="tab-icon w-4 h-4 ${this.activeTab === 'assignments_breakdown' ? 'text-amber-600' : 'text-stone-400 group-hover:text-stone-600'} transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
               <span>التكاليف في أرقام</span>
-              <span class="text-[10px] px-1.5 py-0.2 rounded-full bg-blue-100 text-blue-900 font-bold border border-blue-200">جديد</span>
             </button>
 
             <button data-tab="mahaden_comparison" class="sup-nav-tab group px-3.5 py-2 text-xs sm:text-sm font-bold rounded-xl transition-all ${this.activeTab === 'mahaden_comparison' ? 'active-tab bg-white text-blue-950 shadow-2xs' : 'text-stone-600 hover:text-slate-900 hover:bg-white/60'} whitespace-nowrap flex items-center gap-1.5 cursor-pointer">
@@ -449,24 +449,44 @@ export const SupervisorView = {
     const totalSessions = totalPresent + totalAbsent;
     const attendanceRate = totalSessions > 0 ? Math.round((totalPresent / totalSessions) * 100) : 0;
 
+    // Unique session dates and cohort metrics for dynamic absence benchmarking
+    const uniqueSessionDates = new Set();
+    attendanceRecords.forEach(r => {
+      if (r && r.date) uniqueSessionDates.add(r.date);
+    });
+    const totalRecordedDates = uniqueSessionDates.size;
+    const maxStudentSessions = studentAggregates.reduce((max, it) => Math.max(max, it.attendance.totalSessions || 0), 0);
+    const cohortTotalSessions = Math.max(totalRecordedDates, maxStudentSessions, 1);
+    const cohortAvgAbsences = students.length > 0 ? (totalAbsent / students.length) : 0;
+
+    this.cachedCohortAttendanceMetrics = {
+      totalRecordedDates,
+      cohortTotalSessions,
+      cohortTotalAbsences: totalAbsent,
+      cohortAvgAbsences: Number(cohortAvgAbsences.toFixed(1))
+    };
+
     // Mahaden statistics aggregation
     const mahadenStats = mahaden.map(mahad => {
       const mahadStudents = studentAggregates.filter(item => item.student.mahadId === mahad.id);
       const studentCount = mahadStudents.length;
 
       let mahadTotalPct = 0;
+      let mahadTotalEarnedPoints = 0;
       let mahadTotalPresent = 0;
       let mahadTotalAbsent = 0;
       let mahadTotalExcused = 0;
 
       mahadStudents.forEach(item => {
         mahadTotalPct += item.stats.overallPercentage;
+        mahadTotalEarnedPoints += (item.stats.totalEarnedPoints || 0);
         mahadTotalPresent += item.attendance.presentCount;
         mahadTotalAbsent += item.attendance.absentCount;
         mahadTotalExcused += item.attendance.excusedCount;
       });
 
       const avgMahadProgress = studentCount > 0 ? Math.round(mahadTotalPct / studentCount) : 0;
+      const avgMahadPoints = studentCount > 0 ? Math.round(mahadTotalEarnedPoints / studentCount) : 0;
       const totalAttSessions = mahadTotalPresent + mahadTotalAbsent;
       const attRate = totalAttSessions > 0 ? Math.round((mahadTotalPresent / totalAttSessions) * 100) : 0;
 
@@ -474,7 +494,8 @@ export const SupervisorView = {
         mahad,
         studentCount,
         students: mahadStudents,
-        avgProgress: avgProgress ? avgMahadProgress : 0,
+        avgProgress: avgMahadProgress,
+        avgPoints: avgMahadPoints,
         totalPresent: mahadTotalPresent,
         totalAbsent: mahadTotalAbsent,
         totalExcused: mahadTotalExcused,
@@ -623,6 +644,7 @@ export const SupervisorView = {
     this.cachedMahadenStats = mahadenStats;
     this.cachedMahaden = mahaden;
 
+    this.updateFollowUpBadge();
     await this.renderActiveSection();
   },
 
@@ -672,8 +694,8 @@ export const SupervisorView = {
   renderMahadenComparison(content) {
     const stats = this.cachedMahadenStats || [];
     
-    // Sort by avgProgress descending to identify ranking
-    const sortedStats = [...stats].sort((a, b) => b.avgProgress - a.avgProgress);
+    // Sort by avgProgress descending to identify ranking, then by attendanceRate as tie-breaker
+    const sortedStats = [...stats].sort((a, b) => (b.avgProgress - a.avgProgress) || (b.attendanceRate - a.attendanceRate));
 
     content.innerHTML = `
       <div class="space-y-6">
@@ -681,7 +703,7 @@ export const SupervisorView = {
         <div class="space-y-3">
           <div class="flex items-center justify-between">
             <h4 class="text-base font-bold text-slate-900">ترتيب ومؤشرات المحاضن</h4>
-            <span class="text-xs text-stone-500 font-medium">مرتبة تنازليًا حسب معدل الإنجاز</span>
+            <span class="text-xs text-stone-500 font-medium">مرتبة تنازليًا حسب متوسط إنجاز الطالب</span>
           </div>
 
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="mahaden-cards-container">
@@ -716,7 +738,7 @@ export const SupervisorView = {
                     <!-- Progress bar -->
                     <div class="space-y-1.5 mb-3.5 bg-stone-50 p-3 rounded-xl border border-stone-100">
                       <div class="flex items-center justify-between text-xs">
-                        <span class="text-stone-600 font-medium">معدل الإنجاز</span>
+                        <span class="text-stone-600 font-medium">متوسط إنجاز الطالب</span>
                         <span class="font-bold text-blue-900 tabular-nums text-sm">${item.avgProgress}%</span>
                       </div>
                       <div class="w-full bg-stone-200 rounded-full h-2 overflow-hidden">
@@ -730,13 +752,13 @@ export const SupervisorView = {
                         <div class="text-[10px] text-stone-500">الطلاب</div>
                         <div class="font-bold text-slate-800 tabular-nums">${item.studentCount}</div>
                       </div>
+                      <div class="p-1.5 rounded-lg ${item.totalAbsent > 0 ? 'bg-red-50/70' : 'bg-stone-50'}">
+                        <div class="text-[10px] ${item.totalAbsent > 0 ? 'text-red-700' : 'text-stone-500'}">إجمالي الغيابات</div>
+                        <div class="font-bold ${item.totalAbsent > 0 ? 'text-red-700' : 'text-slate-800'} tabular-nums">${item.totalAbsent}</div>
+                      </div>
                       <div class="p-1.5 rounded-lg bg-emerald-50/70">
                         <div class="text-[10px] text-emerald-700">نسبة الحضور</div>
                         <div class="font-bold text-emerald-800 tabular-nums">${item.attendanceRate}%</div>
-                      </div>
-                      <div class="p-1.5 rounded-lg bg-red-50/70">
-                        <div class="text-[10px] text-red-700">إجمالي الغياب</div>
-                        <div class="font-bold text-red-700 tabular-nums">${item.totalAbsent}</div>
                       </div>
                     </div>
                   </div>
@@ -756,7 +778,7 @@ export const SupervisorView = {
         <div class="card p-5 rounded-2xl border border-stone-200 bg-white space-y-3">
           <div class="flex items-center justify-between">
             <h4 class="text-base font-bold text-slate-900">جدول المقارنة المباشر</h4>
-            <span class="text-xs text-stone-400">محدث وفق آخر التكاليف والحضور</span>
+            <span class="text-xs text-stone-400">مبني على المتوسطات الفردية لكل طالب</span>
           </div>
 
           <div class="overflow-x-auto">
@@ -767,7 +789,8 @@ export const SupervisorView = {
                   <th class="py-3 px-3">اسم المحضن</th>
                   <th class="py-3 px-3">الحي</th>
                   <th class="py-3 px-3 text-center">الطلاب</th>
-                  <th class="py-3 px-3">معدل الإنجاز</th>
+                  <th class="py-3 px-3 text-center">إجمالي الغيابات</th>
+                  <th class="py-3 px-3">معدل الإنجاز (متوسط الطالب)</th>
                   <th class="py-3 px-3">نسبة الحضور</th>
                   <th class="py-3 px-3 text-center">الإجراء</th>
                 </tr>
@@ -783,6 +806,7 @@ export const SupervisorView = {
                       <td class="py-3 px-3 font-bold text-slate-900">${Utils.escapeHtml(m.name)}</td>
                       <td class="py-3 px-3 text-stone-500">${m.neighborhood}</td>
                       <td class="py-3 px-3 text-center font-mono font-bold">${item.studentCount}</td>
+                      <td class="py-3 px-3 text-center font-mono font-bold ${item.totalAbsent > 0 ? 'text-red-600' : 'text-slate-800'}">${item.totalAbsent}</td>
                       <td class="py-3 px-3">
                         <div class="flex items-center gap-2">
                           <div class="w-16 bg-stone-100 rounded-full h-1.5 overflow-hidden">
@@ -1178,17 +1202,23 @@ export const SupervisorView = {
                   </div>
                 </div>
 
-                <!-- Line 3: Compact Combined Attendance in Single Line with Chevron -->
+                <!-- Line 3: Compact Combined Attendance in Single Line with Chevron and Archive Action -->
                 <div class="flex items-center justify-between text-[11px] text-stone-600 pt-1.5 border-t border-stone-50">
                   <div class="flex items-center gap-1 tabular-nums">
                     <span>حضور <strong class="${att.presentCount > 0 ? 'text-emerald-700 font-bold' : 'text-stone-400 font-normal'}">${presText}</strong></span>
                     <span class="text-stone-300">·</span>
                     <span>غياب <strong class="${att.absentCount > 0 ? 'text-red-600 font-bold' : 'text-stone-400 font-normal'}">${absText}</strong></span>
                     <span class="text-stone-300">·</span>
-                    <span>عذر <strong class="${att.excusedCount > 0 ? 'text-amber-700 font-bold' : 'text-stone-400 font-normal'}">${excText}</strong></span>
+                    <span>معتذر <strong class="${att.excusedCount > 0 ? 'text-amber-700 font-bold' : 'text-stone-400 font-normal'}">${excText}</strong></span>
                   </div>
 
-                  <svg class="w-3.5 h-3.5 text-stone-400 rotate-180 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                  <div class="flex items-center gap-1.5">
+                    <button type="button" class="student-archive-btn px-2 py-0.5 rounded-md bg-amber-50 hover:bg-amber-100 text-amber-950 border border-amber-300 font-bold text-[10px] flex items-center gap-1 shadow-2xs cursor-pointer" data-student-id="${st.id}" onclick="event.stopPropagation();" title="عرض الأرشيف">
+                      <span>📋</span>
+                      <span>الأرشيف</span>
+                    </button>
+                    <svg class="w-3.5 h-3.5 text-stone-400 rotate-180 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                  </div>
                 </div>
               </div>
             `;
@@ -1259,7 +1289,7 @@ export const SupervisorView = {
                       <span class="text-stone-300">·</span>
                       <span class="${att.absentCount > 0 ? 'font-bold text-red-700' : 'text-stone-300'}" title="غائب">${att.absentCount > 0 ? `${att.absentCount} <span class="text-[10px] font-normal text-red-500">غ</span>` : '—'}</span>
                       <span class="text-stone-300">·</span>
-                      <span class="${att.excusedCount > 0 ? 'font-bold text-amber-800' : 'text-stone-300'}" title="معتذر">${att.excusedCount > 0 ? `${att.excusedCount} <span class="text-[10px] font-normal text-amber-600">ع</span>` : '—'}</span>
+                      <span class="${att.excusedCount > 0 ? 'font-bold text-amber-800' : 'text-stone-300'}" title="معتذر">${att.excusedCount > 0 ? `${att.excusedCount} <span class="text-[10px] font-normal text-amber-600">م</span>` : '—'}</span>
                     </div>`;
 
                 return `
@@ -1283,10 +1313,16 @@ export const SupervisorView = {
                     </td>
                     <!-- Action -->
                     <td class="py-3 px-3 text-center whitespace-nowrap">
-                      <button class="p-1.5 px-2.5 text-xs font-semibold text-blue-950 bg-blue-50/80 hover:bg-blue-100 rounded-lg transition-colors border border-blue-200 student-modal-btn cursor-pointer inline-flex items-center gap-1 shadow-2xs" data-student-id="${st.id}" title="عرض ملف وتفاصيل الطالب">
-                        <svg class="w-3.5 h-3.5 text-blue-800" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-                        <span class="text-[11px] font-bold">الملف</span>
-                      </button>
+                      <div class="inline-flex items-center gap-1.5">
+                        <button class="p-1.5 px-2.5 text-xs font-semibold text-blue-950 bg-blue-50/80 hover:bg-blue-100 rounded-lg transition-colors border border-blue-200 student-modal-btn cursor-pointer inline-flex items-center gap-1 shadow-2xs" data-student-id="${st.id}" title="عرض ملف وتفاصيل الطالب">
+                          <svg class="w-3.5 h-3.5 text-blue-800" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                          <span class="text-[11px] font-bold">الملف</span>
+                        </button>
+                        <button class="p-1.5 px-2 text-xs font-semibold text-amber-950 bg-amber-50 hover:bg-amber-100 rounded-lg transition-colors border border-amber-300/90 student-archive-btn cursor-pointer inline-flex items-center gap-1 shadow-2xs" data-student-id="${st.id}" title="عرض الأرشيف">
+                          <span class="text-xs">📋</span>
+                          <span class="text-[11px] font-bold">الأرشيف</span>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 `;
@@ -1342,6 +1378,14 @@ export const SupervisorView = {
     content.querySelectorAll('.student-modal-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         this.openStudentDetailModal(btn.dataset.studentId);
+      });
+    });
+
+    // Hook student archive modal (سجل الإنجاز)
+    content.querySelectorAll('.student-archive-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.openStudentArchiveModal(btn.dataset.studentId);
       });
     });
   },
@@ -1775,7 +1819,7 @@ export const SupervisorView = {
                     ${att.absentCount > 0 ? `${att.absentCount} يوم` : '—'}
                   </td>
                   <td style="padding: 6px 8px; border: 1px solid #e2e8f0; text-align: center; font-family: monospace; font-weight: 700; color: ${att.excusedCount > 0 ? '#b45309' : '#94a3b8'};">
-                    ${att.excusedCount > 0 ? `${att.excusedCount} ع` : '—'}
+                    ${att.excusedCount > 0 ? `${att.excusedCount} م` : '—'}
                   </td>
                   <td style="padding: 6px 8px; border: 1px solid #e2e8f0; text-align: center; font-family: monospace; font-weight: bold; color: ${studentRate !== null ? (studentRate >= 80 ? '#059669' : '#b45309') : '#94a3b8'};">
                     ${studentRate !== null ? `${studentRate}%` : '—'}
@@ -1936,17 +1980,10 @@ export const SupervisorView = {
         </div>
 
         <!-- Executive Metrics Summary Strip -->
-        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 18px; text-align: center;">
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 18px; text-align: center;">
           <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 10px; padding: 12px 6px;">
             <div style="font-size: 11px; color: #64748b; font-weight: bold;">إجمالي الطلاب</div>
             <div style="font-size: 18px; font-weight: 900; color: #0f172a; font-family: monospace; margin-top: 2px;">${totalStudents} طالب</div>
-          </div>
-
-          <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 10px; padding: 12px 6px;">
-            <div style="font-size: 11px; color: #64748b; font-weight: bold;">متوسط النقاط</div>
-            <div style="font-size: 18px; font-weight: 900; color: ${hasCohortProgress ? '#1e3a8a' : '#64748b'}; font-family: monospace; margin-top: 2px;">
-              ${hasCohortProgress ? `${avgPoints} من 100` : '—'}
-            </div>
           </div>
 
           <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 10px; padding: 12px 6px;">
@@ -1995,7 +2032,7 @@ export const SupervisorView = {
 
               let statusContentHtml = '';
               if (allDone) {
-                statusContentHtml = `<span style="display: inline-flex; align-items: center; gap: 4px; color: #065f46; font-weight: 800; font-size: 9.5px; background: #ecfdf5; padding: 2px 8px; border-radius: 6px; border: 1px solid #a7f3d0;">🟢 أتم كافة التكاليف بنجاح (${asgDetails.length}/${asgDetails.length})</span>`;
+                statusContentHtml = `<span style="display: inline-flex; align-items: center; gap: 4px; color: #065f46; font-weight: 800; font-size: 9.5px; background: #ecfdf5; padding: 2px 8px; border-radius: 6px; border: 1px solid #a7f3d0;">🟢 أتمها كاملة (${asgDetails.length}/${asgDetails.length})</span>`;
               } else if (noneDone) {
                 statusContentHtml = `<span style="display: inline-flex; align-items: center; gap: 4px; color: #991b1b; font-weight: 700; font-size: 9.5px; background: #fef2f2; padding: 2px 8px; border-radius: 6px; border: 1px solid #fecaca;">🔴 لم ينجز شيئًا</span>`;
               } else {
@@ -2037,7 +2074,7 @@ export const SupervisorView = {
           <div style="margin-top: 18px; padding: 12px 14px; background-color: #f8fafc; border: 1px solid #cbd5e1; border-radius: 12px; page-break-inside: avoid;">
             <div style="font-size: 11.5px; font-weight: 800; color: #1e3a8a; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
               <span>📊</span>
-              <span>ملخص استكمال التكاليف والمهام المقررة على مستوى الدفعة:</span>
+              <span>التكاليف في أرقام ..</span>
             </div>
             <table dir="rtl" style="width: 100%; border-collapse: collapse; font-size: 9.5px; text-align: right; background: #ffffff; border-radius: 8px; overflow: hidden; border: 1px solid #e2e8f0; table-layout: fixed; direction: rtl;">
               <thead>
@@ -2225,9 +2262,9 @@ export const SupervisorView = {
 
           <!-- Quick Legend Indicator -->
           <div class="flex items-center gap-2.5 text-xs text-stone-500 flex-wrap bg-stone-50 px-3 py-1.5 rounded-xl border border-stone-200/80">
-            <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span><span class="font-medium text-slate-700">منجز 100%</span></span>
+            <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span><span class="font-medium text-slate-700">منجز بالكامل</span></span>
             <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span><span class="font-medium text-slate-700">إنجاز جزئي</span></span>
-            <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span><span class="font-medium text-slate-700">غير منجز (0%)</span></span>
+            <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span><span class="font-medium text-slate-700">غير منجز</span></span>
           </div>
         </div>
 
@@ -2273,15 +2310,15 @@ export const SupervisorView = {
 
                 <!-- Bottom Section: 3 Touch-Friendly Interactive Status Buttons -->
                 <div class="grid grid-cols-3 gap-2 pt-3 border-t border-stone-100">
-                  <!-- 1. المنجزون بالكامل (100%) -->
+                  <!-- 1. المنجزون بالكامل -->
                   <button type="button" 
                     class="btn-asg-breakdown-cell flex flex-col items-center justify-center p-2.5 sm:p-3 rounded-xl bg-emerald-50 hover:bg-emerald-100 active:scale-[0.97] border border-emerald-200 text-emerald-950 transition-all cursor-pointer shadow-2xs group text-center"
                     data-asg-id="${item.assignment.id}" 
                     data-status="completed" 
-                    title="انقر لعرض قائمة الطلاب المنجزين 100% (${item.fullCount} طالب)">
+                    title="انقر لعرض قائمة الطلاب المنجزين بالكامل (${item.fullCount} طالب)">
                     <div class="flex items-center gap-1 text-[11px] font-bold text-emerald-800">
                       <span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
-                      <span>منجز 100%</span>
+                      <span>منجز</span>
                     </div>
                     <div class="text-base sm:text-lg font-black text-emerald-900 font-mono mt-1 leading-none">
                       ${item.fullCount}
@@ -2359,33 +2396,132 @@ export const SupervisorView = {
   },
 
   /**
+   * Helper to evaluate whether a student triggers a dynamic smart absence alert
+   * Adapts automatically as the total number of sessions increases over months.
+   */
+  evaluateStudentAbsenceAlert(item, mode = '20') {
+    const metrics = this.cachedCohortAttendanceMetrics || { cohortTotalSessions: 1, cohortAvgAbsences: 0 };
+    const cohortSessions = Math.max(metrics.cohortTotalSessions, 1);
+    const cohortAvgAbs = metrics.cohortAvgAbsences || 0;
+    const absCount = item.attendance?.absentCount || 0;
+
+    if (absCount === 0) {
+      return { isAlert: false, severity: 'none', absCount: 0, personalPct: 0, ratioToAvg: 0, cohortSessions, cohortAvgAbs };
+    }
+
+    const personalPct = Math.round((absCount / cohortSessions) * 100);
+    const ratioToAvg = cohortAvgAbs > 0 ? Number((absCount / cohortAvgAbs).toFixed(1)) : 0;
+
+    let isAlert = false;
+    let severity = 'low'; // 'critical' | 'warning' | 'low' | 'none'
+
+    if (mode === 'double_avg') {
+      isAlert = (cohortAvgAbs >= 0.8) ? (absCount >= cohortAvgAbs * 2 && absCount >= 2) : (absCount >= 3);
+    } else if (mode === 'fixed_3') {
+      isAlert = absCount >= 3;
+    } else {
+      const pctThreshold = Number(mode) || 20;
+      // Triggers if student's absence percentage reaches threshold (with at least 2 absences)
+      // OR if absences >= 2x cohort average (with at least 2 absences)
+      const exceedsPct = personalPct >= pctThreshold && absCount >= 2;
+      const exceedsDoubleAvg = cohortAvgAbs >= 1.0 && absCount >= (cohortAvgAbs * 2) && absCount >= 2;
+      isAlert = exceedsPct || exceedsDoubleAvg;
+    }
+
+    if (personalPct >= 30 || ratioToAvg >= 2.5 || absCount >= 6) {
+      severity = 'critical';
+    } else if (personalPct >= 20 || ratioToAvg >= 1.8 || absCount >= 3) {
+      severity = 'warning';
+    } else {
+      severity = 'low';
+    }
+
+    return {
+      isAlert,
+      severity,
+      absCount,
+      personalPct,
+      ratioToAvg,
+      cohortSessions,
+      cohortAvgAbs
+    };
+  },
+
+  /**
+   * Update Follow-up counter badge on tab
+   */
+  updateFollowUpBadge() {
+    const badgeEl = document.getElementById('sup-follow-up-badge');
+    if (!badgeEl) return;
+    const allAggregates = this.cachedAggregates || [];
+    const threshold = this.lowProgressThreshold || 20;
+    const mode = this.absenceAlertMode || '20';
+    const hasCohortProgress = allAggregates.some(item => item.stats.totalEarnedPoints > 0);
+
+    let count = 0;
+    allAggregates.forEach(item => {
+      const evalRes = this.evaluateStudentAbsenceAlert(item, mode);
+      const isLowProg = hasCohortProgress && (item.stats.overallPercentage < threshold);
+      if (evalRes.isAlert || isLowProg) count++;
+    });
+
+    if (count > 0) {
+      badgeEl.textContent = `${count}`;
+      badgeEl.style.display = 'inline-block';
+    } else {
+      badgeEl.style.display = 'none';
+    }
+  },
+
+  /**
    * 3. Combined Follow-Up Section (يحتاج متابعة)
-   * Merges absentees and genuinely low-progress students into an actionable supervision dashboard.
+   * Scalable dynamic follow-up: benchmarking against total cohort sessions and peer averages.
    */
   renderFollowUp(content) {
     const allAggregates = this.cachedAggregates || [];
-    const threshold = this.lowProgressThreshold;
+    const threshold = this.lowProgressThreshold || 20;
+    const mode = this.absenceAlertMode || '20';
     const subFilter = this.followUpSubFilter || 'all'; // 'all' | 'absent' | 'low_progress'
 
-    // Check if the cohort has recorded activity (zero != failure when cohort hasn't started yet)
+    const metrics = this.cachedCohortAttendanceMetrics || {
+      totalRecordedDates: 1,
+      cohortTotalSessions: 1,
+      cohortAvgAbsences: 0
+    };
+
+    // Check if the cohort has recorded activity
     const hasCohortProgress = allAggregates.some(item => item.stats.totalEarnedPoints > 0);
 
-    const absentStudents = allAggregates.filter(item => item.attendance.absentCount > 0);
+    // Evaluate each student dynamically
+    const studentEvaluations = new Map();
+    allAggregates.forEach(item => {
+      studentEvaluations.set(item.student.id, this.evaluateStudentAbsenceAlert(item, mode));
+    });
+
+    // Smart Absent Filter: Only students whose dynamic evaluation is an alert
+    const absentStudents = allAggregates
+      .filter(item => studentEvaluations.get(item.student.id)?.isAlert)
+      .sort((a, b) => (b.attendance.absentCount || 0) - (a.attendance.absentCount || 0));
+
     const lowProgressStudents = hasCohortProgress 
-      ? allAggregates.filter(item => item.stats.overallPercentage < threshold)
+      ? allAggregates
+          .filter(item => item.stats.overallPercentage < threshold)
+          .sort((a, b) => a.stats.overallPercentage - b.stats.overallPercentage)
       : [];
 
     // Combine unique students needing genuine follow-up
     const followUpMap = new Map();
     allAggregates.forEach(item => {
-      const isAbsent = item.attendance.absentCount > 0;
+      const evalRes = studentEvaluations.get(item.student.id);
+      const isAbsentAlert = evalRes?.isAlert;
       const isLowProg = hasCohortProgress && (item.stats.overallPercentage < threshold);
-      if (isAbsent || isLowProg) {
+      if (isAbsentAlert || isLowProg) {
         followUpMap.set(item.student.id, {
           ...item,
-          isAbsent,
+          evalRes,
+          isAbsentAlert,
           isLowProg,
-          riskScore: (item.attendance.absentCount * 25) + (100 - item.stats.overallPercentage)
+          riskScore: ((evalRes?.personalPct || 0) * 1.5) + ((evalRes?.ratioToAvg || 0) * 20) + (100 - item.stats.overallPercentage)
         });
       }
     });
@@ -2395,23 +2531,185 @@ export const SupervisorView = {
 
     let displayItems = [];
     if (subFilter === 'absent') {
-      displayItems = absentStudents.sort((a, b) => b.attendance.absentCount - a.attendance.absentCount);
+      displayItems = absentStudents;
     } else if (subFilter === 'low_progress') {
       displayItems = lowProgressStudents.sort((a, b) => a.stats.overallPercentage - b.stats.overallPercentage);
     } else {
       displayItems = allFollowUpList;
     }
 
-    // Update tab badge count if element exists
-    const badgeEl = document.getElementById('sup-follow-up-badge');
-    if (badgeEl) {
-      if (allFollowUpList.length > 0) {
-        badgeEl.textContent = `${allFollowUpList.length}`;
-        badgeEl.style.display = 'inline-block';
-      } else {
-        badgeEl.style.display = 'none';
-      }
-    }
+    // Update tab badge count
+    this.updateFollowUpBadge();
+
+    // Helpers to render desktop table and mobile cards
+    const renderTable = (items, type) => {
+      if (!items || items.length === 0) return '';
+      const isAbsentType = type === 'critical_absence';
+
+      return `
+        <div class="hidden md:block overflow-x-auto rounded-xl border border-stone-200">
+          <table class="w-full text-right text-xs">
+            <thead class="bg-stone-50 text-stone-500 border-b border-stone-200 select-none">
+              <tr>
+                <th class="py-2.5 px-3 font-semibold">الطالب</th>
+                <th class="py-2.5 px-3 font-semibold">المحضن</th>
+                <th class="py-2.5 px-3 font-semibold">الغياب</th>
+                <th class="py-2.5 px-3 font-semibold">الحضور</th>
+                <th class="py-2.5 px-3 font-semibold">الإنجاز</th>
+                <th class="py-2.5 px-2 text-center w-8"></th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-stone-100 bg-white">
+              ${items.map(item => {
+                const st = item.student;
+                const att = item.attendance || {};
+                const s = item.stats || {};
+                const absCount = att.absentCount || 0;
+                const evalRes = studentEvaluations.get(st.id) || this.evaluateStudentAbsenceAlert(item, mode);
+                const cohortSessions = evalRes.cohortSessions || 1;
+                const progPct = s.overallPercentage || 0;
+                const hasNoProgress = progPct === 0;
+
+                // In low_progress: if student hasn't completed anything (0%), dot is RED; otherwise AMBER.
+                // In critical_absence: dot is always RED.
+                const rowDotColor = isAbsentType 
+                  ? 'bg-red-600' 
+                  : (hasNoProgress ? 'bg-red-600' : 'bg-amber-500');
+
+                // Absence Cell
+                let absCell = '<span class="text-stone-300">—</span>';
+                if (absCount > 0) {
+                  const tooltipText = evalRes.ratioToAvg >= 1.5 
+                    ? `${evalRes.ratioToAvg}× متوسط غياب الدفعة (${evalRes.personalPct}% من اللقاءات)`
+                    : `${evalRes.personalPct}% من اللقاءات المنعقدة`;
+                  const colorClass = isAbsentType ? 'text-red-700 font-bold' : 'text-stone-600 font-medium';
+                  absCell = `
+                    <span class="${colorClass} inline-flex items-center gap-1">
+                      <span>غائب ${absCount} من ${cohortSessions}</span>
+                      <span class="cursor-help text-stone-400 hover:text-stone-600 text-[11px] select-none" title="${tooltipText}">ⓘ</span>
+                    </span>
+                  `;
+                }
+
+                // Attendance Cell (hide if 0)
+                const presCount = att.presentCount || 0;
+                const presCell = presCount > 0 
+                  ? `<span class="text-stone-600 font-medium">${presCount} ${presCount === 1 ? 'لقاء' : 'لقاءات'}</span>`
+                  : '<span class="text-stone-300">—</span>';
+
+                // Progress Cell (only percentage, no points; red for 0% in low_progress)
+                let progCell = '<span class="text-stone-300">—</span>';
+                if (!isAbsentType) {
+                  if (hasNoProgress) {
+                    progCell = '<span class="text-red-600 font-bold">لم يُنجز شيئاً (0%)</span>';
+                  } else {
+                    progCell = `<span class="text-amber-800 font-bold">${progPct}%</span>`;
+                  }
+                } else if (progPct > 0) {
+                  progCell = `<span class="text-stone-600 font-medium">${progPct}%</span>`;
+                }
+
+                return `
+                  <tr class="student-follow-row hover:bg-stone-50 cursor-pointer transition-colors group select-none" data-student-id="${st.id}">
+                    <td class="py-3 px-3">
+                      <div class="flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full ${rowDotColor} shrink-0"></span>
+                        <span class="font-bold text-slate-900 text-sm group-hover:text-blue-900 transition-colors">${Utils.escapeHtml(st.name)}</span>
+                      </div>
+                    </td>
+                    <td class="py-3 px-3 text-stone-500 text-xs font-normal">
+                      ${Utils.escapeHtml(st.mahadName || 'المحضن')}
+                    </td>
+                    <td class="py-3 px-3">${absCell}</td>
+                    <td class="py-3 px-3">${presCell}</td>
+                    <td class="py-3 px-3">${progCell}</td>
+                    <td class="py-3 px-2 text-center text-stone-400 group-hover:text-stone-700 font-bold text-base transition-colors">
+                      ‹
+                    </td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+    };
+
+    const renderMobileCards = (items, type) => {
+      if (!items || items.length === 0) return '';
+      const isAbsentType = type === 'critical_absence';
+
+      return `
+        <div class="md:hidden space-y-2">
+          ${items.map(item => {
+            const st = item.student;
+            const att = item.attendance || {};
+            const s = item.stats || {};
+            const absCount = att.absentCount || 0;
+            const evalRes = studentEvaluations.get(st.id) || this.evaluateStudentAbsenceAlert(item, mode);
+            const cohortSessions = evalRes.cohortSessions || 1;
+            const presCount = att.presentCount || 0;
+            const progPct = s.overallPercentage || 0;
+            const hasNoProgress = progPct === 0;
+
+            const rowDotColor = isAbsentType 
+              ? 'bg-red-600' 
+              : (hasNoProgress ? 'bg-red-600' : 'bg-amber-500');
+
+            const tooltipText = evalRes.ratioToAvg >= 1.5 
+              ? `${evalRes.ratioToAvg}× متوسط غياب الدفعة (${evalRes.personalPct}% من اللقاءات)`
+              : `${evalRes.personalPct}% من اللقاءات المنعقدة`;
+
+            let absMobile = '';
+            if (absCount > 0) {
+              const colorClass = isAbsentType ? 'text-red-700 font-bold' : 'text-stone-600';
+              absMobile = `
+                <span class="${colorClass} inline-flex items-center gap-1">
+                  <span>غائب ${absCount} من ${cohortSessions}</span>
+                  <span class="cursor-help text-stone-400 hover:text-stone-600 text-[11px] select-none" title="${tooltipText}">ⓘ</span>
+                </span>
+              `;
+            }
+
+            const presMobile = presCount > 0 ? `<span class="text-stone-600">حضور ${presCount}</span>` : '';
+            
+            let progMobile = '';
+            if (!isAbsentType) {
+              if (hasNoProgress) {
+                progMobile = '<span class="text-red-600 font-bold">لم يُنجز شيئاً (0%)</span>';
+              } else {
+                progMobile = `<span class="text-amber-800 font-bold">إنجاز ${progPct}%</span>`;
+              }
+            } else if (progPct > 0) {
+              progMobile = `<span class="text-stone-600">إنجاز ${progPct}%</span>`;
+            }
+
+            return `
+              <div class="student-follow-row p-3 rounded-xl border border-stone-200 bg-white hover:border-stone-300 hover:bg-stone-50 cursor-pointer transition-all shadow-2xs group" data-student-id="${st.id}">
+                <!-- Line 1: Student + Mahad + Arrow ‹ -->
+                <div class="flex items-center justify-between gap-2">
+                  <div class="flex items-center gap-2 min-w-0">
+                    <span class="w-2 h-2 rounded-full ${rowDotColor} shrink-0"></span>
+                    <span class="text-xs sm:text-sm font-bold text-slate-900 truncate group-hover:text-blue-900">${Utils.escapeHtml(st.name)}</span>
+                    <span class="text-[11px] text-stone-500 font-normal shrink-0">· ${Utils.escapeHtml(st.mahadName || 'المحضن')}</span>
+                  </div>
+                  <span class="text-stone-400 group-hover:text-stone-700 font-bold text-sm shrink-0">‹</span>
+                </div>
+
+                <!-- Line 2: Absence + Presence (if >0) + Achievement (if >0) -->
+                <div class="flex items-center gap-2.5 text-xs mt-1.5 pt-1.5 border-t border-stone-100 flex-wrap">
+                  ${absMobile}
+                  ${absMobile && presMobile ? '<span class="text-stone-300">·</span>' : ''}
+                  ${presMobile}
+                  ${(absMobile || presMobile) && progMobile ? '<span class="text-stone-300">·</span>' : ''}
+                  ${progMobile}
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+    };
 
     content.innerHTML = `
       <div class="space-y-6">
@@ -2423,22 +2721,25 @@ export const SupervisorView = {
               <div class="flex items-center gap-2 flex-wrap">
                 <h3 class="text-base sm:text-lg font-bold text-slate-900">سجل الطلاب المحتاجين للمتابعة</h3>
                 ${allFollowUpList.length > 0 ? `
-                  <span class="text-xs font-bold text-amber-900 bg-amber-50 border border-amber-300 px-2.5 py-0.5 rounded-full shadow-2xs">
+                  <span class="text-xs font-bold text-stone-700 bg-stone-100 border border-stone-200 px-2.5 py-0.5 rounded-full shadow-2xs">
                     ${allFollowUpList.length} ${allFollowUpList.length === 1 ? 'حالة تحتاج متابعة' : 'حالات تحتاج متابعة'}
                   </span>
                 ` : `
                   <span class="text-xs font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full shadow-2xs flex items-center gap-1">
                     <span>✓</span>
-                    <span>لا توجد حالات حرجة</span>
+                    <span>لا توجد حالات تحتاج متابعة</span>
                   </span>
                 `}
               </div>
-              <p class="text-xs text-stone-500 mt-1">حصر مركزي فوري للطلاب المسجل بحقهم أيام غياب أو المنخفضين في معدل إنجاز التكاليف.</p>
+              <p class="text-xs text-stone-500 mt-1">نظام ذكي وديناميكي يقيّم غياب الطلاب بمقارنته مع إجمالي الجلسات المنعقدة ومتوسط الدفعة.</p>
             </div>
 
-            <!-- Threshold Setting Selector -->
+            <!-- Low Progress Threshold Selector -->
             <div class="flex items-center gap-2 self-start md:self-auto bg-stone-50 px-3 py-1.5 rounded-xl border border-stone-200 shadow-2xs">
-              <span class="text-xs text-stone-600 font-semibold">معيار تدني الإنجاز:</span>
+              <span class="text-xs text-stone-600 font-semibold flex items-center gap-1">
+                <span>📉</span>
+                <span>معيار تدني الإنجاز:</span>
+              </span>
               <select id="sup-follow-up-threshold" class="text-xs font-bold text-slate-900 bg-white border border-stone-200 rounded-lg px-2 py-1 focus:ring-blue-900 focus:outline-hidden cursor-pointer">
                 <option value="20" ${threshold === 20 ? 'selected' : ''}>أقل من 20%</option>
                 <option value="30" ${threshold === 30 ? 'selected' : ''}>أقل من 30%</option>
@@ -2449,109 +2750,106 @@ export const SupervisorView = {
             </div>
           </div>
 
-          <!-- 3 Interactive Clickable Filter Cards -->
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <!-- Filter Card 1: All Follow-Up Cases -->
-            <div data-filter="all" class="follow-filter-card p-4 rounded-2xl border transition-all cursor-pointer select-none ${subFilter === 'all' ? 'bg-blue-50/80 border-blue-900 shadow-xs ring-2 ring-blue-900/10' : 'bg-stone-50/80 hover:bg-white border-stone-200 hover:border-blue-300 shadow-2xs'}">
-              <div class="flex items-center justify-between">
-                <span class="text-xs font-bold ${subFilter === 'all' ? 'text-blue-950' : 'text-stone-600'}">إجمالي حالات المتابعة</span>
-                <span class="text-[10px] font-bold px-2 py-0.5 rounded-md ${subFilter === 'all' ? 'bg-blue-900 text-white' : 'bg-stone-200 text-stone-700'}">الكل</span>
+          <!-- 3 Interactive Clickable Filter Cards + Note -->
+          <div class="space-y-2">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <!-- Filter Card 1: All Follow-Up Cases -->
+              <div data-filter="all" class="follow-filter-card p-4 rounded-2xl border transition-all cursor-pointer select-none ${subFilter === 'all' ? 'bg-blue-50/80 border-blue-900 shadow-xs ring-2 ring-blue-900/10' : 'bg-stone-50/80 hover:bg-white border-stone-200 hover:border-blue-300 shadow-2xs'}">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs font-bold ${subFilter === 'all' ? 'text-blue-950' : 'text-stone-600'}">إجمالي حالات المتابعة</span>
+                  <span class="text-[10px] font-bold px-2 py-0.5 rounded-md ${subFilter === 'all' ? 'bg-blue-900 text-white' : 'bg-stone-200 text-stone-700'}">الكل</span>
+                </div>
+                <div class="text-2xl font-black text-slate-900 tabular-nums mt-2">${allFollowUpList.length}</div>
+                <div class="text-[11px] text-stone-500 mt-0.5">طالب بحاجة لتدخل أو خطة دعم</div>
               </div>
-              <div class="text-2xl font-black text-slate-900 tabular-nums mt-2">${allFollowUpList.length}</div>
-              <div class="text-[11px] text-stone-500 mt-0.5">طالب يحتاج متابعة أو توثيق</div>
+
+              <!-- Filter Card 2: Absentees -->
+              <div data-filter="absent" class="follow-filter-card p-4 rounded-2xl border transition-all cursor-pointer select-none ${subFilter === 'absent' ? 'bg-red-50/80 border-red-600 shadow-xs ring-2 ring-red-600/10' : 'bg-stone-50/80 hover:bg-white border-stone-200 hover:border-red-300 shadow-2xs'}">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs font-bold ${subFilter === 'absent' ? 'text-red-950' : 'text-stone-600'}">تنبيهات الغياب المتكرر</span>
+                  <span class="text-[10px] font-bold px-2 py-0.5 rounded-md ${subFilter === 'absent' ? 'bg-red-600 text-white' : 'bg-red-100 text-red-700'}">
+                    غياب حرج
+                  </span>
+                </div>
+                <div class="text-2xl font-black ${absentStudents.length > 0 ? 'text-red-600' : 'text-slate-900'} tabular-nums mt-2">${absentStudents.length}</div>
+                <div class="text-[11px] text-stone-500 mt-0.5">${absentStudents.length > 0 ? `طالب تجاوزوا المعدل المقبول للغياب` : `لا توجد حالات غياب حرجة حالياً`}</div>
+              </div>
+
+              <!-- Filter Card 3: Low Progress -->
+              <div data-filter="low_progress" class="follow-filter-card p-4 rounded-2xl border transition-all cursor-pointer select-none ${subFilter === 'low_progress' ? 'bg-amber-50/80 border-amber-600 shadow-xs ring-2 ring-amber-600/10' : 'bg-stone-50/80 hover:bg-white border-stone-200 hover:border-amber-300 shadow-2xs'}">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs font-bold ${subFilter === 'low_progress' ? 'text-amber-950' : 'text-stone-600'}">انخفاض الإنجاز (&lt;${threshold}%)</span>
+                  <span class="text-[10px] font-bold px-2 py-0.5 rounded-md ${subFilter === 'low_progress' ? 'bg-amber-600 text-white' : 'bg-stone-200 text-stone-700'}">إنجاز</span>
+                </div>
+                <div class="text-2xl font-black text-slate-900 tabular-nums mt-2">${lowProgressStudents.length}</div>
+                <div class="text-[11px] text-stone-500 mt-0.5">${hasCohortProgress ? 'طالب بحاجة لخطة دعم' : 'بانتظار رصد المهام'}</div>
+              </div>
             </div>
 
-            <!-- Filter Card 2: Absentees -->
-            <div data-filter="absent" class="follow-filter-card p-4 rounded-2xl border transition-all cursor-pointer select-none ${subFilter === 'absent' ? 'bg-red-50/80 border-red-600 shadow-xs ring-2 ring-red-600/10' : 'bg-stone-50/80 hover:bg-white border-stone-200 hover:border-red-300 shadow-2xs'}">
-              <div class="flex items-center justify-between">
-                <span class="text-xs font-bold ${subFilter === 'absent' ? 'text-red-950' : 'text-stone-600'}">تنبيهات الغياب</span>
-                <span class="text-[10px] font-bold px-2 py-0.5 rounded-md ${subFilter === 'absent' ? 'bg-red-600 text-white' : 'bg-stone-200 text-stone-700'}">غياب</span>
-              </div>
-              <div class="text-2xl font-black ${absentStudents.length > 0 ? 'text-red-600' : 'text-slate-900'} tabular-nums mt-2">${absentStudents.length}</div>
-              <div class="text-[11px] text-stone-500 mt-0.5">طالب سُجل بحقهم غياب</div>
-            </div>
-
-            <!-- Filter Card 3: Low Progress -->
-            <div data-filter="low_progress" class="follow-filter-card p-4 rounded-2xl border transition-all cursor-pointer select-none ${subFilter === 'low_progress' ? 'bg-amber-50/80 border-amber-600 shadow-xs ring-2 ring-amber-600/10' : 'bg-stone-50/80 hover:bg-white border-stone-200 hover:border-amber-300 shadow-2xs'}">
-              <div class="flex items-center justify-between">
-                <span class="text-xs font-bold ${subFilter === 'low_progress' ? 'text-amber-950' : 'text-stone-600'}">انخفاض الإنجاز (&lt;${threshold}%)</span>
-                <span class="text-[10px] font-bold px-2 py-0.5 rounded-md ${subFilter === 'low_progress' ? 'bg-amber-600 text-white' : 'bg-stone-200 text-stone-700'}">إنجاز</span>
-              </div>
-              <div class="text-2xl font-black text-slate-900 tabular-nums mt-2">${lowProgressStudents.length}</div>
-              <div class="text-[11px] text-stone-500 mt-0.5">${hasCohortProgress ? 'طالب بحاجة لخطة دعم' : 'بانتظار رصد المهام'}</div>
+            <!-- Clarification Note for Multi-category Students -->
+            <div class="flex items-center gap-1.5 text-[11px] text-stone-500 px-1 pt-0.5">
+              <span class="text-stone-400">💡</span>
+              <span>ملاحظة: بعض الطلاب قد يظهرون في أكثر من فئة (الغياب الحرج وتدني الإنجاز معاً). النقر على أي بطاقة يُصفّي القائمة مباشرة.</span>
             </div>
           </div>
 
-          <!-- Students List -->
-          ${displayItems.length === 0 ? `
+          <!-- Students List Content -->
+          ${allFollowUpList.length === 0 ? `
             <div class="text-center py-12 px-4 bg-stone-50/80 rounded-2xl border border-stone-200 text-slate-800 space-y-2">
               <div class="w-12 h-12 mx-auto rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-xl font-bold shadow-2xs">✓</div>
-              <h4 class="text-sm sm:text-base font-bold text-slate-900">سجل ممتاز: لا توجد أي حالات تنطبق عليها هذه الشروط</h4>
+              <h4 class="text-sm sm:text-base font-bold text-slate-900">سجل ممتاز: لا توجد أي حالات تحتاج متابعة</h4>
               <p class="text-xs text-stone-500 max-w-md mx-auto">جميع الطلاب منتظمون ومستوفون لمعدلات الحضور والإنجاز المحددة.</p>
             </div>
           ` : `
-            <div class="divide-y divide-stone-100">
-              ${displayItems.map(item => {
-                const st = item.student;
-                const att = item.attendance;
-                const s = item.stats;
-                const hasAbsence = att.absentCount > 0;
-                const isLowProg = hasCohortProgress && (s.overallPercentage < threshold);
-
-                return `
-                  <div class="py-3.5 flex flex-col md:flex-row md:items-center justify-between gap-3 hover:bg-stone-50/60 p-2.5 rounded-2xl transition-colors">
-                    <!-- Zone 1: Student Identity, Mahad, and Reason Badges -->
-                    <div class="space-y-1 flex-1 min-w-0">
-                      <div class="flex items-center gap-2 flex-wrap">
-                        <h4 class="text-sm sm:text-base font-bold text-slate-900">${Utils.escapeHtml(st.name)}</h4>
-                        ${this.getMahadBadgeHtml(st.mahadId, st.mahadName)}
-                        
-                        <!-- Reason Badges with Calm Severity -->
-                        ${hasAbsence ? `
-                          <span class="inline-flex items-center gap-1 text-[11px] font-bold ${att.absentCount >= 2 ? 'text-red-700 bg-red-50 border border-red-200' : 'text-amber-800 bg-amber-50 border border-amber-200'} px-2 py-0.5 rounded-md">
-                            <span>غياب: ${att.absentCount} ${att.absentCount === 1 ? 'يوم' : 'أيام'}</span>
-                          </span>
-                        ` : ''}
-
-                        ${isLowProg ? `
-                          <span class="inline-flex items-center gap-1 text-[11px] font-bold text-amber-900 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md">
-                            <span>إنجاز: ${s.overallPercentage}%</span>
-                          </span>
-                        ` : ''}
-                      </div>
-
-                      <!-- Clean Metrics Line -->
-                      <div class="flex items-center gap-3 text-xs text-stone-500 flex-wrap pt-0.5">
-                        <span>النقاط: <strong class="text-slate-900 font-bold">${s.totalEarnedPoints > 0 ? s.totalEarnedPoints : '—'}</strong> / 100</span>
-                        <span>·</span>
-                        <span>حضور: <strong class="text-slate-800 font-semibold">${att.presentCount}</strong></span>
-                        <span>·</span>
-                        <span>غياب: <strong class="${att.absentCount > 0 ? 'text-red-600 font-bold' : 'text-slate-800'}">${att.absentCount}</strong></span>
-                        <span>·</span>
-                        <span>عذر: <strong class="text-slate-800">${att.excusedCount}</strong></span>
-                      </div>
+            <div class="space-y-6 pt-1">
+              <!-- Category 1: غياب حرج (N) -->
+              ${(subFilter === 'all' || subFilter === 'absent') ? `
+                <div class="space-y-3">
+                  <div class="flex items-center justify-between pb-2 border-b border-stone-200">
+                    <div class="flex items-center gap-2">
+                      <span class="w-2.5 h-2.5 rounded-full bg-red-600"></span>
+                      <h4 class="text-sm font-bold text-slate-900">غياب حرج (${absentStudents.length})</h4>
                     </div>
-
-                    <!-- Zone 2: Prominent Action Button -->
-                    <div class="flex items-center gap-2 shrink-0 self-start md:self-auto">
-                      <button type="button" class="student-modal-btn min-h-[38px] px-4 py-2 text-xs font-bold text-white bg-blue-900 hover:bg-blue-950 active:scale-[0.98] rounded-xl transition-all shadow-2xs cursor-pointer flex items-center gap-1.5 border border-blue-950/20" data-student-id="${st.id}">
-                        <svg class="w-4 h-4 text-amber-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-                        <span>الملف والتفاصيل</span>
-                      </button>
-                    </div>
+                    <span class="text-xs text-stone-400 hidden sm:inline">تجاوزوا معدل الغياب المقبول</span>
                   </div>
-                `;
-              }).join('')}
+                  ${absentStudents.length === 0 ? `
+                    <div class="text-center py-6 px-4 bg-stone-50 rounded-xl border border-stone-200 text-xs text-stone-500">
+                      لا توجد حالات غياب حرجة حالياً ✓
+                    </div>
+                  ` : `
+                    ${renderTable(absentStudents, 'critical_absence')}
+                    ${renderMobileCards(absentStudents, 'critical_absence')}
+                  `}
+                </div>
+              ` : ''}
+
+              <!-- Category 2: إنجاز منخفض (N) -->
+              ${(subFilter === 'all' || subFilter === 'low_progress') ? `
+                <div class="space-y-3 ${(subFilter === 'all' && absentStudents.length > 0) ? 'pt-2' : ''}">
+                  <div class="flex items-center justify-between pb-2 border-b border-stone-200">
+                    <div class="flex items-center gap-2">
+                      <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+                      <h4 class="text-sm font-bold text-slate-900">إنجاز منخفض (${lowProgressStudents.length})</h4>
+                    </div>
+                    <span class="text-xs text-stone-400 hidden sm:inline">إنجاز أقل من ${threshold}%</span>
+                  </div>
+                  ${lowProgressStudents.length === 0 ? `
+                    <div class="text-center py-6 px-4 bg-stone-50 rounded-xl border border-stone-200 text-xs text-stone-500">
+                      ${hasCohortProgress ? 'لا توجد حالات تدني إنجاز حالياً ✓' : 'بانتظار رصد المهام لبدء تقييم الإنجاز'}
+                    </div>
+                  ` : `
+                    ${renderTable(lowProgressStudents, 'low_progress')}
+                    ${renderMobileCards(lowProgressStudents, 'low_progress')}
+                  `}
+                </div>
+              ` : ''}
             </div>
           `}
         </div>
-
-        <!-- القسم الثاني: التكاليف في أرقام -->
-        ${this.getAssignmentsBreakdownHtml()}
       </div>
     `;
 
-    // Hook threshold select
+    // Hook progress threshold select
     const select = content.querySelector('#sup-follow-up-threshold');
     if (select) {
       select.addEventListener('change', (e) => {
@@ -2568,19 +2866,10 @@ export const SupervisorView = {
       });
     });
 
-    // Hook student detail modal
-    content.querySelectorAll('.student-modal-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        this.openStudentDetailModal(btn.dataset.studentId);
-      });
-    });
-
-    // Hook Assignment Breakdown Buttons (المنجزين / جزئياً / غير المنجزين)
-    content.querySelectorAll('.btn-asg-breakdown-cell').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const asgId = btn.dataset.asgId;
-        const status = btn.dataset.status;
-        this.openAssignmentBreakdownModal(asgId, status);
+    // Hook click to open student detail modal for the entire row
+    content.querySelectorAll('.student-follow-row').forEach(row => {
+      row.addEventListener('click', () => {
+        this.openStudentDetailModal(row.dataset.studentId);
       });
     });
   },
@@ -3093,9 +3382,15 @@ export const SupervisorView = {
               ${this.getMahadBadgeHtml(student.mahadId, student.mahadName)}
             </div>
           </div>
-          <div class="text-left shrink-0">
-            <div class="text-[11px] font-medium text-slate-500">إجمالي النقاط</div>
-            <div class="text-lg sm:text-xl font-bold font-mono text-emerald-800 tabular-nums">${stats.totalEarnedPoints} / ${stats.totalMaxPoints}</div>
+          <div class="flex items-center gap-3 shrink-0">
+            <button type="button" id="modal-student-archive-btn" class="min-h-[38px] px-3 py-1.5 text-xs font-bold text-amber-950 bg-amber-50 hover:bg-amber-100 border border-amber-300 rounded-xl transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer active:scale-95" title="عرض الأرشيف الكامل للطالب">
+              <span>📋</span>
+              <span>الأرشيف</span>
+            </button>
+            <div class="text-left">
+              <div class="text-[11px] font-medium text-slate-500">إجمالي النقاط</div>
+              <div class="text-lg sm:text-xl font-bold font-mono text-emerald-800 tabular-nums">${stats.totalEarnedPoints} / ${stats.totalMaxPoints}</div>
+            </div>
           </div>
         </div>
 
@@ -3237,6 +3532,15 @@ export const SupervisorView = {
       });
     });
 
+    // Hook student archive button in modal header
+    const archiveBtn = modalContent.querySelector('#modal-student-archive-btn');
+    if (archiveBtn) {
+      archiveBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.openStudentArchiveModal(studentId);
+      });
+    }
+
     modal.classList.remove('hidden');
     modal.classList.add('active');
     modal.style.removeProperty('display');
@@ -3258,6 +3562,563 @@ export const SupervisorView = {
         closeModal();
       }
     };
+  },
+
+  /**
+   * Open Student Achievement Archive Modal (سجل الإنجاز وأرشيف التكاليف الشامل)
+   * Displays all assignments since the beginning with start and end dates (even if expired)
+   * Displays title + exact status: منجز / جزئي / غير منجز
+   * Allows historical reference, search, filter, and printable report
+   */
+  async openStudentArchiveModal(studentId) {
+    if (typeof window !== 'undefined') {
+      window.openStudentArchiveModal = (sId) => this.openStudentArchiveModal(sId);
+    }
+
+    const modal = document.getElementById('student-archive-modal');
+    const content = document.getElementById('student-archive-content');
+    const titleEl = document.getElementById('student-archive-title');
+    const closeBtn = document.getElementById('student-archive-close');
+    const printBtn = document.getElementById('student-archive-print-btn');
+    if (!modal || !content) return;
+
+    // (1) الرأس: العنوان فقط (بدون شارات مكررة)
+    if (titleEl) {
+      titleEl.textContent = 'الأرشيف';
+    }
+
+    // Show clean loading state
+    content.innerHTML = `
+      <div class="py-14 text-center text-slate-500 space-y-2.5">
+        <div class="w-8 h-8 mx-auto border-3 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
+        <p class="text-xs font-bold text-slate-700">جارٍ تحميل الأرشيف...</p>
+      </div>
+    `;
+
+    modal.classList.remove('hidden');
+    modal.classList.add('active');
+    modal.style.removeProperty('display');
+    modal.style.display = 'flex';
+
+    const closeModal = () => {
+      modal.classList.add('hidden');
+      modal.classList.remove('active');
+      modal.style.display = 'none';
+    };
+
+    if (closeBtn) closeBtn.onclick = closeModal;
+    modal.onclick = (e) => {
+      if (e.target === modal) closeModal();
+    };
+
+    // Fetch student & assignments data
+    const student = await UserService.getUserById(studentId);
+    if (!student) {
+      content.innerHTML = `<div class="p-6 text-center text-red-600 text-xs font-bold">تعذر العثور على بيانات الطالب.</div>`;
+      return;
+    }
+
+    const allAssignments = await AssignmentService.getAllAssignments();
+    const allProgress = await ProgressService.getAllProgress();
+    const studentProgress = allProgress[studentId] || {};
+
+    // Map each assignment
+    const archiveRecords = allAssignments.map((asg, index) => {
+      const subtasks = asg.subtasks || [];
+      const totalSubtasks = subtasks.length;
+      const completedSubtaskIds = studentProgress[asg.id] || [];
+      const completedCount = completedSubtaskIds.length;
+      const isExpired = AssignmentService.isExpired(asg);
+
+      let earnedPoints = 0;
+      subtasks.forEach(st => {
+        if (completedSubtaskIds.includes(st.id)) {
+          earnedPoints += Number(st.points) || 0;
+        }
+      });
+      const totalPoints = Number(asg.points) || subtasks.reduce((sum, s) => sum + (Number(s.points) || 0), 0);
+      const percentage = totalPoints > 0 
+        ? Math.round((earnedPoints / totalPoints) * 100) 
+        : (totalSubtasks > 0 ? Math.round((completedCount / totalSubtasks) * 100) : 0);
+
+      let statusKey = 'not_completed';
+      let statusLabel = 'غير منجز';
+
+      if (totalSubtasks > 0 && completedCount === totalSubtasks) {
+        statusKey = 'completed';
+        statusLabel = 'منجز';
+      } else if (completedCount > 0) {
+        statusKey = 'partial';
+        statusLabel = 'جزئي';
+      }
+
+      // (4) الفترة: e.g. "26 سبتمبر – 26 أكتوبر"
+      let periodText = '';
+      if (asg.startDate && asg.endDate) {
+        periodText = `${Utils.formatShortDate(asg.startDate)} – ${Utils.formatShortDate(asg.endDate)}`;
+      } else if (asg.endDate) {
+        periodText = `حتى ${Utils.formatShortDate(asg.endDate)}`;
+      } else {
+        periodText = 'غير محدد';
+      }
+
+      return {
+        assignment: asg,
+        index: index + 1,
+        totalSubtasks,
+        completedCount,
+        completedSubtaskIds,
+        earnedPoints,
+        totalPoints,
+        percentage,
+        isExpired,
+        statusKey,
+        statusLabel,
+        periodText
+      };
+    });
+
+    const totalCount = archiveRecords.length;
+    const completedCount = archiveRecords.filter(r => r.statusKey === 'completed').length;
+    const partialCount = archiveRecords.filter(r => r.statusKey === 'partial').length;
+    const notCompletedCount = archiveRecords.filter(r => r.statusKey === 'not_completed').length;
+    const totalEarnedPoints = archiveRecords.reduce((sum, r) => sum + r.earnedPoints, 0);
+    const totalMaxPoints = archiveRecords.reduce((sum, r) => sum + r.totalPoints, 0) || 100;
+    const overallPct = totalMaxPoints > 0 ? Math.round((totalEarnedPoints / totalMaxPoints) * 100) : 0;
+
+    // (2) لا تعرض «جزئي» أو «غير منجز» إلا عند وجود قيمة
+    const breakdownParts = [];
+    if (partialCount > 0) {
+      breakdownParts.push(`${partialCount} جزئي`);
+    }
+    if (notCompletedCount > 0) {
+      breakdownParts.push(`${notCompletedCount} غير منجز`);
+    }
+    const breakdownText = breakdownParts.length > 0 ? breakdownParts.join(' · ') : '';
+
+    let activeFilter = 'all'; // 'all' | 'completed' | 'partial' | 'not_completed'
+    let searchQuery = '';
+
+    const renderArchiveList = () => {
+      const filtered = archiveRecords.filter(r => {
+        if (searchQuery && totalCount > 10) {
+          const q = searchQuery.toLowerCase().trim();
+          const titleMatch = (r.assignment.title || '').toLowerCase().includes(q);
+          const descMatch = (r.assignment.description || '').toLowerCase().includes(q);
+          if (!titleMatch && !descMatch) return false;
+        }
+
+        if (activeFilter === 'completed') return r.statusKey === 'completed';
+        if (activeFilter === 'partial') return r.statusKey === 'partial';
+        if (activeFilter === 'not_completed') return r.statusKey === 'not_completed';
+        return true;
+      });
+
+      const listContainer = content.querySelector('#archive-records-list');
+      if (!listContainer) return;
+
+      if (filtered.length === 0) {
+        listContainer.innerHTML = `
+          <div class="py-8 px-4 text-center bg-stone-50 rounded-2xl border border-stone-200 text-stone-500 text-xs">
+            لا توجد تكاليف تطابق هذا التحديد
+          </div>
+        `;
+        return;
+      }
+
+      listContainer.innerHTML = filtered.map(r => {
+        const asg = r.assignment;
+        const subtasks = asg.subtasks || [];
+        const hasMultipleSteps = subtasks.length > 1;
+
+        // (5) أظهر شارة «سارٍ حالياً» فقط للتكليف غير المكتمل
+        const showActiveBadge = !r.isExpired && r.statusKey !== 'completed';
+
+        // (6) إطار البطاقة رمادي فاتح، والأخضر لـ✓ والنقاط فقط
+        const pointsBadge = r.statusKey === 'completed'
+          ? `<span class="font-mono text-xs font-bold text-emerald-700">${r.earnedPoints} ن</span>`
+          : `<span class="font-mono text-xs font-bold text-slate-700">${r.earnedPoints} / ${r.totalPoints} ن</span>`;
+
+        let statusBadgeHtml = '';
+        if (r.statusKey === 'completed') {
+          statusBadgeHtml = `
+            <span class="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+              <span class="text-emerald-600 font-extrabold">✓</span>
+              <span>منجز</span>
+            </span>
+          `;
+        } else if (r.statusKey === 'partial') {
+          statusBadgeHtml = `
+            <span class="inline-flex items-center text-[11px] font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
+              جزئي (${r.percentage}%)
+            </span>
+          `;
+        } else {
+          statusBadgeHtml = `
+            <span class="inline-flex items-center text-[11px] font-bold text-stone-500 bg-stone-100 px-2 py-0.5 rounded-md border border-stone-200">
+              غير منجز
+            </span>
+          `;
+        }
+
+        return `
+          <!-- (4) بطاقة التكليف سطران: إطار رمادي فاتح، الأخضر لـ✓ والنقاط فقط -->
+          <div class="archive-card rounded-2xl border border-stone-200 bg-white p-3.5 shadow-2xs hover:border-stone-300 transition-all ${hasMultipleSteps ? 'cursor-pointer select-none group' : ''}" data-target="archive-steps-${r.index}">
+            <!-- السطر الأول: رقم + اسم + النقاط + الحالة -->
+            <div class="flex items-center justify-between gap-2.5">
+              <div class="flex items-center gap-2 min-w-0 flex-1">
+                <span class="text-xs font-bold text-stone-400 font-mono shrink-0">${r.index}.</span>
+                <h4 class="text-xs sm:text-sm font-bold text-slate-900 truncate">
+                  ${Utils.escapeHtml(asg.title)}
+                </h4>
+              </div>
+
+              <div class="flex items-center gap-2 shrink-0">
+                ${pointsBadge}
+                ${statusBadgeHtml}
+              </div>
+            </div>
+
+            <!-- السطر الثاني: الفترة «26 سبتمبر – 26 أكتوبر» + شارة سارٍ حالياً فقط لغير المكتمل -->
+            <div class="flex items-center justify-between gap-2 pt-1 text-[11px] text-stone-500">
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="font-mono text-stone-600">${r.periodText}</span>
+                ${showActiveBadge ? `
+                  <span class="inline-flex items-center text-[10px] font-bold text-blue-900 bg-blue-50 px-1.5 py-0.2 rounded border border-blue-200">
+                    سارٍ حالياً
+                  </span>
+                ` : ''}
+              </div>
+
+              ${hasMultipleSteps ? `
+                <div class="text-[10px] text-stone-400 group-hover:text-blue-900 flex items-center gap-1 transition-colors">
+                  <span>${r.completedCount} من ${r.totalSubtasks} خطوات</span>
+                  <svg class="step-chevron w-3 h-3 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                </div>
+              ` : ''}
+            </div>
+
+            <!-- تفاصيل الخطوات تُعرض فقط إن زادت عن واحدة وتُفتح بالضغط -->
+            ${hasMultipleSteps ? `
+              <div id="archive-steps-${r.index}" class="hidden mt-2.5 pt-2 border-t border-stone-100 space-y-1">
+                ${subtasks.map((st, sIdx) => {
+                  const isDone = r.completedSubtaskIds.includes(st.id);
+                  return `
+                    <div class="flex items-center justify-between text-xs py-1 px-2 rounded-lg ${isDone ? 'bg-emerald-50/60 text-emerald-950 font-medium' : 'bg-stone-50/60 text-stone-500'}">
+                      <div class="flex items-center gap-1.5 min-w-0 flex-1">
+                        <span class="${isDone ? 'text-emerald-700 font-bold' : 'text-stone-300'} shrink-0">${isDone ? '✓' : '○'}</span>
+                        <span class="text-[11px] truncate">${sIdx + 1}. ${Utils.escapeHtml(st.title)}</span>
+                      </div>
+                      <span class="font-mono text-[10px] shrink-0 mr-2 ${isDone ? 'text-emerald-700 font-bold' : 'text-stone-400'}">${st.points} ن</span>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            ` : ''}
+          </div>
+        `;
+      }).join('');
+
+      // Wire card click for expanding steps (if hasMultipleSteps)
+      listContainer.querySelectorAll('.archive-card[data-target]').forEach(card => {
+        card.addEventListener('click', () => {
+          const targetId = card.dataset.target;
+          const stepsEl = card.querySelector(`#${targetId}`);
+          const chevron = card.querySelector('.step-chevron');
+          if (stepsEl) {
+            const isHidden = stepsEl.classList.contains('hidden');
+            if (isHidden) {
+              stepsEl.classList.remove('hidden');
+              chevron?.classList.add('rotate-180');
+            } else {
+              stepsEl.classList.add('hidden');
+              chevron?.classList.remove('rotate-180');
+            }
+          }
+        });
+      });
+    };
+
+    // (2) أبقِ البطاقة الكحلية واحذف بطاقات الملخص الأربع
+    // وأضف تحت النقاط سطراً «أنجز N من M تكاليف»، ولا تعرض «جزئي» أو «غير منجز» إلا عند وجود قيمة
+    content.innerHTML = `
+      <div class="space-y-3">
+        <!-- البطاقة الكحلية -->
+        <div class="p-4 sm:p-5 rounded-2xl bg-gradient-to-l from-slate-950 via-slate-900 to-blue-950 text-white shadow-md border border-amber-400/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div class="space-y-1 flex-1 min-w-0">
+            <div class="flex items-center gap-2 flex-wrap">
+              <h3 class="text-base sm:text-lg font-black text-white">${Utils.escapeHtml(student.name)}</h3>
+              ${this.getMahadBadgeHtml(student.mahadId, student.mahadName)}
+            </div>
+            ${breakdownText ? `
+              <div class="text-xs text-amber-200/90 font-medium">
+                ${breakdownText}
+              </div>
+            ` : ''}
+          </div>
+
+          <div class="flex flex-col items-start sm:items-end gap-1 shrink-0">
+            <div class="flex items-center gap-3 bg-white/10 px-3.5 py-2 rounded-xl border border-amber-400/30 backdrop-blur-xs">
+              <div class="text-right">
+                <div class="text-[10px] text-amber-200 font-medium">إجمالي النقاط</div>
+                <div class="text-lg sm:text-xl font-black text-amber-300 font-mono tabular-nums">${totalEarnedPoints} / ${totalMaxPoints}</div>
+              </div>
+              <div class="w-px h-6 bg-amber-400/30"></div>
+              <div class="text-right">
+                <div class="text-[10px] text-amber-200 font-medium">نسبة الإنجاز</div>
+                <div class="text-lg sm:text-xl font-black text-white font-mono tabular-nums">${overallPct}%</div>
+              </div>
+            </div>
+            <!-- سطر أنجز N من M تكاليف تحت النقاط -->
+            <div class="text-xs font-bold text-amber-300/95 tabular-nums">
+              أنجز ${completedCount} من ${totalCount} تكاليف
+            </div>
+          </div>
+        </div>
+
+        <!-- (3) الفلاتر صف واحد + الفلتر ذو العدد صفر معطل رمادي + البحث يظهر فقط عند أكثر من 10 تكاليف -->
+        <div id="archive-filter-row" class="flex items-center justify-between gap-2 overflow-x-auto py-0.5">
+          <!-- Filter Buttons (صف واحد) -->
+          <div class="flex items-center gap-1.5 flex-nowrap shrink-0" id="archive-filter-buttons">
+            <button type="button" data-filter="all" class="btn-archive-filter px-3 py-1.5 text-xs font-bold rounded-xl transition-all cursor-pointer bg-blue-900 text-white shadow-2xs whitespace-nowrap">
+              الكل (${totalCount})
+            </button>
+
+            <button type="button" data-filter="completed" ${completedCount === 0 ? 'disabled' : ''} class="btn-archive-filter px-3 py-1.5 text-xs rounded-xl transition-all whitespace-nowrap ${
+              completedCount === 0 
+                ? 'text-stone-400 bg-stone-100 border border-stone-200 opacity-50 cursor-not-allowed pointer-events-none' 
+                : 'text-slate-700 bg-white hover:text-slate-950 border border-stone-200 font-bold hover:bg-stone-50 cursor-pointer'
+            }">
+              منجز (${completedCount})
+            </button>
+
+            <button type="button" data-filter="partial" ${partialCount === 0 ? 'disabled' : ''} class="btn-archive-filter px-3 py-1.5 text-xs rounded-xl transition-all whitespace-nowrap ${
+              partialCount === 0 
+                ? 'text-stone-400 bg-stone-100 border border-stone-200 opacity-50 cursor-not-allowed pointer-events-none' 
+                : 'text-slate-700 bg-white hover:text-slate-950 border border-stone-200 font-bold hover:bg-stone-50 cursor-pointer'
+            }">
+              جزئي (${partialCount})
+            </button>
+
+            <button type="button" data-filter="not_completed" ${notCompletedCount === 0 ? 'disabled' : ''} class="btn-archive-filter px-3 py-1.5 text-xs rounded-xl transition-all whitespace-nowrap ${
+              notCompletedCount === 0 
+                ? 'text-stone-400 bg-stone-100 border border-stone-200 opacity-50 cursor-not-allowed pointer-events-none' 
+                : 'text-slate-700 bg-white hover:text-slate-950 border border-stone-200 font-bold hover:bg-stone-50 cursor-pointer'
+            }">
+              غير منجز (${notCompletedCount})
+            </button>
+          </div>
+
+          <!-- (3) البحث يظهر فقط عند أكثر من 10 تكاليف -->
+          ${totalCount > 10 ? `
+            <div id="archive-search-container" class="relative w-40 sm:w-48 shrink-0">
+              <input type="text" id="archive-search-input" placeholder="بحث في التكاليف..." class="w-full text-xs p-1.5 pr-7 rounded-xl bg-white border border-stone-200 focus:outline-hidden focus:ring-2 focus:ring-blue-900 shadow-2xs">
+              <svg class="w-3.5 h-3.5 text-stone-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+            </div>
+          ` : ''}
+        </div>
+
+        <!-- Assignments List Container (7: أزل overflow الداخلي) -->
+        <div id="archive-records-list" class="space-y-2">
+          <!-- Populated by renderArchiveList -->
+        </div>
+      </div>
+    `;
+
+    // Hook filter buttons
+    content.querySelectorAll('.btn-archive-filter:not([disabled])').forEach(btn => {
+      btn.addEventListener('click', () => {
+        content.querySelectorAll('.btn-archive-filter:not([disabled])').forEach(b => {
+          b.className = 'btn-archive-filter px-3 py-1.5 text-xs rounded-xl transition-all whitespace-nowrap text-slate-700 bg-white hover:text-slate-950 border border-stone-200 font-bold hover:bg-stone-50 cursor-pointer';
+        });
+        btn.className = 'btn-archive-filter px-3 py-1.5 text-xs font-bold rounded-xl transition-all whitespace-nowrap bg-blue-900 text-white shadow-2xs cursor-pointer';
+        activeFilter = btn.dataset.filter;
+        renderArchiveList();
+      });
+    });
+
+    // Hook search input (if rendered)
+    const searchInp = content.querySelector('#archive-search-input');
+    if (searchInp) {
+      searchInp.addEventListener('input', (e) => {
+        searchQuery = e.target.value;
+        renderArchiveList();
+      });
+    }
+
+    renderArchiveList();
+
+    // Hook print button
+    if (printBtn) {
+      printBtn.onclick = () => {
+        this.printStudentArchive(student, archiveRecords, {
+          totalEarnedPoints,
+          totalMaxPoints,
+          overallPct,
+          completedCount,
+          partialCount,
+          notCompletedCount
+        });
+      };
+    }
+  },
+
+  /**
+   * Print Official Student Achievement Archive Document
+   */
+  printStudentArchive(student, archiveRecords, summary) {
+    const customLogo = Storage.getCustomLogo();
+    const today = new Date();
+    const dateFormatted = today.toLocaleDateString('ar-SA', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+
+    let logoHtml = '';
+    if (customLogo) {
+      logoHtml = `<img src="${customLogo}" alt="شعار مرحلة التأهيل" style="max-height: 56px; max-width: 140px; object-fit: contain;" />`;
+    } else {
+      logoHtml = `
+        <div style="font-weight: 900; font-size: 16px; color: #1e3a8a;">
+          مرحلة التأهيل <span style="color: #c4973b;">✦</span>
+        </div>
+      `;
+    }
+
+    const printHtml = `
+      <div style="direction: rtl; font-family: 'Cairo', 'Amiri', system-ui, sans-serif; color: #0f172a; line-height: 1.5; padding: 15px;">
+        <!-- Header -->
+        <div style="border-bottom: 2px solid #1e3a8a; padding-bottom: 12px; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between;">
+          <div>
+            <div style="font-size: 15px; font-weight: 900; color: #1e3a8a;">مشروع مرحلة التأهيل - الدفعة 48</div>
+            <div style="font-size: 12px; font-weight: bold; color: #64748b; margin-top: 2px;">أرشيف التكاليف للطالب</div>
+          </div>
+          <div>${logoHtml}</div>
+          <div style="text-align: left; font-size: 11px; color: #64748b;">
+            <div>التاريخ: <strong style="color: #0f172a;">${dateFormatted}</strong></div>
+            <div>الحالة: <strong style="color: #1e3a8a;">كشف معتمد</strong></div>
+          </div>
+        </div>
+
+        <!-- Student Info Box -->
+        <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 10px; padding: 12px 16px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+          <div>
+            <div style="font-size: 11px; color: #64748b;">اسم الطالب:</div>
+            <div style="font-size: 15px; font-weight: 900; color: #0f172a;">${Utils.escapeHtml(student.name)}</div>
+          </div>
+          <div>
+            <div style="font-size: 11px; color: #64748b;">المحضن:</div>
+            <div style="font-size: 13px; font-weight: bold; color: #1e3a8a;">${Utils.escapeHtml(student.mahadName || '—')}</div>
+          </div>
+          <div>
+            <div style="font-size: 11px; color: #64748b;">النقاط الإجمالية:</div>
+            <div style="font-size: 14px; font-weight: 900; color: #047857;">${summary.totalEarnedPoints} / ${summary.totalMaxPoints} نقطة (${summary.overallPct}%)</div>
+          </div>
+          <div>
+            <div style="font-size: 11px; color: #64748b;">ملخص الحالات:</div>
+            <div style="font-size: 12px; font-weight: bold;">
+              <span style="color: #047857;">${summary.completedCount} منجز</span> · 
+              <span style="color: #b45309;">${summary.partialCount} جزئي</span> · 
+              <span style="color: #be123c;">${summary.notCompletedCount} غير منجز</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Table of All Assignments -->
+        <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: right; margin-bottom: 20px;">
+          <thead>
+            <tr style="background: #f1f5f9; border-bottom: 2px solid #cbd5e1; color: #334155;">
+              <th style="padding: 8px 10px; width: 35px;">#</th>
+              <th style="padding: 8px 10px;">اسم التكليف</th>
+              <th style="padding: 8px 10px; width: 180px;">الفترة المحددة</th>
+              <th style="padding: 8px 10px; text-align: center; width: 110px;">حالة الإنجاز</th>
+              <th style="padding: 8px 10px; text-align: center; width: 110px;">الخطوات والنقاط</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${archiveRecords.map((r, idx) => {
+              let statusBg = '#f1f5f9';
+              let statusColor = '#475569';
+              if (r.statusKey === 'completed') {
+                statusBg = '#dcfce7';
+                statusColor = '#166534';
+              } else if (r.statusKey === 'partial') {
+                statusBg = '#fef3c7';
+                statusColor = '#92400e';
+              } else {
+                statusBg = '#fee2e2';
+                statusColor = '#991b1b';
+              }
+
+              return `
+                <tr style="border-bottom: 1px solid #e2e8f0;">
+                  <td style="padding: 8px 10px; font-weight: bold; color: #64748b;">${idx + 1}</td>
+                  <td style="padding: 8px 10px; font-weight: bold; color: #0f172a;">
+                    ${Utils.escapeHtml(r.assignment.title)}
+                  </td>
+                  <td style="padding: 8px 10px; color: #475569; font-size: 11px;">
+                    ${r.startDateFormatted} ← ${r.endDateFormatted}
+                    ${r.isExpired ? '<br><span style="color: #94a3b8; font-size: 10px;">(منتهي الصلاحية)</span>' : (!r.isExpired && r.statusKey !== 'completed' ? '<br><span style="color: #2563eb; font-size: 10px;">(سارٍ حالياً)</span>' : '')}
+                  </td>
+                  <td style="padding: 8px 10px; text-align: center;">
+                    <span style="display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: bold; background: ${statusBg}; color: ${statusColor};">
+                      ${r.statusLabel} ${r.statusKey === 'partial' ? `(${r.percentage}%)` : ''}
+                    </span>
+                  </td>
+                  <td style="padding: 8px 10px; text-align: center; font-size: 11px; font-family: monospace;">
+                    <strong>${r.earnedPoints}</strong> / ${r.totalPoints} ن
+                    <br><span style="color: #64748b; font-size: 10px;">(${r.completedCount} من ${r.totalSubtasks})</span>
+                  </td>
+                </tr>
+              `;
+            }).join('')}
+          </tbody>
+        </table>
+
+        <!-- Signatures / Footer -->
+        <div style="margin-top: 30px; padding-top: 15px; border-top: 1px dashed #cbd5e1; display: flex; justify-content: space-between; align-items: flex-end; font-size: 11px; color: #64748b;">
+          <div>
+            <div>الجهة المشرفة: <strong>إدارة مرحلة التأهيل</strong></div>
+            <div>نظام المتابعة والأرشفة الإلكتروني</div>
+          </div>
+          <div style="text-align: center;">
+            <div style="margin-bottom: 25px;">ختم / اعتماد المشرف</div>
+            <div>...................................</div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Render to leaderboard-pdf-paper and print
+    const modal = document.getElementById('leaderboard-pdf-modal');
+    const paper = document.getElementById('leaderboard-pdf-paper');
+    const titleEl = document.getElementById('pdf-preview-title');
+    const subtitleEl = document.getElementById('pdf-preview-subtitle');
+
+    if (modal && paper) {
+      if (titleEl) titleEl.textContent = `معاينة أرشيف الطالب: ${student.name}`;
+      if (subtitleEl) subtitleEl.textContent = 'أرشيف التكاليف الشامل مع التواريخ والحالات';
+      paper.innerHTML = printHtml;
+      modal.classList.remove('hidden');
+      modal.style.display = 'flex';
+
+      const origTitle = document.title;
+      document.title = `أرشيف_${student.name.replace(/\s+/g, '_')}_مرحلة_التأهيل`;
+      Utils.showToast('جاري فتح نافذة الطباعة لأرشيف الطالب...', 'info');
+
+      setTimeout(() => {
+        try {
+          window.print();
+        } catch (err) {
+          console.error('Print error:', err);
+        } finally {
+          setTimeout(() => {
+            document.title = origTitle;
+          }, 1500);
+        }
+      }, 300);
+    }
   },
 
   /**
@@ -3300,17 +4161,17 @@ export const SupervisorView = {
     let statusBadgeHtml = '';
     let statusTextForCopy = '';
     if (status === 'completed') {
-      statusLabel = 'الطلاب المنجزون بالكامل (100%)';
-      statusTextForCopy = 'المنجزون بالكامل (100%)';
-      statusBadgeHtml = `<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 shadow-2xs"><span class="w-2 h-2 rounded-full bg-emerald-600"></span><span>أنجزوا التكليف 100%</span></span>`;
+      statusLabel = 'الطلاب المنجزون بالكامل';
+      statusTextForCopy = 'المنجزون بالكامل';
+      statusBadgeHtml = `<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 shadow-2xs"><span class="w-2 h-2 rounded-full bg-emerald-600"></span><span>المنجزون بالكامل</span></span>`;
     } else if (status === 'partial') {
       statusLabel = 'الطلاب المنجزون جزئيًا';
-      statusTextForCopy = 'المنجزون جزئيًا (غير مكتمل)';
-      statusBadgeHtml = `<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold text-amber-900 bg-amber-50 border border-amber-200 shadow-2xs"><span class="w-2 h-2 rounded-full bg-amber-500"></span><span>إنجاز جزئي لم يكتمل</span></span>`;
+      statusTextForCopy = 'المنجزون جزئيًا';
+      statusBadgeHtml = `<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold text-amber-900 bg-amber-50 border border-amber-200 shadow-2xs"><span class="w-2 h-2 rounded-full bg-amber-500"></span><span>إنجاز جزئي</span></span>`;
     } else {
-      statusLabel = 'الطلاب غير المنجزين (0%)';
-      statusTextForCopy = 'غير المنجزين (0%)';
-      statusBadgeHtml = `<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold text-rose-800 bg-rose-50 border border-rose-200 shadow-2xs"><span class="w-2 h-2 rounded-full bg-rose-500"></span><span>لم يبدأوا أي خطوة</span></span>`;
+      statusLabel = 'الطلاب غير المنجزين';
+      statusTextForCopy = 'غير المنجزين';
+      statusBadgeHtml = `<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold text-rose-800 bg-rose-50 border border-rose-200 shadow-2xs"><span class="w-2 h-2 rounded-full bg-rose-500"></span><span>غير منجز</span></span>`;
     }
 
     if (titleEl) {
@@ -3424,11 +4285,7 @@ export const SupervisorView = {
         const mName = st.mahadName ? ` (${st.mahadName})` : '';
         let extra = '';
         if (status === 'partial') {
-          extra = ` - [أنجز ${item.completedCount} من ${item.totalSubtasks} خطوات (${item.percentage}%)]`;
-        } else if (status === 'completed') {
-          extra = ` - [منجز 100%]`;
-        } else {
-          extra = ` - [لم يبدأ 0%]`;
+          extra = ` - [أنجز ${item.completedCount} من ${item.totalSubtasks}]`;
         }
         return `${idx + 1}. ${sName}${mName}${extra}`;
       }).join('\n');

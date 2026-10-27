@@ -399,13 +399,31 @@ input::placeholder {
   }
 }
 
-/* Print optimization for official Leaderboard PDF */
+/* Print optimization for official Leaderboard PDF & Student Archive */
 @media print {
-  body > *:not(#leaderboard-pdf-modal),
+  /* Hide all app header, navigation, and background elements */
   header,
   nav,
-  #app-root,
-  .modal-overlay:not(#leaderboard-pdf-modal) {
+  #app-root {
+    display: none !important;
+  }
+
+  /* Hide interactive controls: buttons, close icon, filters, search bar, chevrons */
+  #student-archive-print-btn,
+  #student-archive-close,
+  #archive-filter-row,
+  #archive-search-container,
+  .btn-archive-filter,
+  .step-chevron,
+  .student-modal-btn,
+  .student-archive-btn,
+  button:not(#btn-print-pdf-document) {
+    display: none !important;
+  }
+
+  /* Case 1: When leaderboard-pdf-modal is active (Official PDF preview & print) */
+  body > *:not(#leaderboard-pdf-modal):not(#student-archive-modal),
+  .modal-overlay:not(#leaderboard-pdf-modal):not(#student-archive-modal) {
     display: none !important;
   }
 
@@ -454,9 +472,47 @@ input::placeholder {
     max-width: 100% !important;
   }
 
+  /* Case 2: When student-archive-modal is printed directly */
+  #student-archive-modal:not(.hidden) {
+    position: static !important;
+    display: block !important;
+    background: #ffffff !important;
+    width: 100% !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    box-shadow: none !important;
+    inset: auto !important;
+  }
+
+  #student-archive-modal:not(.hidden) .modal-dialog {
+    max-width: 100% !important;
+    max-height: none !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    border: none !important;
+    overflow: visible !important;
+  }
+
+  #student-archive-content {
+    overflow: visible !important;
+    max-height: none !important;
+    padding: 0 !important;
+  }
+
+  .archive-card {
+    break-inside: avoid;
+    box-shadow: none !important;
+  }
+
   @page {
     size: A4 portrait;
     margin: 12mm 10mm 12mm 10mm;
   }
 }
+
 

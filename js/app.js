@@ -22,6 +22,7 @@ export const App = {
   async init() {
     Storage.init();
     this.initPWAInstall();
+    window.openStudentArchiveModal = (studentId) => SupervisorView.openStudentArchiveModal(studentId);
 
     // Safe section refresh with modal guard, input protection, and debouncing
     let sectionRemountTimer = null;
