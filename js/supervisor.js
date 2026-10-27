@@ -17,6 +17,7 @@ import { ProgressService } from './progressService.js';
 import { AttendanceService } from './attendanceService.js';
 import { Utils } from './utils.js';
 import { INITIAL_DATA } from './data.js';
+import * as XLSX from 'xlsx';
 
 export const SupervisorView = {
   activeTab: 'leaderboard', // 'leaderboard' | 'mahaden_comparison' | 'follow_up' | 'manage_assignments'
@@ -1120,10 +1121,16 @@ export const SupervisorView = {
             ` : ''}
           </div>
           
-          <!-- Left Side: Action Buttons (Export PDF) -->
+          <!-- Left Side: Action Buttons (Export Excel & Export PDF) -->
           <div class="flex items-center gap-2 self-start lg:self-auto shrink-0">
+            <!-- Export Excel Button -->
+            <button id="btn-leaderboard-export-excel" type="button" class="px-3 py-1.5 rounded-xl bg-white hover:bg-emerald-50 text-emerald-950 font-bold text-xs flex items-center gap-1.5 transition-all border border-emerald-300 hover:border-emerald-400 shadow-2xs cursor-pointer active:scale-95" title="تصدير بيانات الطلاب والتكاليف والحضور إلى ملف إكسل (Excel)">
+              <svg class="w-3.5 h-3.5 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+              <span>تصدير إكسل</span>
+            </button>
+
             <!-- Export PDF Button -->
-            <button id="btn-leaderboard-export-pdf" type="button" class="px-3 py-1.5 rounded-xl bg-white hover:bg-stone-50 text-blue-950 font-bold text-xs flex items-center gap-1.5 transition-all border border-stone-200/90 hover:border-blue-300 shadow-2xs cursor-pointer" title="تصدير كشف الترتيب العام المعتمد بصيغة PDF رسمية معتمدة">
+            <button id="btn-leaderboard-export-pdf" type="button" class="px-3 py-1.5 rounded-xl bg-white hover:bg-stone-50 text-blue-950 font-bold text-xs flex items-center gap-1.5 transition-all border border-stone-200/90 hover:border-blue-300 shadow-2xs cursor-pointer active:scale-95" title="تصدير كشف الترتيب العام المعتمد بصيغة PDF رسمية معتمدة">
               <svg class="w-3.5 h-3.5 text-red-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
               <span>تصدير PDF</span>
             </button>
@@ -1369,6 +1376,11 @@ export const SupervisorView = {
       btn.addEventListener('click', clearFilterAction);
     });
 
+    // Hook Export Excel button -> Export comprehensive multi-sheet Excel file (.xlsx)
+    content.querySelector('#btn-leaderboard-export-excel')?.addEventListener('click', () => {
+      this.exportLeaderboardToExcel(items);
+    });
+
     // Hook Export PDF button -> Open choice modal (Attendance or Assignments)
     content.querySelector('#btn-leaderboard-export-pdf')?.addEventListener('click', () => {
       this.openExportChoiceModal(items);
@@ -1388,6 +1400,246 @@ export const SupervisorView = {
         this.openStudentArchiveModal(btn.dataset.studentId);
       });
     });
+  },
+
+  /**
+   * Export comprehensive multi-sheet Excel file (.xlsx) for Leaderboard, Assignments, and Attendance
+   */
+  exportLeaderboardToExcel(items) {
+    if (!items || items.length === 0) {
+      Utils.showToast('لا توجد بيانات طلاب متاحة للتصدير حالياً', 'warning');
+      return;
+    }
+
+    try {
+      Utils.showToast('جاري إعداد وتصدير ملف الإكسل...', 'info');
+
+      const wb = XLSX.utils.book_new();
+      const today = new Date();
+      const dateFormatted = today.toLocaleDateString('ar-SA', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+      const fileDateStr = today.toISOString().slice(0, 10);
+
+      let filterLabel = 'كافة المحاضن (الكل)';
+      if (this.selectedMahadFilter && this.selectedMahadFilter !== 'all') {
+        const m = (this.cachedMahaden || []).find(x => x.id === this.selectedMahadFilter);
+        if (m) filterLabel = `محضن: ${m.name}`;
+      }
+
+      // ====================================================
+      // Sheet 1: كشف الترتيب العام المعتمد (النتائج الشاملة)
+      // ====================================================
+      const sheet1Data = [
+        ['مشروع مرحلة التأهيل - الدفعة 48'],
+        ['كشف الترتيب العام المعتمد والنتائج الشاملة للطلاب'],
+        [`تاريخ التقرير: ${dateFormatted}`, `نطاق العرض: ${filterLabel}`, `إجمالي الطلاب: ${items.length} طالب`],
+        [], // Empty separator row
+        [
+          'الترتيب',
+          'اسم الطالب',
+          'المحضن',
+          'مجموع النقاط (من 100)',
+          'نسبة الإنجاز',
+          'وضع التكاليف',
+          'أيام الحضور',
+          'أيام الغياب',
+          'الاعتذارات',
+          'نسبة الحضور والالتزام',
+          'حالة الانتظام'
+        ]
+      ];
+
+      items.forEach((item, idx) => {
+        const st = item.student || {};
+        const s = item.stats || {};
+        const att = item.attendance || {};
+
+        const totalSessions = (att.presentCount || 0) + (att.absentCount || 0);
+        const attRate = totalSessions > 0 ? `${Math.round((att.presentCount / totalSessions) * 100)}%` : (att.presentCount > 0 ? '100%' : '—');
+
+        let attStatus = 'بانتظار الرصد';
+        if (att.presentCount > 0 || att.absentCount > 0) {
+          if (att.absentCount === 0 && att.presentCount > 0) attStatus = 'ملتزم تام (100%)';
+          else if (att.absentCount === 1) attStatus = 'منتظم';
+          else if (att.absentCount === 2) attStatus = 'يحتاج متابعة';
+          else attStatus = 'غياب متكرر / حرج';
+        }
+
+        const asgDetails = s.assignmentDetails || [];
+        const allDone = asgDetails.length > 0 && asgDetails.every(d => d.stats.isCompleted);
+        const noneDone = asgDetails.length > 0 && asgDetails.every(d => d.stats.completedCount === 0 && d.stats.earnedPoints === 0);
+        let taskStatus = 'إنجاز جزئي';
+        if (allDone) taskStatus = 'أتمها كاملة';
+        else if (noneDone) taskStatus = 'لم ينجز شيئاً';
+
+        sheet1Data.push([
+          idx + 1,
+          st.name || '',
+          st.mahadName || '—',
+          s.totalEarnedPoints || 0,
+          `${s.overallPercentage || 0}%`,
+          taskStatus,
+          att.presentCount || 0,
+          att.absentCount || 0,
+          att.excusedCount || 0,
+          attRate,
+          attStatus
+        ]);
+      });
+
+      const ws1 = XLSX.utils.aoa_to_sheet(sheet1Data);
+      ws1['!views'] = [{ rightToLeft: true }];
+      ws1['!cols'] = [
+        { wch: 8 },  // الترتيب
+        { wch: 28 }, // اسم الطالب
+        { wch: 18 }, // المحضن
+        { wch: 22 }, // مجموع النقاط
+        { wch: 14 }, // نسبة الإنجاز
+        { wch: 20 }, // وضع التكاليف
+        { wch: 12 }, // أيام الحضور
+        { wch: 12 }, // أيام الغياب
+        { wch: 12 }, // الاعتذارات
+        { wch: 20 }, // نسبة الحضور
+        { wch: 20 }  // حالة الانتظام
+      ];
+      XLSX.utils.book_append_sheet(wb, ws1, 'الترتيب العام');
+
+      // ====================================================
+      // Sheet 2: كشف إنجاز التكاليف بالتفصيل (Assignments)
+      // ====================================================
+      const assignments = this.cachedAssignments || [];
+      const asgHeaders = [
+        'الترتيب',
+        'اسم الطالب',
+        'المحضن',
+        'مجموع النقاط (من 100)',
+        'نسبة الإنجاز العامة'
+      ];
+      assignments.forEach(asg => {
+        asgHeaders.push(`${asg.title} (${asg.points} ن)`);
+      });
+
+      const sheet2Data = [
+        ['مشروع مرحلة التأهيل - كشف إنجاز التكاليف المقررة'],
+        [`تاريخ التقرير: ${dateFormatted}`, `نطاق العرض: ${filterLabel}`],
+        [],
+        asgHeaders
+      ];
+
+      items.forEach((item, idx) => {
+        const st = item.student || {};
+        const s = item.stats || {};
+        const asgDetails = s.assignmentDetails || [];
+
+        const row = [
+          idx + 1,
+          st.name || '',
+          st.mahadName || '—',
+          s.totalEarnedPoints || 0,
+          `${s.overallPercentage || 0}%`
+        ];
+
+        assignments.forEach(asg => {
+          const d = asgDetails.find(x => x.assignment && String(x.assignment.id) === String(asg.id));
+          if (!d) {
+            row.push('—');
+          } else if (d.stats.isCompleted) {
+            row.push(`مكتمل (${d.stats.earnedPoints}/${asg.points} ن)`);
+          } else if (d.stats.completedCount > 0 || d.stats.earnedPoints > 0) {
+            row.push(`جزئي: ${d.stats.completedCount}/${d.stats.totalSubtasks} خطوات (${d.stats.earnedPoints} ن)`);
+          } else {
+            row.push(`لم يُنجز (0 ن)`);
+          }
+        });
+
+        sheet2Data.push(row);
+      });
+
+      const ws2 = XLSX.utils.aoa_to_sheet(sheet2Data);
+      ws2['!views'] = [{ rightToLeft: true }];
+      const ws2Cols = [
+        { wch: 8 },
+        { wch: 28 },
+        { wch: 18 },
+        { wch: 22 },
+        { wch: 18 }
+      ];
+      assignments.forEach(() => ws2Cols.push({ wch: 28 }));
+      ws2['!cols'] = ws2Cols;
+      XLSX.utils.book_append_sheet(wb, ws2, 'إنجاز التكاليف');
+
+      // ====================================================
+      // Sheet 3: كشف الحضور والغياب المعتمد (Attendance)
+      // ====================================================
+      const sheet3Data = [
+        ['مشروع مرحلة التأهيل - كشف الحضور والغياب المعتمد'],
+        [`تاريخ التقرير: ${dateFormatted}`, `نطاق العرض: ${filterLabel}`],
+        [],
+        [
+          'الترتيب',
+          'اسم الطالب',
+          'المحضن',
+          'أيام الحضور',
+          'أيام الغياب',
+          'الاعتذارات',
+          'نسبة الالتزام',
+          'مستوى المتابعة',
+          'تواريخ الغياب المسجلة'
+        ]
+      ];
+
+      items.forEach((item, idx) => {
+        const st = item.student || {};
+        const att = item.attendance || {};
+        const totalSessions = (att.presentCount || 0) + (att.absentCount || 0);
+        const attRate = totalSessions > 0 ? `${Math.round((att.presentCount / totalSessions) * 100)}%` : (att.presentCount > 0 ? '100%' : '—');
+        const datesText = (att.absenceDates || []).map(d => Utils.formatDateArabic(d)).join('، ') || 'لا يوجد غياب مسجل';
+
+        let followLevel = 'سجل ممتاز';
+        if (att.absentCount >= 3) followLevel = 'متابعة عاجلة / غياب حرج';
+        else if (att.absentCount === 2) followLevel = 'تنبيه ومتابعة';
+        else if (att.absentCount === 1) followLevel = 'تنبيه أولي';
+
+        sheet3Data.push([
+          idx + 1,
+          st.name || '',
+          st.mahadName || '—',
+          att.presentCount || 0,
+          att.absentCount || 0,
+          att.excusedCount || 0,
+          attRate,
+          followLevel,
+          datesText
+        ]);
+      });
+
+      const ws3 = XLSX.utils.aoa_to_sheet(sheet3Data);
+      ws3['!views'] = [{ rightToLeft: true }];
+      ws3['!cols'] = [
+        { wch: 8 },  // الترتيب
+        { wch: 28 }, // اسم الطالب
+        { wch: 18 }, // المحضن
+        { wch: 14 }, // أيام الحضور
+        { wch: 14 }, // أيام الغياب
+        { wch: 14 }, // الاعتذارات
+        { wch: 16 }, // نسبة الالتزام
+        { wch: 24 }, // مستوى المتابعة
+        { wch: 48 }  // تواريخ الغياب
+      ];
+      XLSX.utils.book_append_sheet(wb, ws3, 'الحضور والغياب');
+
+      // Export file
+      const filename = `كشف_مرحلة_التأهيل_الدفعة_48_${fileDateStr}.xlsx`;
+      XLSX.writeFile(wb, filename);
+
+      Utils.showToast(`✓ تم تصدير ملف الإكسل بنجاح (${filename})`, 'success', 3500);
+    } catch (err) {
+      console.error('Excel Export error:', err);
+      Utils.showToast('حدث خطأ أثناء إنشاء وتصدير ملف الإكسل', 'error');
+    }
   },
 
   /**

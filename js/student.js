@@ -198,13 +198,6 @@ export const StudentView = {
                 <span>مرحبًا، ${Utils.escapeHtml(student.name)}</span>
                 <span class="text-amber-400 text-2xl animate-bounce">👋</span>
               </h2>
-
-              <div class="pt-1.5 flex items-center gap-2 flex-wrap">
-                <button type="button" id="btn-student-self-archive" class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold text-amber-200 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/50 backdrop-blur-md transition-all shadow-xs cursor-pointer active:scale-95" title="عرض سجل الإنجاز وأرشيف التكاليف الكامل">
-                  <span>📋</span>
-                  <span>سجل الإنجاز (الأرشيف)</span>
-                </button>
-              </div>
             </div>
 
             <!-- Subtle Vertical Line Linking Narrative & Overall Status -->
@@ -297,13 +290,6 @@ export const StudentView = {
 
     await this.refresh(student);
     this.initQuoteCarousel();
-
-    // Hook student self-archive button (سجل الإنجاز)
-    container.querySelector('#btn-student-self-archive')?.addEventListener('click', () => {
-      if (typeof window !== 'undefined' && typeof window.openStudentArchiveModal === 'function') {
-        window.openStudentArchiveModal(student.id);
-      }
-    });
   },
 
   /**
